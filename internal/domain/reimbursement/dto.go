@@ -1,0 +1,57 @@
+package reimbursement
+
+// CreateReimbursementRequest 创建报销单请求
+type CreateReimbursementRequest struct {
+	EmployeeID   string `json:"employee_id" binding:"required"`   // 工号
+	EmployeeName string `json:"employee_name" binding:"required"`  // 申请人姓名
+	DepartmentID uint   `json:"department_id" binding:"required"`  // 部门ID
+	SubmitNote   string `json:"submit_note"`                       // 报销事由
+}
+
+// SubmitReimbursementRequest 提交报销单请求
+type SubmitReimbursementRequest struct {
+	TotalAmount int64 `json:"total_amount" binding:"required"` // 报销总金额(分)
+}
+
+// ReimbursementResponse 报销单响应
+type ReimbursementResponse struct {
+	ID                  uint                        `json:"id"`
+	ReimbursementNo     string                      `json:"reimbursement_no"`
+	EmployeeID          string                      `json:"employee_id"`
+	EmployeeName        string                      `json:"employee_name"`
+	DepartmentID        uint                        `json:"department_id"`
+	Department          string                      `json:"department,omitempty"`
+	TotalAmount         int64                       `json:"total_amount"`
+	Status              string                      `json:"status"`
+	SubmitNote          string                      `json:"submit_note"`
+	NeedSpecialApproval bool                        `json:"need_special_approval"`
+	Invoices            []*InvoiceItemResponse      `json:"invoices,omitempty"`
+	Approvals           []*ApprovalInfoResponse     `json:"approvals,omitempty"`
+	CreatedAt           string                      `json:"created_at"`
+	UpdatedAt           string                      `json:"updated_at"`
+}
+
+// InvoiceItemResponse 票据明细响应
+type InvoiceItemResponse struct {
+	ID         uint   `json:"id"`
+	Amount     int64  `json:"amount"`
+	InvoiceDate string `json:"invoice_date"`
+	Category   string `json:"category"`
+	CheckResult string `json:"check_result"`
+}
+
+// ApprovalInfoResponse 审批信息响应（报销单详情中展示）
+type ApprovalInfoResponse struct {
+	ID           uint   `json:"id"`
+	ApproverName string `json:"approver_name"`
+	Action       string `json:"action"`
+	Comment      string `json:"comment"`
+	ActionAt     string `json:"action_at,omitempty"`
+}
+
+// ListReimbursementResponse 报销单列表响应
+type ListReimbursementResponse struct {
+	List  []*ReimbursementResponse `json:"list"`
+	Total int64                    `json:"total"`
+	Page  int                      `json:"page"`
+}
