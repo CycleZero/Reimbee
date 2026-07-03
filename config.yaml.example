@@ -1,0 +1,29 @@
+data:
+  db:
+    host: localhost
+    port: 3306
+    user: root
+    password: your_password
+    db_name: gin_template
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+
+server:
+  http:
+    host: 0.0.0.0
+    port: 8000
+    pprof:
+      enable: true
+      port: 6060
+      host: 0.0.0.0
+
+log:
+  mode: dev       # dev | prod
+  level: debug    # debug | info | warn | error
+  dir: ./data/log
+
+app:
+  dev_mode: true
+  enable_db_debug: true
