@@ -8,7 +8,8 @@ type Reimbursement struct {
 	ReimbursementNo string         `gorm:"type:varchar(20);uniqueIndex;not null;comment:报销单号 REIMB-YYYY-NNNN" json:"reimbursement_no"`
 	EmployeeID      string         `gorm:"type:varchar(20);index;not null;comment:申请人工号" json:"employee_id"`
 	EmployeeName    string         `gorm:"type:varchar(50);not null;comment:申请人姓名" json:"employee_name"`
-	Department      string         `gorm:"type:varchar(100);index;not null;comment:所属部门" json:"department"`
+	DepartmentID         uint             `gorm:"index;not null;comment:所属部门ID" json:"department_id"`
+	Department           *Department      `gorm:"foreignKey:DepartmentID" json:"department,omitempty"`
 	TotalAmount     int64          `gorm:"not null;default:0;comment:报销总金额(分)" json:"total_amount"`
 	Status          string         `gorm:"type:varchar(20);default:draft;index;comment:draft/pending/reviewing/approved/rejected" json:"status"`
 	SubmitNote      string         `gorm:"type:text;comment:报销事由" json:"submit_note"`
