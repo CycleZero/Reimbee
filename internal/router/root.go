@@ -25,19 +25,12 @@ func RegisterRouter(root gin.IRouter, serviceHub *domain.ServiceHub) {
 	root.Use(middleware.CORS())
 	root.Use(middleware.AddMetaData())
 
-	// 注册业务路由
-	api := root.Group("/api")
-	RegisterDemoRouter(api, serviceHub)
-}
+	// 健康检查
+	root.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
-// RegisterDemoRouter 注册 Demo 模块路由
-func RegisterDemoRouter(api gin.IRouter, hub *domain.ServiceHub) {
-	demo := api.Group("/demo")
-	{
-		demo.POST("", hub.DemoService.Create)
-		demo.GET("", hub.DemoService.List)
-		demo.GET("/:id", hub.DemoService.GetByID)
-		demo.PUT("/:id", hub.DemoService.Update)
-		demo.DELETE("/:id", hub.DemoService.Delete)
-	}
+	// 业务路由（后续在此注册各领域模块路由）
+	api := root.Group("/api")
+	_ = api // 占位，后续添加 reimbursement/budget/approval 路由
 }
