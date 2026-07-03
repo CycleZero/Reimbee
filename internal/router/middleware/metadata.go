@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"gin-template/internal/common"
+	"github.com/CycleZero/Reimbee/internal/common"
 
 	"github.com/gin-gonic/gin"
 )

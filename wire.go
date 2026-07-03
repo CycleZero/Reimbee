@@ -4,9 +4,9 @@
 package main
 
 import (
-	"gin-template/infra"
-	"gin-template/internal"
-	"gin-template/log"
+	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/internal"
+	"github.com/CycleZero/Reimbee/log"
 
 	"github.com/google/wire"
 	"github.com/spf13/viper"

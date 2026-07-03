@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"gin-template/log"
-	"gin-template/model"
+	"github.com/CycleZero/Reimbee/log"
+	"github.com/CycleZero/Reimbee/model"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

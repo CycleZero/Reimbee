@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"gin-template/internal/domain/demo"
+	"github.com/CycleZero/Reimbee/internal/domain/demo"
 
 	"github.com/google/wire"
 )

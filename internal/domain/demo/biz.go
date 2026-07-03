@@ -1,8 +1,8 @@
 package demo
 
 import (
-	"gin-template/log"
-	"gin-template/model"
+	"github.com/CycleZero/Reimbee/log"
+	"github.com/CycleZero/Reimbee/model"
 
 	"go.uber.org/zap"
 )

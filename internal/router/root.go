@@ -1,8 +1,8 @@
 package router
 
 import (
-	"gin-template/internal/domain"
-	"gin-template/internal/router/middleware"
+	"github.com/CycleZero/Reimbee/internal/domain"
+	"github.com/CycleZero/Reimbee/internal/router/middleware"
 
 	"github.com/gin-gonic/gin"
 )

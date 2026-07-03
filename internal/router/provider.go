@@ -1,7 +1,7 @@
 package router
 
 import (
-	"gin-template/internal/router/middleware"
+	"github.com/CycleZero/Reimbee/internal/router/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"

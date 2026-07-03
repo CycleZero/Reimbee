@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gin-template/conf"
-	"gin-template/log"
+	"github.com/CycleZero/Reimbee/conf"
+	"github.com/CycleZero/Reimbee/log"
 	"os"
 	"os/signal"
 

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"gin-template/log"
+	"github.com/CycleZero/Reimbee/log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"

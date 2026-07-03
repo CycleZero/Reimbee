@@ -1,8 +1,8 @@
 package demo
 
 import (
-	"gin-template/infra"
-	"gin-template/model"
+	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/model"
 
 	"gorm.io/gorm"
 )

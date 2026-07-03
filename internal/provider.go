@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"gin-template/internal/domain"
-	"gin-template/internal/router"
+	"github.com/CycleZero/Reimbee/internal/domain"
+	"github.com/CycleZero/Reimbee/internal/router"
 
 	"github.com/google/wire"
 )

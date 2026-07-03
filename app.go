@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"gin-template/infra"
-	"gin-template/internal/domain"
-	"gin-template/internal/router"
-	"gin-template/log"
+	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/internal/domain"
+	"github.com/CycleZero/Reimbee/internal/router"
+	"github.com/CycleZero/Reimbee/log"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
