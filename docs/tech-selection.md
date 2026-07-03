@@ -145,29 +145,115 @@ c.DialAndSend(m)
 
 ### 4.3 OCR 方案
 
-| 候选方案 | 类型 | 中文能力 | Go 原生 | 部署复杂度 |
-|---------|------|:--:|:--:|:--:|
-| **PaddleOCR (Python 微服务)** | 自部署 | ⭐⭐⭐⭐⭐ | ❌ 需 HTTP 调用 | 中（Docker） |
-| Tesseract | 自部署 | ⭐⭐ | ❌ 需 CGO | 低（系统安装） |
-| 火山方舟 OCR API | 云服务 | ⭐⭐⭐⭐ | ✅ | 低（API 调用） |
-| 百度 OCR API | 云服务 | ⭐⭐⭐⭐⭐ | ✅ | 低（API 调用） |
+#### 4.3.1 架构设计：接口抽象 + 策略模式
 
-**选定**: **PaddleOCR Python 微服务**（gRPC 优先，HTTP 降级）
+OCR 模块采用 Go interface 抽象，支持运行时切换实现。这是整个系统中最需要"可替换性"的组件——OCR 引擎的选择取决于部署环境、准确率需求、成本预算。
 
-**理由**:
-- PaddleOCR 是中文 OCR 的事实标准，准确率远超通用方案
-- 独立微服务可水平扩展，不阻塞 Go Agent 主流程
-- gRPC 二进制协议传输图片效率高（比 JSON Base64 小 30%）
-- 微服务架构体现技术选型的深度（答辩亮点）
+**核心接口定义**：
+
+```go
+// infra/ocr.go — OCR 能力抽象接口
+
+// InvoiceResult OCR 识别后返回的结构化票据信息
+type InvoiceResult struct {
+    InvoiceCode   string  `json:"invoice_code"`   // 发票代码
+    InvoiceNumber string  `json:"invoice_number"` // 发票号码
+    Amount        float64 `json:"amount"`         // 金额（元）
+    Date          string  `json:"date"`           // 开票日期 YYYY-MM-DD
+    SellerName    string  `json:"seller_name"`    // 销售方名称
+    SellerTaxID   string  `json:"seller_tax_id"`  // 销售方税号
+    BuyerName     string  `json:"buyer_name"`     // 购买方名称
+    Category      string  `json:"category"`       // 费用类别（由 OCR + 规则推断）
+    Confidence    float64 `json:"confidence"`     // 识别置信度 0~1
+    RawText       string  `json:"raw_text"`       // OCR 原始文本
+    Error         string  `json:"error,omitempty"` // 错误信息
+    Retry         bool    `json:"retry"`          // 是否建议重试
+}
+
+// OCRRecognizer OCR 识别器接口
+// 所有 OCR 实现必须满足此接口
+type OCRRecognizer interface {
+    // Recognize 识别单张票据图片
+    Recognize(ctx context.Context, imageData []byte, mimeType string) (*InvoiceResult, error)
+    
+    // Name 返回识别器名称（用于日志和诊断）
+    Name() string
+    
+    // HealthCheck 健康检查，判断服务是否可用
+    HealthCheck(ctx context.Context) error
+}
+```
+
+#### 4.3.2 实现方案对比与选型
+
+| 实现方案 | 类型 | 中文能力 | 部署方式 | 适用场景 |
+|---------|------|:--:|------|------|
+| **PaddleOCR 微服务** | gRPC 调用 Python 服务 | ⭐⭐⭐⭐⭐ | Docker，独立进程 | **默认方案**：高准确率，需 GPU/CPU |
+| Tesseract 本地 | 系统命令调用 | ⭐⭐ | apt install tesseract | 降级方案：零网络依赖 |
+| 火山方舟 OCR API | HTTP API | ⭐⭐⭐⭐ | 云服务 | 备选：无 GPU 时用云服务 |
+| Mock 实现 | 返回固定数据 | — | 纯内存 | 单元测试 / 演示离线模式 |
+
+**默认实现**: PaddleOCR 微服务（`PaddleOCRRecognizer`）
+**降级链**: PaddleOCR → Tesseract 本地 → Mock（演示保底）
+
+#### 4.3.3 实现切换机制
+
+通过 Viper 配置 + Wire 注入实现运行时切换：
+
+```yaml
+# config.yaml — OCR 配置段
+ocr:
+  driver: "paddle"          # paddle | tesseract | arcloud | mock
+  paddle:
+    endpoint: "localhost:50051"
+    timeout: 30s
+  tesseract:
+    binary: "/usr/bin/tesseract"
+    lang: "chi_sim"
+  arcloud:
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3"
+    model: "doubao-vision-pro"
+```
+
+```go
+// infra/provider.go — 根据配置选择实现
+func NewOCRRecognizer(vc *viper.Viper) (OCRRecognizer, error) {
+    switch vc.GetString("ocr.driver") {
+    case "paddle":
+        return NewPaddleOCRRecognizer(vc)
+    case "tesseract":
+        return NewTesseractRecognizer(vc)
+    case "mock":
+        return NewMockOCRRecognizer(), nil
+    default:
+        return NewPaddleOCRRecognizer(vc) // 默认
+    }
+}
+```
+
+Wire 注入时，所有依赖 OCR 的组件只需依赖 `OCRRecognizer` 接口，不感知具体实现：
+
+```go
+// Agent 工具只依赖接口
+func NewOCRTool(recognizer OCRRecognizer) tool.InvokableTool {
+    return utils.InferTool("recognize_invoice", "...",
+        func(ctx context.Context, input *OCRInput) (*InvoiceResult, error) {
+            return recognizer.Recognize(ctx, input.ImageData, input.MimeType)
+        })
+}
+```
+
+#### 4.3.4 PaddleOCR 微服务（默认实现）
 
 **接口协议**:
 - 主协议: gRPC（protobuf 定义，类型安全）
 - 降级: HTTP REST `POST /recognize`（multipart/form-data）
-- 超时: 30s，超时自动降级为引导用户手动输入
+- 超时: 30s
 
 **降级策略**:
-- OCR 服务不可用 -> Agent 跳过 OCR 工具，直接询问用户手动输入金额和类别
-- OCR 结果置信度 < 60% -> 返回结果 + 标记"需人工确认"，Agent 提示用户核对
+- OCR 服务不可用 -> Agent 跳过 OCR 工具，询问用户手动输入
+- OCR 结果置信度 < 60% -> 返回结果 + 标记"需人工确认"，Agent 提示核对
+- 服务彻底不可达 -> 若配置了降级驱动（tesseract/mock），自动切换
 
 ### 4.4 图片预处理（OCR 前处理）
 
@@ -328,24 +414,30 @@ require (
 
 // ========== 新增：Agent + LLM ==========
 require (
-    github.com/cloudwego/eino v0.9.x              // Agent 框架
+    github.com/cloudwego/eino v0.9.x                    // Agent 框架
     github.com/cloudwego/eino-ext/components/model/ark  // 火山方舟 ChatModel
 )
 
 // ========== 新增：PDF 生成 ==========
 require (
-    github.com/gpdf-dev/gpdf v0.x.x              // PDF 生成（备选: maroto/v2）
+    github.com/gpdf-dev/gpdf v0.x.x                    // PDF 生成
 )
 
 // ========== 新增：邮件 ==========
 require (
-    github.com/wneessen/go-mail v0.7.3           // SMTP 邮件
+    github.com/wneessen/go-mail v0.7.3                 // SMTP 邮件
+)
+
+// ========== 新增：OCR（gRPC 客户端） ==========
+require (
+    google.golang.org/grpc v1.64                       // gRPC 调用 OCR 微服务
+    google.golang.org/protobuf v1.34                   // protobuf 序列化
 )
 
 // ========== 新增：工具库 ==========
 require (
-    github.com/google/uuid v1.6.0                // UUID 生成
-    github.com/agentine/prism v0.x.x             // 图片预处理（OCR 前处理）
+    github.com/google/uuid v1.6.0                      // UUID 生成
+    github.com/agentine/prism v0.x.x                   // 图片预处理（OCR 前，可选）
 )
 ```
 
@@ -430,7 +522,8 @@ pillow>=10.0     # 图片预处理（Python 端冗余）
 | D2 | LLM 提供商 | 火山方舟 ARK | OpenAI 兼容 | 2026-07-03 |
 | D3 | PDF 生成 | gpdf | maroto v2 / wkhtmltopdf | 2026-07-03 |
 | D4 | 邮件发送 | go-mail | 无（不可降级） | 2026-07-03 |
-| D5 | OCR 引擎 | PaddleOCR（微服务） | Tesseract / 火山 OCR API | 2026-07-03 |
+| D5 | OCR 架构 | Go interface + 策略模式，默认 PaddleOCR | Tesseract 本地 / 火山 OCR API / Mock | 2026-07-03 |
+| D5.1 | OCR 接口抽象 | `OCRRecognizer` interface + 配置驱动切换 | — | 2026-07-03 |
 | D6 | 图片预处理 | prism | bimg | 2026-07-03 |
 | D7 | 前端框架 | React 18 + TypeScript | Vue 3 | 2026-07-03 |
 | D8 | UI 组件库 | Ant Design 5 | Arco Design | 2026-07-03 |
