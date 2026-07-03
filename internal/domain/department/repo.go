@@ -14,6 +14,7 @@ type DepartmentRepo struct {
 	db *gorm.DB
 }
 
+// NewDepartmentRepo 创建部门数据访问层实例，自动迁移表结构
 func NewDepartmentRepo(data *infra.Data) *DepartmentRepo {
 	if err := data.DB.AutoMigrate(&model.Department{}); err != nil {
 		panic(err)
@@ -21,10 +22,12 @@ func NewDepartmentRepo(data *infra.Data) *DepartmentRepo {
 	return &DepartmentRepo{db: data.DB}
 }
 
+// Create 创建部门
 func (r *DepartmentRepo) Create(d *model.Department) error {
 	return r.db.Create(d).Error
 }
 
+// GetByID 根据主键 ID 查询部门，预加载部门主管信息
 func (r *DepartmentRepo) GetByID(id uint) (*model.Department, error) {
 	var d model.Department
 	if err := r.db.Preload("Manager").First(&d, id).Error; err != nil {
@@ -33,6 +36,7 @@ func (r *DepartmentRepo) GetByID(id uint) (*model.Department, error) {
 	return &d, nil
 }
 
+// GetByName 根据部门名称查询部门
 func (r *DepartmentRepo) GetByName(name string) (*model.Department, error) {
 	var d model.Department
 	if err := r.db.Where("name = ?", name).First(&d).Error; err != nil {
@@ -41,6 +45,7 @@ func (r *DepartmentRepo) GetByName(name string) (*model.Department, error) {
 	return &d, nil
 }
 
+// List 分页查询部门列表
 func (r *DepartmentRepo) List(page, pageSize int) ([]*model.Department, int64, error) {
 	var depts []*model.Department
 	var total int64
@@ -50,19 +55,21 @@ func (r *DepartmentRepo) List(page, pageSize int) ([]*model.Department, int64, e
 	return depts, total, err
 }
 
+// Update 更新部门信息
 func (r *DepartmentRepo) Update(d *model.Department) error {
 	return r.db.Save(d).Error
 }
 
+// Delete 删除部门，若部门下仍有员工或预算记录则拒绝删除
 func (r *DepartmentRepo) Delete(id uint) error {
 	var count int64
 	r.db.Model(&model.Employee{}).Where("department_id = ?", id).Count(&count)
 	if count > 0 {
-		return errors.New("该部门仍有员工，无法删除")
+		return errors.New("该部门下仍有员工，无法删除")
 	}
 	r.db.Model(&model.DepartmentBudget{}).Where("department_id = ?", id).Count(&count)
 	if count > 0 {
-		return errors.New("该部门仍有预算记录，无法删除")
+		return errors.New("该部门下仍有预算记录，无法删除")
 	}
 	return r.db.Delete(&model.Department{}, id).Error
 }
