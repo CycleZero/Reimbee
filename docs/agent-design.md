@@ -71,7 +71,7 @@ type AgentRunner struct {
 ```
 NewAgentRunner(vc, ocrClient, pdfGen, mailSender, budgetBiz, approvalBiz, reimbBiz)
   │
-  ├── 1. 创建 Ark ChatModel（火山方舟）
+  ├── 1. 创建 OpenAI 兼容 ChatModel（支持任意 OpenAI 兼容 API，如火山方舟、DeepSeek 等）
   ├── 2. 逐一创建 7 个 Tool（工厂函数 + 闭包注入依赖）
   ├── 3. 构建系统提示词
   ├── 4. NewChatModelAgent(name, instruction, model, tools)
@@ -499,9 +499,10 @@ agent.ProviderSet
 
 ```yaml
 # Agent 层配置
-ark:
-  api_key: "${ARK_API_KEY}"
-  model: "doubao-pro-32k"
+openai:
+  base_url: "${OPENAI_BASE_URL}"   # OpenAI 兼容 API 地址
+  api_key: "${OPENAI_API_KEY}"      # API Key
+  model: "gpt-4o"                   # 模型名称
   temperature: 0.3
   max_tokens: 4096
 

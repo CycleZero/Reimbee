@@ -68,20 +68,18 @@
 
 | 候选方案 | 提供商 | 定价 | 中文能力 | Go SDK |
 |---------|------|:--:|:--:|:--:|
-| **火山方舟（ARK）** | 字节跳动 | 按 token | 优秀（豆包系列） | eino-ext/ark（官方） |
-| OpenAI 兼容 API | 任意 | 按 token/月费 | 取决于模型 | eino-ext/openai |
-| Ollama | 本地部署 | 免费 | 取决于模型 | eino-ext/ollama |
+| **OpenAI 兼容 API** | 任意 | 按 token | 取决于模型 | eino-ext/openai |
+| 火山方舟（ARK） | 字节跳动 | 按 token | 优秀（豆包系列） | eino-ext/ark（官方） |
 
-**选定**: **火山方舟 ARK**，备选 OpenAI 兼容模式
+**选定**: **OpenAI 兼容模式**（`eino-ext/openai`），支持任意兼容端点
 
 **理由**:
-- 字节跳动是 Eino 和火山方舟的共同开发者，集成度最高
-- `eino-ext/components/model/ark` 提供原生 Go SDK
-- 豆包系列模型中文能力行业领先
-- 支持 API Key 和 AK/SK 两种认证方式
+- 不锁定单一供应商，可接入火山方舟/DeepSeek/OpenAI 等任意兼容 API
+- `eino-ext/components/model/openai` 提供标准 Go SDK
+- 通过 `base_url` 配置切换，零代码改动
 - 备选方案确保演示不受单一供应商影响
 
-**模型选择**: `doubao-pro-32k`（平衡性能与成本，32K 上下文足够多轮对话）
+**模型选择**: 取决于所接 API，推荐 32K+ 上下文模型以支持多轮对话
 
 ---
 
@@ -190,7 +188,7 @@ type OCRRecognizer interface {
 |---------|------|:--:|------|------|
 | **PaddleOCR 微服务** | gRPC 调用 Python 服务 | ⭐⭐⭐⭐⭐ | Docker，独立进程 | **默认方案**：高准确率，需 GPU/CPU |
 | Tesseract 本地 | 系统命令调用 | ⭐⭐ | apt install tesseract | 降级方案：零网络依赖 |
-| 火山方舟 OCR API | HTTP API | ⭐⭐⭐⭐ | 云服务 | 备选：无 GPU 时用云服务 |
+| 云端 OCR API | HTTP API | ⭐⭐⭐ | 云服务 | 备选：无 GPU 时用云服务 |
 | Mock 实现 | 返回固定数据 | — | 纯内存 | 单元测试 / 演示离线模式 |
 
 **默认实现**: PaddleOCR 微服务（`PaddleOCRRecognizer`）
@@ -203,16 +201,15 @@ type OCRRecognizer interface {
 ```yaml
 # config.yaml — OCR 配置段
 ocr:
-  driver: "paddle"          # paddle | tesseract | arcloud | mock
+  driver: "paddle"          # paddle | tesseract | cloud | mock
   paddle:
     endpoint: "localhost:50051"
     timeout: 30s
   tesseract:
     binary: "/usr/bin/tesseract"
     lang: "chi_sim"
-  arcloud:
-    endpoint: "https://ark.cn-beijing.volces.com/api/v3"
-    model: "doubao-vision-pro"
+  cloud:
+    endpoint: "https://your-ocr-api.example.com"
 ```
 
 ```go
@@ -415,7 +412,7 @@ require (
 // ========== 新增：Agent + LLM ==========
 require (
     github.com/cloudwego/eino v0.9.x                    // Agent 框架
-    github.com/cloudwego/eino-ext/components/model/ark  // 火山方舟 ChatModel
+    github.com/cloudwego/eino-ext/components/model/openai // OpenAI 兼容 ChatModel
 )
 
 // ========== 新增：PDF 生成 ==========
@@ -494,8 +491,8 @@ pillow>=10.0     # 图片预处理（Python 端冗余）
 │  └────┬─────┘  └────┬─────┘  └──────────┘  └────────────┘ │
 │       │             │                                        │
 │  ┌────┴─────┐  ┌────┴─────┐  ┌──────────┐  ┌────────────┐ │
-│  │ ARK LLM  │  │  MySQL   │  │ go-redis │  │ gpdf(PDF)  │ │
-│  │ (火山方舟)│  │   8.0     │  │ (Session)│  │ go-mail(信)│ │
+│  │ OpenAI   │  │  MySQL   │  │ go-redis │  │ gpdf(PDF)  │ │
+│  │ 兼容 API  │  │   8.0     │  │ (Session)│  │ go-mail(信)│ │
 │  └──────────┘  └──────────┘  └──────────┘  └────────────┘ │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
@@ -519,7 +516,7 @@ pillow>=10.0     # 图片预处理（Python 端冗余）
 | # | 决策 | 方案 | 备选 | 决策日期 |
 |:--:|------|------|------|:--:|
 | D1 | Agent 框架 | Eino ADK | LangChainGo | 2026-07-03 |
-| D2 | LLM 提供商 | 火山方舟 ARK | OpenAI 兼容 | 2026-07-03 |
+| D2 | LLM 提供商 | OpenAI 兼容 API | 火山方舟 ARK | 2026-07-03 |
 | D3 | PDF 生成 | gpdf | maroto v2 / wkhtmltopdf | 2026-07-03 |
 | D4 | 邮件发送 | go-mail | 无（不可降级） | 2026-07-03 |
 | D5 | OCR 架构 | Go interface + 策略模式，默认 PaddleOCR | Tesseract 本地 / 火山 OCR API / Mock | 2026-07-03 |
