@@ -23,7 +23,7 @@ func NewApprovalService(biz *ApprovalBiz, logger *log.Logger) *ApprovalService {
 
 // GetProgress 获取审批进度
 func (s *ApprovalService) GetProgress(c *gin.Context) {
-	reimbursementID, err := strconv.ParseUint(c.Param("reimbursement_id"), 10, 32)
+	reimbursementID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "报销单ID格式错误"})
 		return

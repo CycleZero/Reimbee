@@ -3,6 +3,7 @@ package department
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/CycleZero/Reimbee/model"
@@ -88,7 +89,11 @@ func (s *DepartmentService) Update(c *gin.Context) {
 
 	dept, err := s.biz.Update(uint(id), req.Name, req.ManagerID)
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		if strings.Contains(err.Error(), "不存在") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, toDepartmentResponse(dept))
@@ -103,7 +108,11 @@ func (s *DepartmentService) Delete(c *gin.Context) {
 	}
 
 	if err := s.biz.Delete(uint(id)); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		if strings.Contains(err.Error(), "不存在") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "部门删除成功"})

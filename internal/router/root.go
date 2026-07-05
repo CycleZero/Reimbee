@@ -76,7 +76,7 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 	}
 
 	// 审批管理
-	approvals := api.Group("/reimbursements/:reimbursement_id/approvals")
+	approvals := api.Group("/reimbursements/:id/approvals")
 	{
 		approvals.GET("", hub.ApprovalService.GetProgress)
 	}
