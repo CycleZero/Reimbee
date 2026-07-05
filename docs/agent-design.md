@@ -1,585 +1,422 @@
-# Agent 层详细设计
+# Agent 层详细设计 v2.0 — 流程编排架构
 
-> 版本: v1.0 | 日期: 2026-07-04 | 状态: 设计评审
-
----
-
-## 一、设计目标
-
-在现有 DDD-lite 架构上新增 Agent 领域模块，将 LLM 驱动的对话能力无缝集成到报销业务流程中。Agent 层是对外暴露的**唯一对话入口**，内部编排 7 个工具完成多步骤报销流程。
+> 版本: v2.0 | 日期: 2026-07-04 | 状态: 设计评审
+>
+> v1.0（ChatModelAgent + ReAct）已废弃。v2.0 采用 **compose.Graph 流程编排**。
 
 ---
 
-## 二、架构定位
+## 一、设计理念
 
-### 2.1 在现有分层中的位置
+### 1.1 为什么不能只用 ReAct
+
+报销是**强流程约束**的业务场景。每一步有明确的先后依赖关系：
 
 ```
-router/root.go          ← SSE 端点注册
-    │
-domain/hub.go           ← ServiceHub 注入 AgentRunner
-    │
-domain/agent/           ← 【本次设计】
-  ├── agent.go           AgentRunner 核心
-  ├── prompt.go          系统提示词
-  ├── session.go         Redis Session 管理
-  ├── dto.go             对话消息 DTO
-  └── tools/             7 个工具
-      ├── ocr_tool.go
-      ├── compliance_tool.go
-      ├── budget_tool.go
-      ├── pdf_tool.go
-      ├── email_tool.go
-      ├── progress_tool.go
-      └── query_tool.go
-    │
-    ├── 依赖 infra 层
-    │   ├── OCRRecognizer (接口)
-    │   ├── PDFGenerator   (接口)
-    │   └── EmailSender     (接口)
-    │
-    └── 依赖其他 domain
-        ├── budget.BudgetBiz
-        ├── approval.ApprovalBiz
-        └── reimbursement.ReimbursementBiz
+OCR 识别 → 用户确认 → 合规检查 → 预算检查 → 最终确认 → 生成 PDF → 发送邮件
+   │          │          │          │          │
+   不能跳过   不能跳过    不能跳过    不能跳过    不能跳过
 ```
 
-### 2.2 Agent 层不做什么
+纯 ReAct Agent（"给 LLM 一堆工具，让它自己决定调用顺序"）的问题：
 
-- **不处理 HTTP 请求/响应**——那是 Service 层的职责。Agent 层只产出 `AgentEvent` 流，由 Service 层转 SSE
-- **不直接访问数据库**——通过 Biz 层调用
-- **不管理 Gin Context**——Agent 层与 HTTP 框架完全解耦
+| 问题 | ReAct 表现 | 后果 |
+|------|-----------|------|
+| 跳过合规检查 | LLM 可能"忘记"调用 check_compliance | 超标报销直接提交 |
+| 不确认就提交 | LLM 直接调 generate_pdf | 金额/类别可能错误 |
+| 工具顺序错 | 先发邮件再生成 PDF | 附件缺失 |
+| 用户意图纠缠 | 报销中途用户问"预算还剩多少"，ReAct 可能丢失上下文 | 报销中断、状态混乱 |
+| 不可审计 | 每次 LLM 决策路径不同 | 无法追踪为什么某步被跳过 |
+
+### 1.2 正确方案：Graph 编排 + LLM 作为节点
+
+```
+┌─────────────────────────────────────────────────┐
+│              业务流程（确定性）                     │
+│                                                  │
+│  意图分类 ──▶ 工作流路由 ──▶ 子流程执行             │
+│                │                                 │
+│     ┌──────────┼──────────┐                      │
+│     ▼          ▼          ▼                      │
+│  报销流程   进度查询   预算查询                     │
+│  (9 步确定性  (取数据    (取数据                    │
+│   顺序)      + 格式化)   + 格式化)                  │
+│                                                  │
+│  每个节点内部：LLM 负责自然语言理解/生成             │
+│  节点之间：Graph 保证执行顺序                       │
+└─────────────────────────────────────────────────┘
+```
+
+**核心原则**：LLM 是节点内的决策引擎，Graph 是节点间的流程路由器。
 
 ---
 
-## 三、核心组件设计
+## 二、顶层架构
 
-### 3.1 AgentRunner
-
-```go
-// AgentRunner Agent 运行时——封装 Eino ChatModelAgent + Runner
-// 整个应用生命周期内为单例（通过 Wire 注入到 ServiceHub）
-type AgentRunner struct {
-    runner       *adk.Runner          // Eino Runner
-    sessionStore SessionStore          // Redis Session 管理
-    tools        []tool.BaseTool       // 已注册的工具列表
-}
-```
-
-**构造流程**：
+### 2.1 Graph 拓扑
 
 ```
-NewAgentRunner(vc, ocrClient, pdfGen, mailSender, budgetBiz, approvalBiz, reimbBiz)
+                    ┌──────────────┐
+                    │   入口节点     │
+                    │ IntentClassify│  ← LLM：分类用户意图
+                    └──────┬───────┘
+                           │
+                    ┌──────▼───────┐
+                    │  WorkflowRoute│  ← Lambda：根据意图路由
+                    └──┬──┬──┬──┬──┘
+           ┌───────────┘  │  │  └───────────┐
+           ▼              ▼  ▼              ▼
+    ┌────────────┐  ┌───────────┐  ┌──────────────┐
+    │ 报销子流程   │  │ 进度查询   │  │ 预算查询      │
+    │ (9 nodes)  │  │ (2 nodes) │  │ (2 nodes)    │
+    └────────────┘  └───────────┘  └──────────────┘
+```
+
+### 2.2 子流程与意图映射
+
+| 用户意图 | 子流程 | 确定性步骤 |
+|---------|--------|:--:|
+| 新建报销 / 我要报销 | `NewReimbursementWorkflow` | 7 步（见 §3） |
+| 查询进度 / 我的报销到哪了 | `QueryProgressWorkflow` | 2 步（查 + 格式化） |
+| 查询预算 / 还剩多少钱 | `QueryBudgetWorkflow` | 2 步（查 + 格式化） |
+| 政策咨询 / 标准是多少 | `PolicyQuestionHandler` | 1 步（LLM 直接回复） |
+| 修改报销 | `ModifyReimbursementWorkflow` | 3 步（查 + LLM 对话 + 更新） |
+
+---
+
+## 三、报销子流程（核心工作流）
+
+### 3.1 状态机
+
+```
+START
   │
-  ├── 1. 创建 OpenAI 兼容 ChatModel（支持任意 OpenAI 兼容 API，如火山方舟、DeepSeek 等）
-  ├── 2. 逐一创建 7 个 Tool（工厂函数 + 闭包注入依赖）
-  ├── 3. 构建系统提示词
-  ├── 4. NewChatModelAgent(name, instruction, model, tools)
-  ├── 5. NewRunner(agent, EnableStreaming=true)
-  └── 返回 AgentRunner
+  ▼
+┌───────────────┐
+│ CollectReceipt │  LLM 节点：引导用户上传票据，等待用户操作
+│  收集票据      │  用户："这是发票" / 上传图片
+└───────┬───────┘
+        │ 用户已上传票据
+        ▼
+┌───────────────┐
+│   OCRNode     │  Tool 节点：调用 recognize_invoice
+│  OCR 识别     │  输入：图片路径  输出：结构化 InvoiceResult
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│ ConfirmInvoice │  LLM 节点：展示 OCR 结果，询问"正确吗？"
+│  确认票据      │  "对" → 继续  /  "不对，金额改为2000" → 修改
+└───────┬───────┘
+        │ 用户确认
+        ▼
+┌───────────────┐
+│ ComplianceNode │  Tool 节点：调用 check_compliance
+│  合规检查      │  返回 pass / warning / error
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│ ComplianceReview│ LLM 节点：展示合规结果
+│  合规审查      │  pass → 继续  /  warning → 告知风险，确认是否继续
+└───────┬───────┘  error → 拒绝，引导修改
+        │ 合规通过或用户确认警告
+        ▼
+┌───────────────┐
+│  BudgetNode   │  Tool 节点：调用 check_budget
+│  预算检查      │  返回 余额 + need_special_approval
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│ BudgetReview  │  LLM 节点：展示预算状态
+│  预算确认      │  预算充足 → 继续  /  预算不足 → 告知并确认
+└───────┬───────┘
+        │ 用户确认提交
+        ▼
+┌───────────────┐
+│ FinalConfirm  │  LLM 节点：最终确认——汇总票据金额、合规结果、预算状态
+│  最终确认      │  "确认提交？"  →  "确认"  →  不可逆操作开始
+└───────┬───────┘
+        │ 用户最终确认
+        ▼
+┌───────────────┐
+│ GeneratePDF   │  Tool 节点：生成 PDF 报销单
+│  生成 PDF     │  调用 generate_pdf
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│  SendEmail    │  Tool 节点：发送审批邮件
+│  发送邮件      │  调用 send_email
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│ SubmitComplete│  LLM 节点：成功消息
+│  提交完成      │  "报销单 REIMB-2026-0001 已生成并发送给审批人"
+└───────────────┘
+        │
+        ▼
+       END
 ```
 
-**核心方法**：
+### 3.2 节点类型分类
 
-| 方法 | 签名 | 说明 |
-|------|------|------|
-| `StreamChat` | `(ctx, sessionID, userMessage, w io.Writer) error` | 流式对话，将 `runner.Query()` 迭代器转为 SSE 写入 `w` |
-| `Chat` | `(ctx, sessionID, userMessage) (string, error)` | 非流式对话，收集完整回复（用于调试/简单场景） |
-| `GetHistory` | `(sessionID string) []Message` | 获取会话历史 |
-| `ClearSession` | `(sessionID string) error` | 清除会话 |
+| 节点类型 | 数量 | 引擎 | 职责 |
+|---------|:--:|------|------|
+| **LLM 节点**（ChatModelNode） | 6 | LLM | 自然语言理解/生成、用户交互 |
+| **Tool 节点**（ToolsNode） | 4 | 确定性代码 | OCR、合规、预算、PDF、邮件 |
+| **结束节点** | 1 | — | 流程终止 |
 
-### 3.2 工具注册设计
+**7 步确定性流程，每步之间的走向由 Graph 保证，LLM 只负责每步内部的"说什么"。**
 
-**核心问题**：Eino 的 `utils.InferTool()` 期望纯函数，但工具需要注入依赖。
+### 3.3 为什么用 Graph 而不是 ChatModelAgent
 
-**方案**：**工厂函数 + 闭包**。每个工具对应一个工厂函数，接收注入的依赖，返回闭包形式的工具。
+| 维度 | ChatModelAgent (ReAct) | compose.Graph |
+|------|:---:|:---:|
+| 流程确定性 | ❌ LLM 决定下一步 | ✅ Graph 边定义 |
+| 合规检查 | ❌ 可能被跳过 | ✅ 必经过 ComplianceNode |
+| 用户确认 | ❌ 可能忘记确认 | ✅ ConfirmInvoice → FinalConfirm 两次确认 |
+| 可审计性 | ❌ 每次路径不同 | ✅ 固定路径，可日志 |
+| 异常处理 | ❌ LLM 自行判断 | ✅ 每个节点有明确错误分支 |
+| 多意图并发 | ❌ 报销中途用户问进度，上下文丢失 | ✅ 子流程隔离，不互相干扰 |
+
+---
+
+## 四、意图分类设计
+
+### 4.1 意图分类节点（IntentClassify）
+
+**节点类型**: ChatModelNode（LLM）
+
+**输入**: 用户的自然语言消息 + 当前 Graph 状态
+
+**输出**: 结构化 JSON（通过 Eino 的 formatted output 或 prompt 约束）
+
+```json
+{
+  "intent": "new_reimbursement",
+  "entities": {
+    "amount": null,
+    "category": null,
+    "department": "计算机学院"
+  },
+  "confidence": 0.95
+}
+```
+
+**意图分类 Prompt**：
+
+```
+分析用户意图，从以下类别中选择最匹配的一个：
+
+- new_reimbursement: 用户想发起新的报销
+- query_progress: 用户想查询报销进度
+- query_budget: 用户想查询部门预算
+- policy_question: 用户想了解报销政策/标准
+- modify_reimbursement: 用户想修改已有报销单
+- general_chat: 问候、感谢等非业务对话
+
+返回 JSON：
+{"intent": "<类别>", "entities": {"amount": null, "category": null, "department": null}, "confidence": 0.95}
+
+用户输入：{user_message}
+```
+
+### 4.2 工作流路由节点（WorkflowRoute）
+
+**节点类型**: LambdaNode（确定性 Go 函数）
+
+**输入**: 意图分类结果
+
+**输出**: 路由到的子流程标识
 
 ```go
-// tools/ocr_tool.go
-
-// NewOCRTool 创建 OCR 识别工具
-// 依赖: OCRRecognizer
-func NewOCRTool(recognizer infra.OCRRecognizer) tool.InvokableTool {
-    return utils.InferTool("recognize_invoice",
-        "识别用户上传的票据图片（支持 JPG/PNG/PDF），提取发票代码、号码、金额、开票日期、购销方信息。"+
-            "调用时机：用户上传发票图片后。"+
-            "返回结果包含 confidence 置信度，低于 0.6 需提示用户核对。",
-        func(ctx context.Context, input *OCRInput) (*infra.InvoiceResult, error) {
-            return recognizer.Recognize(ctx, input.ImageData, input.MimeType)
-        })
-}
-
-// OCRInput 工具输入参数——通过 struct tags 定义 JSON Schema
-type OCRInput struct {
-    ImageData []byte `json:"image_data" jsonschema:"required" jsonschema_description:"票据图片的二进制数据"`
-    MimeType  string `json:"mime_type" jsonschema:"required" jsonschema_description:"图片 MIME 类型，如 image/jpeg"`
-}
-```
-
-**所有工具的依赖关系**：
-
-```
-NewOCRTool(OCRRecognizer)
-NewComplianceTool(ComplianceConfig)        ← 读取合规规则
-NewBudgetTool(BudgetBiz)
-NewPDFTool(PDFGenerator, ReimbursementBiz) ← 需要查询报销单信息
-NewEmailTool(EmailSender)                  ← 发送邮件
-NewProgressTool(ApprovalBiz, ReimbursementBiz)
-NewQueryTool(ReimbursementBiz)
-```
-
-### 3.3 ToolSet 聚合
-
-```go
-// tools/provider.go
-
-// ToolSet 聚合所有 Agent 工具
-type ToolSet struct {
-    OCR        tool.InvokableTool
-    Compliance tool.InvokableTool
-    Budget     tool.InvokableTool
-    PDF        tool.InvokableTool
-    Email      tool.InvokableTool
-    Progress   tool.InvokableTool
-    Query      tool.InvokableTool
-}
-
-// All 返回工具列表为 Eino 兼容的 []tool.BaseTool
-func (ts *ToolSet) All() []tool.BaseTool {
-    return []tool.BaseTool{
-        ts.OCR, ts.Compliance, ts.Budget,
-        ts.PDF, ts.Email, ts.Progress, ts.Query,
+func workflowRouter(ctx context.Context, intent *IntentResult) (string, error) {
+    switch intent.Intent {
+    case "new_reimbursement":
+        return "workflow_new_reimbursement", nil
+    case "query_progress":
+        return "workflow_query_progress", nil
+    case "query_budget":
+        return "workflow_query_budget", nil
+    case "policy_question":
+        return "workflow_policy_question", nil
+    case "modify_reimbursement":
+        return "workflow_modify", nil
+    default:
+        return "workflow_general_chat", nil
     }
 }
-
-var ToolProviderSet = wire.NewSet(
-    NewOCRTool,
-    NewComplianceTool,
-    NewBudgetTool,
-    NewPDFTool,
-    NewEmailTool,
-    NewProgressTool,
-    NewQueryTool,
-    wire.Struct(new(ToolSet), "*"),
-)
 ```
 
-### 3.4 Session 管理
+---
 
-**存储**: Redis，TTL = 30 分钟
+## 五、会话状态管理
 
-**数据模型**：
+### 5.1 状态模型
+
+报销流程是**多轮对话**——用户不会一次性提供所有信息。需要在 Redis 中持久化 Graph 的中间状态。
 
 ```go
-type SessionStore interface {
-    // AppendMessage 追加一条消息到会话历史
-    AppendMessage(sessionID string, msg Message) error
-    // GetHistory 获取会话最近 N 轮对话
-    GetHistory(sessionID string, maxTurns int) ([]Message, error)
-    // ClearSession 清除会话
-    ClearSession(sessionID string) error
-    // SetContext 存储会话上下文（当前报销单 ID 等）
-    SetContext(sessionID string, key string, value any) error
-    // GetContext 获取会话上下文
-    GetContext(sessionID string, key string) (any, error)
-}
-
-type Message struct {
-    Role      string    `json:"role"`      // user / assistant
-    Content   string    `json:"content"`
-    Timestamp time.Time `json:"timestamp"`
+// SessionState 会话状态——由 Graph 的 Checkpoint 机制自动管理
+type SessionState struct {
+    SessionID        string              `json:"session_id"`
+    CurrentWorkflow  string              `json:"current_workflow"`  // 当前子流程标识
+    CurrentNode      string              `json:"current_node"`      // 子流程中的当前节点
+    
+    // 报销流程上下文
+    InvoiceResult    *infra.InvoiceResult `json:"invoice_result,omitempty"`
+    ComplianceResult *ComplianceOutput    `json:"compliance_result,omitempty"`
+    BudgetResult     *BudgetOutput        `json:"budget_result,omitempty"`
+    ReimbursementID  uint                 `json:"reimbursement_id,omitempty"`
+    PDFPath          string               `json:"pdf_path,omitempty"`
+    
+    // 用户确认历史
+    Confirmations    []ConfirmationRecord `json:"confirmations"`
+    
+    // 消息历史（用户可见的对话）
+    Messages         []Message            `json:"messages"`
+    CreatedAt        time.Time            `json:"created_at"`
+    UpdatedAt        time.Time            `json:"updated_at"`
 }
 ```
 
-**Redis Key 设计**：
+### 5.2 Eino Checkpoint 机制
+
+Eino 的 `compose.Graph` 原生支持 Checkpoint / Interrupt：
 
 ```
-reimbee:session:{sessionID}:messages  → JSON 数组（最近 20 条消息）
-reimbee:session:{sessionID}:context   → Hash（键值对上下文）
-TTL: 1800s (30 分钟)
+Graph.Compile(ctx, compose.WithCheckPointStore(redisStore))
+```
+
+每次 LLM 节点等待用户输入时，Graph 自动保存 Checkpoint（包含当前节点、状态变量、消息历史）到 Redis。用户回复后，Graph 从 Checkpoint 恢复并继续执行。
+
+**优势**：不需要手动管理状态机——Graph 的 `Interrupt` 机制天然支持"等待用户输入→恢复执行"。
+
+---
+
+## 六、LLM 节点内的 Prompt 设计
+
+LLM 节点不再需要"工具调用决策"。它只需做一件事：**基于当前节点上下文，生成合适的自然语言回复**。
+
+### 6.1 各类 LLM 节点的 Prompt 模板
+
+**CollectReceipt（收集票据）**：
+```
+你是 Reimbee，帮助用户完成报销。当前步骤：收集票据。
+
+用户意图是发起报销。请友好地引导用户上传票据图片。
+告诉用户可以拍照或选择文件，支持 JPG/PNG/PDF 格式。
+
+历史对话：{history}
+用户最新消息：{user_message}
+```
+
+**ConfirmInvoice（确认票据）**：
+```
+你是 Reimbee。OCR 识别完成，请向用户确认以下信息：
+
+识别结果：{invoice_result}
+- 金额：¥{amount}
+- 类别：{category}
+- 日期：{date}
+- 销售方：{seller}
+
+询问用户信息是否正确。如果用户要求修改，更新相应字段。
+```
+
+**ComplianceReview（合规审查）**：
+```
+你是 Reimbee。合规检查结果：
+
+{compliance_result}
+
+- 如果 pass → 告知用户"合规检查通过"，自然过渡到预算检查
+- 如果 warning → 展示超标项和标准，询问是否继续
+- 如果 error → 告知用户无法提交，说明原因和建议
+```
+
+**FinalConfirm（最终确认）**：
+```
+你是 Reimbee。这是最终确认步骤，之后将不可逆地提交报销。
+
+汇总信息：
+- 票据：{invoice_summary}
+- 合规：{compliance_summary}
+- 预算：{budget_summary}
+- 总金额：¥{total}
+
+请明确要求用户确认："确认提交报销吗？提交后将无法修改。"
 ```
 
 ---
 
-## 四、工具详细设计
-
-### 4.1 recognize_invoice（OCR 识别）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `recognize_invoice` |
-| **输入** | `image_data: []byte` + `mime_type: string` |
-| **输出** | `InvoiceResult`（含 confidence + error + retry 标志） |
-| **依赖** | `infra.OCRRecognizer` |
-| **错误处理** | OCR 失败返回 `InvoiceResult{Error: "...", Retry: true}`，不抛异常 |
-
-**Agent 使用场景**：用户上传发票后，Agent 自动调用此工具。失败时 Agent 提示用户重新上传或手动输入。
-
-### 4.2 check_compliance（合规审查）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `check_compliance` |
-| **输入** | `amount: int64（分）` + `category: string` + `invoice_date: string` |
-| **输出** | `{result: "pass"/"warning"/"error", message: string, rule_id: string}` |
-| **依赖** | 合规规则配置（config.yaml） |
-
-**合规规则表**（在配置中定义，可热更新）：
-
-```yaml
-compliance:
-  rules:
-    - id: hotel_daily
-      category: 差旅-住宿
-      max_amount: 30000  # 300元(分)
-      level: warning
-    - id: transport
-      category: 差旅-交通
-      max_amount: 150000 # 1500元(分)
-      level: warning
-    - id: entertainment
-      category: 招待费
-      max_amount_per_person: 20000 # 200元(分)
-      level: error
-    - id: office
-      category: 办公用品
-      max_amount: 500000 # 5000元(分)
-      level: warning
-    - id: invoice_age
-      max_age_days: 90
-      level: error
-```
-
-### 4.3 check_budget（预算查询）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `check_budget` |
-| **输入** | `department_id: uint` + `amount: int64（分）` |
-| **输出** | `{remaining: int64, need_special_approval: bool, usage_rate: float64}` |
-| **依赖** | `budget.BudgetBiz.CheckBudget()` |
-
-### 4.4 generate_pdf（PDF 生成）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `generate_pdf` |
-| **输入** | `reimbursement_id: uint` |
-| **输出** | `{file_path: string, reimbursement_no: string}` |
-| **依赖** | `infra.PDFGenerator` + `reimbursement.ReimbursementBiz.GetByID()` |
-
-**流程**：查询报销单及关联票据 → 传入 PDF 生成器 → 保存到 `uploads/` → 返回路径。
-
-### 4.5 send_email（邮件推送）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `send_email` |
-| **输入** | `reimbursement_id: uint` + `pdf_path: string` |
-| **输出** | `{success: bool, message_id: string}` |
-| **依赖** | `infra.EmailSender` + 查询审批人信息 |
-
-**流程**：根据报销单的审批记录查询审批人邮箱 → 组装 HTML 邮件 → 附带 PDF 附件 → 发送。
-
-### 4.6 query_progress（进度查询）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `query_progress` |
-| **输入** | `reimbursement_no: string（可选）` + `employee_id: string（可选）` |
-| **输出** | `{reimbursements: [{no, status, nodes[]}]}` |
-| **依赖** | `approval.ApprovalBiz` + `reimbursement.ReimbursementBiz` |
-
-### 4.7 query_reimbursements（报销记录查询）
-
-| 属性 | 值 |
-|------|-----|
-| **工具名** | `query_reimbursements` |
-| **输入** | `employee_id: string` + `page: int` + `page_size: int` |
-| **输出** | `{list: [...], total: int}` |
-| **依赖** | `reimbursement.ReimbursementBiz.List()` |
-
----
-
-## 五、系统提示词设计
-
-### 5.1 三层提示词结构
-
-```
-系统提示词 = 角色定位 + 行为规范 + 工具清单
-```
-
-### 5.2 完整提示词
-
-```
-你是 Reimbee，一个专业的企业财务报销智能助手。你的职责是帮助员工高效、准确地完成报销流程。
-
-## 核心行为规范
-
-1. **一次一步**：每次只引导用户完成一个步骤。不要一次性询问过多信息。
-   - 反例："请上传发票，并告诉我金额、类别、日期、部门"
-   - 正例："请上传您的票据图片。"
-   （用户上传后）→ "识别到差旅费 ¥1,500，开票日期 2026-07-01。正确吗？"
-
-2. **涉及金额必须确认**：在提交报销前，必须明确告知总金额并等待用户确认。
-
-3. **合规问题透明化**：发现超标时，明确告知违规项、标准值和实际值。
-   格式："⚠️ 住宿费 ¥350 超出标准（¥300/天），超出 ¥50 需审批人确认。是否继续？"
-
-4. **错误友好**：工具调用失败时，用通俗语言解释原因并给出建议。
-   - 反例："OCR 失败，错误码 E500"
-   - 正例："票据图片不够清晰，识别失败。请确保票据平整、光线充足，重新拍照上传。也可以直接输入金额。"
-
-5. **保持专业、简洁、友好的语气**。使用中文回复。
-
-## 可用工具
-
-| 工具名 | 用途 | 调用时机 |
-|--------|------|---------|
-| recognize_invoice | OCR 识别票据 | 用户上传发票图片后 |
-| check_compliance | 合规审查 | OCR 识别完成或用户手动输入金额后 |
-| check_budget | 预算查询 | 提交报销前，需确认预算充足 |
-| generate_pdf | 生成 PDF 报销单 | 所有检查通过，用户确认提交后 |
-| send_email | 发送审批邮件 | PDF 生成成功后 |
-| query_progress | 查询审批进度 | 用户询问进度时 |
-| query_reimbursements | 查询报销记录 | 用户询问历史报销时 |
-
-## 典型对话流程
-
-### 新建报销
-用户："我要报销一张差旅发票"
-→ 引导上传票据 → OCR 识别 → 确认金额 → 合规检查 → 预算检查 → 确认提交 → 生成 PDF → 发送邮件
-
-### 查询进度
-用户："REIMB-2026-0001 审批到哪了"
-→ 调用 query_progress → 展示审批链状态
-
-### 查询预算
-用户："我们部门还剩多少预算"
-→ 调用 check_budget → 展示预算信息
-
-### 政策咨询
-用户："住宿标准是多少"
-→ 调用 check_compliance 查询规则 → 回复标准
-```
-
----
-
-## 六、SSE 事件协议
-
-### 6.1 事件类型
-
-| 事件类型 | 含义 | 前端渲染 |
-|---------|------|---------|
-| `thinking` | Agent 正在推理 | 思考动画 |
-| `tool_call` | 正在调用工具 | 工具调用卡片（名称 + 输入） |
-| `tool_result` | 工具返回结果 | 更新卡片状态（成功/失败） |
-| `message` | Agent 文本回复（流式片段） | 逐字追加到对话气泡 |
-| `error` | 发生错误 | 错误提示 + 可能的重试建议 |
-| `done` | 本轮对话结束 | 停止加载动画 |
-
-### 6.2 事件格式
-
-```
-event: thinking
-data: {"message": "正在识别票据..."}
-
-event: tool_call
-data: {"tool": "recognize_invoice", "input": {"image": "base64..."}}
-
-event: tool_result
-data: {"tool": "recognize_invoice", "output": {"amount": 1500.00, "confidence": 0.98}}
-
-event: message
-data: {"content": "识别到"}
-
-event: message
-data: {"content": "一张差旅发票，金额 ¥1,500.00"}
-
-event: done
-data: {}
-```
-
-### 6.3 流式转 SSE 核心逻辑
-
-```go
-func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMessage string, w io.Writer) error {
-    // 1. 加载会话历史
-    history := a.sessionStore.GetHistory(sessionID, 10)
-    a.sessionStore.AppendMessage(sessionID, Message{Role: "user", Content: userMessage})
-
-    // 2. 启动 Agent 查询
-    iter := a.runner.Query(ctx, userMessage, adk.WithMessages(convertToEinoMessages(history)))
-
-    // 3. 消费事件流，输出 SSE
-    for {
-        event, ok := iter.Next()
-        if !ok { break }
-
-        switch {
-        case event.IsToolCall():
-            writeSSE(w, "tool_call", event.ToolCallInfo)
-        case event.IsToolResult():
-            writeSSE(w, "tool_result", event.ToolOutput)
-        case event.IsThinking():
-            writeSSE(w, "thinking", event.ThinkingContent)
-        case event.IsMessage():
-            writeSSE(w, "message", event.MessageChunk)
-        }
-    }
-
-    // 4. 保存助手回复到会话历史
-    a.sessionStore.AppendMessage(sessionID, Message{Role: "assistant", Content: fullResponse})
-
-    writeSSE(w, "done", nil)
-    return nil
-}
-```
-
----
-
-## 七、ServiceHub 集成
-
-### 7.1 ServiceHub 扩展
-
-```go
-type ServiceHub struct {
-    // ... 原有字段 ...
-    AgentRunner *agent.AgentRunner  // 【新增】
-}
-```
-
-### 7.2 SSE 端点注册
-
-```go
-// router/root.go
-api.POST("/chat/stream", func(c *gin.Context) {
-    var req struct {
-        SessionID string `json:"session_id"`
-        Message   string `json:"message"`
-    }
-    c.ShouldBindJSON(&req)
-
-    c.Header("Content-Type", "text/event-stream")
-    c.Header("Cache-Control", "no-cache")
-    c.Header("Connection", "keep-alive")
-
-    flusher := c.Writer.(http.Flusher)
-    hub.AgentRunner.StreamChat(c.Request.Context(), req.SessionID, req.Message, c.Writer)
-    flusher.Flush()
-})
-```
-
----
-
-## 八、Wire 依赖注入拓扑（Agent 部分）
-
-```
-agent.ProviderSet
-  │
-  ├── tools.ToolProviderSet
-  │     ├── NewOCRTool(infra.OCRRecognizer)     → 注入 OCRRecognizer
-  │     ├── NewComplianceTool(vc)                → 注入 Viper 配置
-  │     ├── NewBudgetTool(budget.BudgetBiz)      → 注入 BudgetBiz
-  │     ├── NewPDFTool(pdf, reimbBiz)            → 注入 PDFGenerator + ReimbursementBiz
-  │     ├── NewEmailTool(mail)                   → 注入 EmailSender
-  │     ├── NewProgressTool(appBiz, reimbBiz)    → 注入 ApprovalBiz + ReimbursementBiz
-  │     └── NewQueryTool(reimbBiz)               → 注入 ReimbursementBiz
-  │     └── wire.Struct(new(ToolSet), "*")
-  │
-  ├── NewAgentRunner(vc, model, toolSet, sessionStore)
-  │     └── → AgentRunner（注入到 ServiceHub）
-  │
-  └── NewRedisSessionStore(redis) → SessionStore
-```
-
----
-
-## 九、配置项（config.yaml 新增）
-
-```yaml
-# Agent 层配置
-openai:
-  base_url: "${OPENAI_BASE_URL}"   # OpenAI 兼容 API 地址
-  api_key: "${OPENAI_API_KEY}"      # API Key
-  model: "gpt-4o"                   # 模型名称
-  temperature: 0.3
-  max_tokens: 4096
-
-# OCR 配置
-ocr:
-  driver: "mock"            # paddle / mock（演示用 mock）
-  paddle:
-    endpoint: "http://localhost:5001"
-    timeout: 30s
-
-# SMTP 配置
-smtp:
-  host: "smtp.qq.com"
-  port: 587
-  user: "${SMTP_USER}"
-  password: "${SMTP_PASSWORD}"
-  from: "noreply@reimbee.com"
-
-# 合规规则
-compliance:
-  hotel_daily_max: 30000       # 300元(分)
-  transport_max: 150000        # 1500元(分)
-  entertainment_per_person: 20000 # 200元(分)
-  office_max: 500000           # 5000元(分)
-  invoice_max_age_days: 90
-```
-
----
-
-## 十、文件清单
+## 七、文件结构
 
 ```
 internal/domain/agent/
-├── provider.go          # Wire ProviderSet（聚合 tools + agent）
-├── agent.go             # AgentRunner（StreamChat / Chat / Session）
-├── prompt.go            # buildSystemPrompt() 提示词构建函数
-├── session.go           # SessionStore 接口 + RedisSessionStore 实现
-├── dto.go               # Message / ToolCallInfo 等 DTO
-├── config.go            # 合规规则加载（从 Viper 读取）
+├── provider.go              # Wire ProviderSet
+├── runner.go                # AgentRunner（顶层 Graph 管理）
+├── prompt.go                # 所有 Prompt 模板
+├── session.go               # SessionState + Redis 持久化
+├── dto.go                   # IntentResult, Message 等 DTO
 │
-└── tools/
-    ├── provider.go      # ToolProviderSet + ToolSet 聚合
-    ├── ocr_tool.go      # recognize_invoice
-    ├── compliance_tool.go # check_compliance
-    ├── budget_tool.go   # check_budget
-    ├── pdf_tool.go      # generate_pdf
-    ├── email_tool.go    # send_email
-    ├── progress_tool.go # query_progress
-    └── query_tool.go    # query_reimbursements
-
-router/root.go           # 新增 POST /api/chat/stream
-
-infra/
-├── ocr.go               # ✅ 已完成
-├── ocr_mock.go          # ✅
-├── pdf.go               # ✅
-├── pdf_mock.go          # ✅
-├── smtp.go              # ✅
-└── smtp_mock.go         # ✅
+├── graph/                   # Graph 定义
+│   ├── root.go              # 顶层 Graph（意图分类 → 路由 → 子流程）
+│   ├── reimbursement.go     # NewReimbursementWorkflow（7 步）
+│   ├── progress.go          # QueryProgressWorkflow
+│   ├── budget.go            # QueryBudgetWorkflow
+│   ├── policy.go            # PolicyQuestionHandler
+│   └── modify.go            # ModifyReimbursementWorkflow
+│
+├── nodes/                   # 自定义节点（LambdaNode / ToolsNode 封装）
+│   ├── intent.go            # IntentClassify：LLM 节点（意图分类 Prompt）
+│   ├── router.go            # WorkflowRoute：Lambda 节点（路由函数）
+│   ├── ocr.go               # OCRNode：ToolsNode（调用 OCR 工具）
+│   ├── compliance.go        # ComplianceNode + ComplianceReview
+│   ├── budget.go            # BudgetNode + BudgetReview
+│   ├── confirm.go           # ConfirmInvoice + FinalConfirm
+│   └── finish.go            # GeneratePDF + SendEmail + SubmitComplete
+│
+└── tools/                   # 7 个 Tool 定义（不变）
+    ├── provider.go
+    ├── ocr_tool.go
+    ├── compliance_tool.go
+    ├── budget_tool.go
+    ├── pdf_tool.go
+    ├── email_tool.go
+    ├── progress_tool.go
+    └── query_tool.go
 ```
 
 ---
 
-## 十一、设计评审检查清单
+## 八、与 v1.0（ChatModelAgent）的关键差异
 
-| 检查项 | 状态 |
-|--------|:--:|
-| Agent 层与 HTTP 层解耦（不持有 Gin Context） | ✅ |
-| 工具通过接口依赖注入（不直接实例化依赖） | ✅ |
-| OCR 失败不阻塞流程（返回 Error + Retry 标志而非抛异常） | ✅ |
-| Session 通过 Redis 持久化（TTL 自动过期） | ✅ |
-| SSE 事件格式与前端协议对齐 | ✅ |
-| 系统提示词覆盖所有工具的使用说明 | ✅ |
-| 每个工具的描述包含"调用时机"让 LLM 自行决策 | ✅ |
-| 合规规则配置化（YAML，可热更新） | ✅ |
-| Wire 注入链无循环依赖 | ✅ |
-| Mock 实现可用于端到端测试 | ✅ |
+| 维度 | v1.0 ChatModelAgent + ReAct | v2.0 compose.Graph 编排 |
+|------|:---:|:---:|
+| **架构模式** | Agent 自主决策 | Graph 确定性编排 |
+| **流程保证** | LLM 决定顺序，可能出错 | Graph 边保证顺序 |
+| **工具调用** | LLM 决定何时调哪个 | Graph 在指定节点调用 |
+| **用户确认** | 依赖 Prompt 约束（不可靠） | Graph 节点强制执行 |
+| **合规检查** | LLM 可能跳过 | 必经 ComplianceNode |
+| **状态管理** | 手动管理 Session | Eino Checkpoint 自动 |
+| **代码量** | 少（一个 Agent + 工具） | 多（多个 Graph 子流程） |
+| **可测试性** | 难（LLM 行为不确定） | 易（子流程可独立测试） |
+| **生产可靠性** | 低（黑盒决策） | 高（白盒流程） |
+
+---
+
+## 九、实施计划
+
+| 阶段 | 内容 | 产出 |
+|:--:|------|------|
+| **P1** | 顶层 Graph（意图分类 + 路由） | 能识别意图并路由到子流程 |
+| **P2** | 报销子流程（7 步） | 核心功能可用 |
+| **P3** | 进度查询 + 预算查询子流程 | 辅助功能 |
+| **P4** | SSE 流式端点 + 前端联调 | 完整端到端 |
 
 ---
 
