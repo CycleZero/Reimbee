@@ -324,6 +324,22 @@ func TestBudgetService_Update_BadBody(t *testing.T) {
 // Dashboard 含 usage 测试
 // ============================================================================
 
+func TestBudgetService_Create_DifferentYear(t *testing.T) {
+	engine, data, cleanup := setupEngine(t)
+	defer cleanup()
+
+	d := testutil.SeedDepartment(data, "技术部")
+	req := budget.CreateBudgetRequest{
+		DepartmentID: d.ID,
+		FiscalYear:   2025,
+		AnnualBudget: 80000,
+	}
+	w := doJSON(http.MethodPost, "/api/budgets", req, engine)
+	if w.Code != 201 {
+		t.Fatalf("期望 201，实际 %d", w.Code)
+	}
+}
+
 func TestBudgetService_Dashboard_UsageRate(t *testing.T) {
 	engine, data, cleanup := setupEngine(t)
 	defer cleanup()
