@@ -1,6 +1,6 @@
 # Agent 层详细设计 v2.0 — 流程编排架构
 
-> 版本: v2.0 | 日期: 2026-07-04 | 状态: 设计评审
+> 版本: v2.1 | 日期: 2026-07-04 | 状态: 设计评审
 >
 > v1.0（ChatModelAgent + ReAct）已废弃。v2.0 采用 **compose.Graph 流程编排**。
 
@@ -255,266 +255,320 @@ func workflowRouter(ctx context.Context, intent *IntentResult) (string, error) {
 
 ## 五、会话持久化设计
 
-### 5.1 两层持久化模型
-
-报销流程的持久化分为**两层**，职责不同：
+### 5.1 存储架构
 
 ```
-┌─────────────────────────────────────────────┐
-│              第一层：对话历史                   │
-│         SessionStore（自管理）                  │
-│                                              │
-│  Redis Key: reimbee:session:{id}:messages    │
-│  内容：用户可见的消息列表（最近 20 轮）           │
-│  用途：前端展示对话历史、LLM 上下文窗口            │
-│  TTL：30 分钟                                 │
-└─────────────────────────────────────────────┘
-                      │
-                      │ 关联（同一个 sessionID）
-                      ▼
-┌─────────────────────────────────────────────┐
-│           第二层：Graph 执行状态                │
-│      Eino CheckPointStore（Eino 管理）         │
-│                                              │
-│  Redis Key: reimbee:ckpt:{graphID}:{threadID}│
-│  内容：当前节点、状态变量、中间结果               │
-│  用途：Graph Interrupt 后恢复执行               │
-│  TTL：随 Session TTL 联动                      │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       API 层                                  │
+│  Session Store 接口（统一抽象，底层可切换）                      │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+    ┌──────────┐    ┌──────────┐    ┌──────────────┐
+    │  MySQL   │    │  Redis   │    │  Memory       │
+    │ (默认)   │    │ (可选)    │    │ (降级)        │
+    │──────────│    │──────────│    │──────────────│
+    │ 持久化    │    │ 热缓存    │    │ 单实例内存     │
+    │ 可审计    │    │ 加速读取  │    │ 重启丢失      │
+    │ 不丢失    │    │          │    │ 仅开发/测试    │
+    └──────────┘    └──────────┘    └──────────────┘
 ```
 
-**为什么分两层**：
-- **对话历史**需要暴露给前端展示，且可能被多个子流程共享
-- **Graph 状态**是 Eino 内部机制，对外不可见，包含当前节点位置、中间变量等运行时信息
-- 两层独立可分别管理，一个过期不影响另一个
+**默认选型**：**MySQL 持久化 + Redis 热缓存**（双层）。Redis 不可用时降级为纯 MySQL。
 
-### 5.2 第一层：对话历史 SessionStore
+### 5.2 为什么 MySQL 是主存储
 
-**接口定义**：
+| 维度 | Redis | MySQL |
+|------|:---:|:---:|
+| 服务重启 | ❌ 全部丢失 | ✅ 持久化 |
+| 对话可审计 | ❌ | ✅ SQL 查询历史 |
+| 数据量 | 受内存限制 | 磁盘，近乎无限 |
+| 关联查询 | ❌ | ✅ JOIN 会话→用户 |
+| 部署依赖 | 需额外实例 | ✅ 已有（gin-template 自带） |
+
+**Redis 的角色**：不作为数据源，仅作为**热缓存**——最近 5 分钟的活跃 Session 缓存在 Redis 中加速读取。缓存未命中时回源 MySQL。
+
+### 5.3 数据模型
+
+**新增 MySQL 表**：
+
+```sql
+-- 会话消息表（持久化对话历史）
+CREATE TABLE session_messages (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(36)  NOT NULL COMMENT '会话ID（UUID v7）',
+    role       VARCHAR(10)  NOT NULL COMMENT 'user / assistant',
+    content    TEXT         NOT NULL COMMENT '消息内容',
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    
+    INDEX idx_session_time (session_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会话消息表';
+```
+
+**数据量评估**：
+
+| 指标 | 值 |
+|------|:--:|
+| 单条消息 | ~500 bytes（含索引 ~1KB） |
+| 单 Session（20 轮 40 条） | ~40 KB |
+| 每日 1000 个活跃 Session | ~40 MB |
+| 保留 30 天 | ~1.2 GB |
+
+**清理策略**：定时任务（每天凌晨）删除 30 天前的消息。
+
+### 5.4 Session Store 接口设计
 
 ```go
-// SessionStore 对话历史持久化接口
+// SessionStore 会话持久化接口（屏蔽底层存储差异）
 type SessionStore interface {
-    // AppendMessage 追加一条消息到会话历史（同时续期 TTL）
+    // AppendMessage 追加一条消息，持久化到 MySQL
     AppendMessage(ctx context.Context, sessionID string, msg Message) error
     
-    // GetHistory 获取会话最近 N 轮对话（每轮 = user + assistant）
+    // GetHistory 获取最近 N 轮对话（先查 Redis 缓存，未命中回源 MySQL）
     GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, error)
     
-    // ClearSession 清除整个会话（报销完成或用户主动结束）
-    ClearSession(ctx context.Context, sessionID string) error
+    // EndSession 结束会话——标记会话完成，清理 Redis 缓存（MySQL 数据保留）
+    EndSession(ctx context.Context, sessionID string) error
     
-    // Touch 续期 TTL（每次用户交互时调用）
-    Touch(ctx context.Context, sessionID string) error
+    // DeleteSession 硬删除会话（用户主动清除历史）
+    DeleteSession(ctx context.Context, sessionID string) error
 }
 
 type Message struct {
-    Role      string    `json:"role"`      // "user" | "assistant"
+    ID        int64     `json:"id"`
+    SessionID string    `json:"session_id"`
+    Role      string    `json:"role"`    // "user" | "assistant"
     Content   string    `json:"content"`
     Timestamp time.Time `json:"timestamp"`
 }
 ```
 
-**Redis 存储格式**：
-
-```
-Key:   reimbee:session:{sessionID}:messages
-Type:  List（LPUSH 追加，LTRIM 控制长度）
-TTL:   1800s（30 分钟，每次交互续期）
-```
-
-**实现要点**：
+### 5.5 MySQL 实现（默认）
 
 ```go
-type RedisSessionStore struct {
-    client *redis.Client
-    ttl    time.Duration // 30 分钟
+type MySQLSessionStore struct {
+    db    *gorm.DB
+    cache *RedisSessionCache  // 可选，nil 时降级纯 MySQL
 }
 
-func (s *RedisSessionStore) AppendMessage(ctx context.Context, sessionID string, msg Message) error {
-    key := fmt.Sprintf("reimbee:session:%s:messages", sessionID)
-    data, _ := json.Marshal(msg)
-    
-    pipe := s.client.Pipeline()
-    pipe.LPush(ctx, key, data)             // 追加到列表头部
-    pipe.LTrim(ctx, key, 0, 39)            // 保留最近 40 条（20 轮 × 2）
-    pipe.Expire(ctx, key, s.ttl)           // 续期
-    _, err := pipe.Exec(ctx)
-    return err
+func (s *MySQLSessionStore) AppendMessage(ctx context.Context, sessionID string, msg Message) error {
+    // 1. 持久化到 MySQL
+    record := &SessionMessage{
+        SessionID: sessionID,
+        Role:      msg.Role,
+        Content:   msg.Content,
+    }
+    if err := s.db.Create(record).Error; err != nil {
+        return fmt.Errorf("保存消息失败: %w", err)
+    }
+
+    // 2. 更新 Redis 缓存（非阻塞，失败不影响主流程）
+    if s.cache != nil {
+        _ = s.cache.PrependMessage(ctx, sessionID, msg)
+    }
+    return nil
 }
 
-func (s *RedisSessionStore) GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, error) {
-    key := fmt.Sprintf("reimbee:session:%s:messages", sessionID)
-    limit := maxTurns * 2 // 每轮 user + assistant
-    results, err := s.client.LRange(ctx, key, 0, int64(limit-1)).Result()
+func (s *MySQLSessionStore) GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, error) {
+    // 1. 尝试 Redis 缓存
+    if s.cache != nil {
+        if msgs, ok := s.cache.GetHistory(ctx, sessionID, maxTurns); ok {
+            return msgs, nil
+        }
+    }
+
+    // 2. 回源 MySQL
+    var records []SessionMessage
+    limit := maxTurns * 2
+    err := s.db.Where("session_id = ?", sessionID).
+        Order("id DESC").Limit(limit).Find(&records).Error
     if err != nil {
         return nil, err
     }
-    // 列表头部是最新的，需反转按时间正序返回
-    messages := make([]Message, len(results))
-    for i, raw := range results {
-        json.Unmarshal([]byte(raw), &messages[len(results)-1-i])
+
+    // 反转顺序（MySQL 返回 DESC，前端需要时间正序）
+    messages := make([]Message, len(records))
+    for i, r := range records {
+        messages[len(records)-1-i] = Message{
+            ID:        r.ID,
+            SessionID: r.SessionID,
+            Role:      r.Role,
+            Content:   r.Content,
+            Timestamp: r.CreatedAt,
+        }
+    }
+
+    // 3. 回填缓存
+    if s.cache != nil {
+        _ = s.cache.WarmUp(ctx, sessionID, messages)
     }
     return messages, nil
 }
 ```
 
-### 5.3 第二层：Eino Graph Checkpoint
-
-**原理**：Eino 的 `compose.Graph` 支持 `Interrupt`——当 LLM 节点需要等待用户输入时，Graph 暂停执行，将当前状态保存为 Checkpoint，等待外部调用 `Resume` 恢复。
-
-```
-用户: "我要报销"                     用户: "是的，确认"
-       │                                  │
-       ▼                                  ▼
-┌─────────────┐    Interrupt     ┌─────────────┐    Resume
-│ IntentClassify│ ──────────────▶ │ 等待用户输入  │ ──────────▶ │ ConfirmInvoice│ ...
-└─────────────┘   保存 Checkpoint └─────────────┘   恢复 Checkpoint
-                        │
-                  ┌─────▼─────┐
-                  │   Redis    │
-                  │  Checkpoint│
-                  └───────────┘
-```
-
-**Eino CheckPointStore 接口**：
+### 5.6 Redis 缓存层（可选加速）
 
 ```go
-// Eino 内部接口（已由框架定义，我们只需实现 Store 适配器）
-type CheckPointStore interface {
-    Get(ctx context.Context, id string) (*Checkpoint, error)
-    Put(ctx context.Context, id string, cp *Checkpoint) error
-    Delete(ctx context.Context, id string) error
-}
-```
-
-**Redis 适配器实现**：
-
-```go
-// RedisCheckpointStore Eino Checkpoint 的 Redis 实现
-type RedisCheckpointStore struct {
+type RedisSessionCache struct {
     client *redis.Client
-    ttl    time.Duration
+    ttl    time.Duration // 5 分钟（热缓存，短 TTL）
 }
 
-func NewRedisCheckpointStore(client *redis.Client, ttl time.Duration) *RedisCheckpointStore {
-    return &RedisCheckpointStore{client: client, ttl: ttl}
+// PrependMessage 追加单条消息到缓存列表头部
+func (c *RedisSessionCache) PrependMessage(ctx context.Context, sessionID string, msg Message) error {
+    key := fmt.Sprintf("reimbee:cache:session:%s:messages", sessionID)
+    data, _ := json.Marshal(msg)
+    pipe := c.client.Pipeline()
+    pipe.LPush(ctx, key, data)
+    pipe.LTrim(ctx, key, 0, 39)        // 保留最近 40 条
+    pipe.Expire(ctx, key, c.ttl)        // 5 分钟 TTL
+    _, err := pipe.Exec(ctx)
+    return err
 }
 
-func (s *RedisCheckpointStore) Get(ctx context.Context, id string) (*Checkpoint, error) {
-    key := fmt.Sprintf("reimbee:ckpt:%s", id)
-    raw, err := s.client.Get(ctx, key).Bytes()
-    if err == redis.Nil {
+// GetHistory 从缓存读取——返回 (nil, false) 表示缓存未命中
+func (c *RedisSessionCache) GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, bool) {
+    key := fmt.Sprintf("reimbee:cache:session:%s:messages", sessionID)
+    limit := int64(maxTurns * 2)
+    results, err := c.client.LRange(ctx, key, 0, limit-1).Result()
+    if err != nil || len(results) == 0 {
+        return nil, false // 缓存未命中
+    }
+    messages := make([]Message, len(results))
+    for i, raw := range results {
+        json.Unmarshal([]byte(raw), &messages[len(results)-1-i])
+    }
+    return messages, true
+}
+```
+
+**缓存策略**：
+- **读**：先 Redis → 未命中 → MySQL → 回填 Redis
+- **写**：先 MySQL → 同步更新 Redis（非阻塞）
+- **TTL**：Redis 5 分钟短期缓存（MySQL 是真实数据源，Redis 只是加速层）
+- **失效**：`EndSession` 时主动删除 Redis 缓存 Key
+
+### 5.7 Eino Graph Checkpoint 持久化
+
+Graph 的 Checkpoint 也需要持久化，但生命周期短（仅在流程执行中），MySQL 更合适：
+
+```go
+// MySQLCheckpointStore Eino Checkpoint 的 MySQL 实现
+type MySQLCheckpointStore struct {
+    db *gorm.DB
+}
+
+// 对应的 GORM 模型
+type CheckpointRecord struct {
+    ID        string    `gorm:"primaryKey;type:varchar(128)"`
+    Data      string    `gorm:"type:mediumtext;not null"` // Checkpoint JSON
+    CreatedAt time.Time
+    UpdatedAt time.Time
+}
+
+func (s *MySQLCheckpointStore) Get(ctx context.Context, id string) (*Checkpoint, error) {
+    var record CheckpointRecord
+    err := s.db.WithContext(ctx).First(&record, "id = ?", id).Error
+    if errors.Is(err, gorm.ErrRecordNotFound) {
         return nil, ErrCheckpointNotFound
     }
-    if err != nil {
-        return nil, err
-    }
     var cp Checkpoint
-    json.Unmarshal(raw, &cp)
+    json.Unmarshal([]byte(record.Data), &cp)
     return &cp, nil
 }
 
-func (s *RedisCheckpointStore) Put(ctx context.Context, id string, cp *Checkpoint) error {
-    key := fmt.Sprintf("reimbee:ckpt:%s", id)
+func (s *MySQLCheckpointStore) Put(ctx context.Context, id string, cp *Checkpoint) error {
     data, _ := json.Marshal(cp)
-    return s.client.Set(ctx, key, data, s.ttl).Err()
+    return s.db.WithContext(ctx).Save(&CheckpointRecord{
+        ID: id, Data: string(data),
+    }).Error
 }
 
-func (s *RedisCheckpointStore) Delete(ctx context.Context, id string) error {
-    key := fmt.Sprintf("reimbee:ckpt:%s", id)
-    return s.client.Del(ctx, key).Err()
+func (s *MySQLCheckpointStore) Delete(ctx context.Context, id string) error {
+    return s.db.WithContext(ctx).Delete(&CheckpointRecord{}, "id = ?", id).Error
 }
 ```
 
-### 5.4 Checkpoint ID 与 Session ID 的关系
+**Checkpoint 清理**：
+- 报销流程结束时立即清理
+- 定时任务清理超过 1 小时的孤儿 Checkpoint（用户中途关闭页面未结束会话）
+
+### 5.8 Checkpoint ID 与 Session ID
 
 ```
 CheckpointID = GraphName + ":" + SessionID
 
 示例:
-  GraphName = "reimbursement_workflow"
-  SessionID = "abc123"
-  CheckpointID = "reimbursement_workflow:abc123"
-  Redis Key   = "reimbee:ckpt:reimbursement_workflow:abc123"
+  reimbursement_workflow:550e8400-e29b-41d4-a716-446655440000
+  query_progress_workflow:550e8400-e29b-41d4-a716-446655440000
 ```
 
-**一个 Session 可以跨越多个子流程**：
-- 用户先问"我部门预算还剩多少"→ 预算子流程 → Checkpoint A
-- 再问"帮我把上周那张发票提交了"→ 报销子流程 → Checkpoint B
-- 两次用的是同一个 SessionID（对话历史共享），但是不同的 CheckpointID（不同子流程）
+同一个 Session 可跨多个子流程，CheckpointID 不同，互不干扰。
 
-### 5.5 Session 生命周期
+### 5.9 Session 生命周期
 
 ```
-                  用户首次对话
-                       │
-                       ▼
-              ┌─────────────────┐
-              │ 生成 SessionID   │  UUID v7（时间有序）
-              │ 存入 Redis       │  TTL = 30 min
-              └────────┬────────┘
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-     用户发消息    用户发消息    用户发消息
-          │            │            │
-          ▼            ▼            ▼
-    AppendMessage  AppendMessage  AppendMessage
-    Touch TTL      Touch TTL      Touch TTL
-          │            │            │
-          ▼            ▼            ▼
-    报销完成?      进度已查?      预算已查?
-          │            │            │
-          ▼            ▼            ▼
-    ClearSession   ClearSession   ClearSession
-    (清理消息+ckpt) (清理消息+ckpt) (清理消息+ckpt)
-                       │
-          ┌────────────┼────────────┐
-          ▼                         ▼
-     30 分钟无交互              用户主动结束
-          │                         │
-          ▼                         ▼
-    Redis TTL 自动过期        ClearSession
+用户首次对话
+    │
+    ▼
+┌─────────────────┐
+│ 生成 SessionID   │  UUID v7（时间有序）
+└────────┬────────┘
+         │
+         ▼
+   每次发消息
+         │
+         ├── MySQL: INSERT session_messages（持久）
+         ├── Redis: LPUSH 缓存 + 续期 5min（可选）
+         └── MySQL: Save Checkpoint（Graph 状态）
+         │
+         ▼
+   报销完成 / 流程结束
+         │
+         ├── MySQL: 消息数据保留（审计）
+         ├── Redis: DEL 缓存 Key
+         └── MySQL: DELETE Checkpoint
+         │
+   30 天无活跃
+         │
+         └── 定时任务清理 MySQL 历史消息
 ```
 
-**TTL 策略**：
+| 条件 | MySQL | Redis |
+|------|-------|-------|
+| 用户发消息 | INSERT 消息（永久） | LPUSH 缓存（5min TTL） |
+| 报销完成 | 消息保留 | DEL 缓存 Key |
+| 用户清除历史 | DELETE 消息 | DEL 缓存 Key |
+| 定时任务 | DELETE 30 天前消息 | 无需（TTL 自动过期） |
 
-| 条件 | 动作 |
-|------|------|
-| 每次用户发送消息 | 续期 `reimbee:session:{id}:messages` TTL 为 30min |
-| 每次 Eino Put Checkpoint | 续期 `reimbee:ckpt:{id}` TTL 为 30min |
-| 报销提交成功 | 清除消息历史 + Checkpoint（流程已结束） |
-| 30 分钟无交互 | Redis 自动过期（兜底清理） |
-| 用户说"取消"/"算了" | 主动调用 ClearSession |
-
-### 5.6 AgentRunner 中的集成
+### 5.10 AgentRunner 中的集成
 
 ```go
 type AgentRunner struct {
-    graph      *compose.Runnable  // 编译后的顶层 Graph
-    session    SessionStore        // 第一层：对话历史
-    checkpoint CheckPointStore     // 第二层：Graph 执行状态
+    graph      *compose.Runnable       // 编译后的顶层 Graph
+    session    SessionStore             // 对话历史（MySQL + Redis 缓存）
+    checkpoint CheckPointStore          // Graph 状态（MySQL）
 }
 
 func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string, w io.Writer) error {
-    // 1. 保存用户消息到对话历史
+    // 1. 持久化用户消息
     a.session.AppendMessage(ctx, sessionID, Message{Role: "user", Content: userMsg})
-    a.session.Touch(ctx, sessionID)
 
-    // 2. 获取历史（注入 Graph 的 Invoke 参数中）
-    history := a.session.GetHistory(ctx, sessionID, 10)
+    // 2. 获取历史（缓存优先，未命中回源 MySQL）
+    history, _ := a.session.GetHistory(ctx, sessionID, 10)
 
-    // 3. 执行 Graph（Eino 自动管理 Checkpoint）
-    //    - 如果是新会话：Graph 从 START 开始
-    //    - 如果是恢复：Graph 从上次 Interrupt 的节点继续
+    // 3. 执行 Graph（Eino 自动通过 Checkpoint 恢复或新建）
     iter, err := a.graph.Stream(ctx, GraphInput{
         SessionID: sessionID,
         Message:   userMsg,
         History:   history,
     })
+    if err != nil {
+        return fmt.Errorf("Graph 执行失败: %w", err)
+    }
 
-    // 4. 收集完整回复，存入对话历史
+    // 4. 收集回复并持久化
     var fullResponse string
     for event := range iter {
         writeSSE(w, event)
@@ -522,28 +576,23 @@ func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string,
     }
     a.session.AppendMessage(ctx, sessionID, Message{Role: "assistant", Content: fullResponse})
 
+    // 5. 如果报销已完成，清理 Checkpoint
+    if eventIndicatesCompletion(iter.LastEvent()) {
+        a.session.EndSession(ctx, sessionID)
+    }
+
     return nil
 }
 ```
 
-### 5.7 并发安全
+### 5.11 并发安全
 
 | 场景 | 策略 |
 |------|------|
-| 同一 Session 并发请求 | Redis LPUSH 天然原子，客户端侧通过前端禁用发送按钮防并发 |
-| 多个 Session 之间 | Redis 天然隔离，不同 Key 互不影响 |
-| Graph 执行中 Session 过期 | Eino Checkpoint Get 失败 → 返回"会话已过期，请重新开始" |
-| Redis 不可用 | 降级为内存存储（单实例），日志告警 |
-
-### 5.8 数据量估算
-
-| 指标 | 估算值 |
-|------|:--:|
-| 单条消息大小 | ~500 bytes（JSON） |
-| 20 轮对话（40 条消息） | ~20 KB |
-| 单个 Checkpoint | ~2 KB（状态变量 + 节点位置） |
-| 100 并发 Session | ~2.2 MB Redis 内存 |
-| TTL 30 分钟后 | 自动回收 |
+| 同 Session 并发消息 | MySQL INSERT 天然并发安全（auto_increment）；前端禁用发送按钮 |
+| 多个 Session | MySQL 按 session_id 分区，互不影响 |
+| Redis 缓存未命中 | 回源 MySQL + 回填缓存（可能短暂不一致，可接受） |
+| MySQL 不可用 | 降级为内存 Map（单实例），日志严重告警 |
 
 ---
 
