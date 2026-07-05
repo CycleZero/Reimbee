@@ -38,7 +38,10 @@ func (r *BudgetRepo) GetByID(id uint) (*model.DepartmentBudget, error) {
 func (r *BudgetRepo) GetByDepartmentAndYear(deptID uint, year int) (*model.DepartmentBudget, error) {
 	var b model.DepartmentBudget
 	err := r.db.Where("department_id = ? AND fiscal_year = ?", deptID, year).First(&b).Error
-	return &b, err
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
 }
 
 // ListByYear 查询指定财年的所有部门预算
@@ -59,7 +62,7 @@ func (r *BudgetRepo) Deduct(deptID uint, year int, amount int64) error {
 		Where("department_id = ? AND fiscal_year = ?", deptID, year).
 		Updates(map[string]interface{}{
 			"spent_amount":  gorm.Expr("spent_amount + ?", amount),
-			"frozen_amount": gorm.Expr("GREATEST(frozen_amount - ?, 0)", amount),
+			"frozen_amount": gorm.Expr("CASE WHEN frozen_amount - ? > 0 THEN frozen_amount - ? ELSE 0 END", amount, amount),
 		}).Error
 }
 
@@ -74,7 +77,7 @@ func (r *BudgetRepo) Freeze(deptID uint, year int, amount int64) error {
 func (r *BudgetRepo) Unfreeze(deptID uint, year int, amount int64) error {
 	return r.db.Model(&model.DepartmentBudget{}).
 		Where("department_id = ? AND fiscal_year = ?", deptID, year).
-		Update("frozen_amount", gorm.Expr("GREATEST(frozen_amount - ?, 0)", amount)).Error
+		Update("frozen_amount", gorm.Expr("CASE WHEN frozen_amount - ? > 0 THEN frozen_amount - ? ELSE 0 END", amount, amount)).Error
 }
 
 // Delete 删除预算记录
