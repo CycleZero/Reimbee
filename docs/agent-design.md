@@ -253,49 +253,301 @@ func workflowRouter(ctx context.Context, intent *IntentResult) (string, error) {
 
 ---
 
-## 五、会话状态管理
+## 五、会话持久化设计
 
-### 5.1 状态模型
+### 5.1 两层持久化模型
 
-报销流程是**多轮对话**——用户不会一次性提供所有信息。需要在 Redis 中持久化 Graph 的中间状态。
+报销流程的持久化分为**两层**，职责不同：
+
+```
+┌─────────────────────────────────────────────┐
+│              第一层：对话历史                   │
+│         SessionStore（自管理）                  │
+│                                              │
+│  Redis Key: reimbee:session:{id}:messages    │
+│  内容：用户可见的消息列表（最近 20 轮）           │
+│  用途：前端展示对话历史、LLM 上下文窗口            │
+│  TTL：30 分钟                                 │
+└─────────────────────────────────────────────┘
+                      │
+                      │ 关联（同一个 sessionID）
+                      ▼
+┌─────────────────────────────────────────────┐
+│           第二层：Graph 执行状态                │
+│      Eino CheckPointStore（Eino 管理）         │
+│                                              │
+│  Redis Key: reimbee:ckpt:{graphID}:{threadID}│
+│  内容：当前节点、状态变量、中间结果               │
+│  用途：Graph Interrupt 后恢复执行               │
+│  TTL：随 Session TTL 联动                      │
+└─────────────────────────────────────────────┘
+```
+
+**为什么分两层**：
+- **对话历史**需要暴露给前端展示，且可能被多个子流程共享
+- **Graph 状态**是 Eino 内部机制，对外不可见，包含当前节点位置、中间变量等运行时信息
+- 两层独立可分别管理，一个过期不影响另一个
+
+### 5.2 第一层：对话历史 SessionStore
+
+**接口定义**：
 
 ```go
-// SessionState 会话状态——由 Graph 的 Checkpoint 机制自动管理
-type SessionState struct {
-    SessionID        string              `json:"session_id"`
-    CurrentWorkflow  string              `json:"current_workflow"`  // 当前子流程标识
-    CurrentNode      string              `json:"current_node"`      // 子流程中的当前节点
+// SessionStore 对话历史持久化接口
+type SessionStore interface {
+    // AppendMessage 追加一条消息到会话历史（同时续期 TTL）
+    AppendMessage(ctx context.Context, sessionID string, msg Message) error
     
-    // 报销流程上下文
-    InvoiceResult    *infra.InvoiceResult `json:"invoice_result,omitempty"`
-    ComplianceResult *ComplianceOutput    `json:"compliance_result,omitempty"`
-    BudgetResult     *BudgetOutput        `json:"budget_result,omitempty"`
-    ReimbursementID  uint                 `json:"reimbursement_id,omitempty"`
-    PDFPath          string               `json:"pdf_path,omitempty"`
+    // GetHistory 获取会话最近 N 轮对话（每轮 = user + assistant）
+    GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, error)
     
-    // 用户确认历史
-    Confirmations    []ConfirmationRecord `json:"confirmations"`
+    // ClearSession 清除整个会话（报销完成或用户主动结束）
+    ClearSession(ctx context.Context, sessionID string) error
     
-    // 消息历史（用户可见的对话）
-    Messages         []Message            `json:"messages"`
-    CreatedAt        time.Time            `json:"created_at"`
-    UpdatedAt        time.Time            `json:"updated_at"`
+    // Touch 续期 TTL（每次用户交互时调用）
+    Touch(ctx context.Context, sessionID string) error
+}
+
+type Message struct {
+    Role      string    `json:"role"`      // "user" | "assistant"
+    Content   string    `json:"content"`
+    Timestamp time.Time `json:"timestamp"`
 }
 ```
 
-### 5.2 Eino Checkpoint 机制
-
-Eino 的 `compose.Graph` 原生支持 Checkpoint / Interrupt：
+**Redis 存储格式**：
 
 ```
-Graph.Compile(ctx, compose.WithCheckPointStore(redisStore))
+Key:   reimbee:session:{sessionID}:messages
+Type:  List（LPUSH 追加，LTRIM 控制长度）
+TTL:   1800s（30 分钟，每次交互续期）
 ```
 
-每次 LLM 节点等待用户输入时，Graph 自动保存 Checkpoint（包含当前节点、状态变量、消息历史）到 Redis。用户回复后，Graph 从 Checkpoint 恢复并继续执行。
+**实现要点**：
 
-**优势**：不需要手动管理状态机——Graph 的 `Interrupt` 机制天然支持"等待用户输入→恢复执行"。
+```go
+type RedisSessionStore struct {
+    client *redis.Client
+    ttl    time.Duration // 30 分钟
+}
+
+func (s *RedisSessionStore) AppendMessage(ctx context.Context, sessionID string, msg Message) error {
+    key := fmt.Sprintf("reimbee:session:%s:messages", sessionID)
+    data, _ := json.Marshal(msg)
+    
+    pipe := s.client.Pipeline()
+    pipe.LPush(ctx, key, data)             // 追加到列表头部
+    pipe.LTrim(ctx, key, 0, 39)            // 保留最近 40 条（20 轮 × 2）
+    pipe.Expire(ctx, key, s.ttl)           // 续期
+    _, err := pipe.Exec(ctx)
+    return err
+}
+
+func (s *RedisSessionStore) GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, error) {
+    key := fmt.Sprintf("reimbee:session:%s:messages", sessionID)
+    limit := maxTurns * 2 // 每轮 user + assistant
+    results, err := s.client.LRange(ctx, key, 0, int64(limit-1)).Result()
+    if err != nil {
+        return nil, err
+    }
+    // 列表头部是最新的，需反转按时间正序返回
+    messages := make([]Message, len(results))
+    for i, raw := range results {
+        json.Unmarshal([]byte(raw), &messages[len(results)-1-i])
+    }
+    return messages, nil
+}
+```
+
+### 5.3 第二层：Eino Graph Checkpoint
+
+**原理**：Eino 的 `compose.Graph` 支持 `Interrupt`——当 LLM 节点需要等待用户输入时，Graph 暂停执行，将当前状态保存为 Checkpoint，等待外部调用 `Resume` 恢复。
+
+```
+用户: "我要报销"                     用户: "是的，确认"
+       │                                  │
+       ▼                                  ▼
+┌─────────────┐    Interrupt     ┌─────────────┐    Resume
+│ IntentClassify│ ──────────────▶ │ 等待用户输入  │ ──────────▶ │ ConfirmInvoice│ ...
+└─────────────┘   保存 Checkpoint └─────────────┘   恢复 Checkpoint
+                        │
+                  ┌─────▼─────┐
+                  │   Redis    │
+                  │  Checkpoint│
+                  └───────────┘
+```
+
+**Eino CheckPointStore 接口**：
+
+```go
+// Eino 内部接口（已由框架定义，我们只需实现 Store 适配器）
+type CheckPointStore interface {
+    Get(ctx context.Context, id string) (*Checkpoint, error)
+    Put(ctx context.Context, id string, cp *Checkpoint) error
+    Delete(ctx context.Context, id string) error
+}
+```
+
+**Redis 适配器实现**：
+
+```go
+// RedisCheckpointStore Eino Checkpoint 的 Redis 实现
+type RedisCheckpointStore struct {
+    client *redis.Client
+    ttl    time.Duration
+}
+
+func NewRedisCheckpointStore(client *redis.Client, ttl time.Duration) *RedisCheckpointStore {
+    return &RedisCheckpointStore{client: client, ttl: ttl}
+}
+
+func (s *RedisCheckpointStore) Get(ctx context.Context, id string) (*Checkpoint, error) {
+    key := fmt.Sprintf("reimbee:ckpt:%s", id)
+    raw, err := s.client.Get(ctx, key).Bytes()
+    if err == redis.Nil {
+        return nil, ErrCheckpointNotFound
+    }
+    if err != nil {
+        return nil, err
+    }
+    var cp Checkpoint
+    json.Unmarshal(raw, &cp)
+    return &cp, nil
+}
+
+func (s *RedisCheckpointStore) Put(ctx context.Context, id string, cp *Checkpoint) error {
+    key := fmt.Sprintf("reimbee:ckpt:%s", id)
+    data, _ := json.Marshal(cp)
+    return s.client.Set(ctx, key, data, s.ttl).Err()
+}
+
+func (s *RedisCheckpointStore) Delete(ctx context.Context, id string) error {
+    key := fmt.Sprintf("reimbee:ckpt:%s", id)
+    return s.client.Del(ctx, key).Err()
+}
+```
+
+### 5.4 Checkpoint ID 与 Session ID 的关系
+
+```
+CheckpointID = GraphName + ":" + SessionID
+
+示例:
+  GraphName = "reimbursement_workflow"
+  SessionID = "abc123"
+  CheckpointID = "reimbursement_workflow:abc123"
+  Redis Key   = "reimbee:ckpt:reimbursement_workflow:abc123"
+```
+
+**一个 Session 可以跨越多个子流程**：
+- 用户先问"我部门预算还剩多少"→ 预算子流程 → Checkpoint A
+- 再问"帮我把上周那张发票提交了"→ 报销子流程 → Checkpoint B
+- 两次用的是同一个 SessionID（对话历史共享），但是不同的 CheckpointID（不同子流程）
+
+### 5.5 Session 生命周期
+
+```
+                  用户首次对话
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ 生成 SessionID   │  UUID v7（时间有序）
+              │ 存入 Redis       │  TTL = 30 min
+              └────────┬────────┘
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+     用户发消息    用户发消息    用户发消息
+          │            │            │
+          ▼            ▼            ▼
+    AppendMessage  AppendMessage  AppendMessage
+    Touch TTL      Touch TTL      Touch TTL
+          │            │            │
+          ▼            ▼            ▼
+    报销完成?      进度已查?      预算已查?
+          │            │            │
+          ▼            ▼            ▼
+    ClearSession   ClearSession   ClearSession
+    (清理消息+ckpt) (清理消息+ckpt) (清理消息+ckpt)
+                       │
+          ┌────────────┼────────────┐
+          ▼                         ▼
+     30 分钟无交互              用户主动结束
+          │                         │
+          ▼                         ▼
+    Redis TTL 自动过期        ClearSession
+```
+
+**TTL 策略**：
+
+| 条件 | 动作 |
+|------|------|
+| 每次用户发送消息 | 续期 `reimbee:session:{id}:messages` TTL 为 30min |
+| 每次 Eino Put Checkpoint | 续期 `reimbee:ckpt:{id}` TTL 为 30min |
+| 报销提交成功 | 清除消息历史 + Checkpoint（流程已结束） |
+| 30 分钟无交互 | Redis 自动过期（兜底清理） |
+| 用户说"取消"/"算了" | 主动调用 ClearSession |
+
+### 5.6 AgentRunner 中的集成
+
+```go
+type AgentRunner struct {
+    graph      *compose.Runnable  // 编译后的顶层 Graph
+    session    SessionStore        // 第一层：对话历史
+    checkpoint CheckPointStore     // 第二层：Graph 执行状态
+}
+
+func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string, w io.Writer) error {
+    // 1. 保存用户消息到对话历史
+    a.session.AppendMessage(ctx, sessionID, Message{Role: "user", Content: userMsg})
+    a.session.Touch(ctx, sessionID)
+
+    // 2. 获取历史（注入 Graph 的 Invoke 参数中）
+    history := a.session.GetHistory(ctx, sessionID, 10)
+
+    // 3. 执行 Graph（Eino 自动管理 Checkpoint）
+    //    - 如果是新会话：Graph 从 START 开始
+    //    - 如果是恢复：Graph 从上次 Interrupt 的节点继续
+    iter, err := a.graph.Stream(ctx, GraphInput{
+        SessionID: sessionID,
+        Message:   userMsg,
+        History:   history,
+    })
+
+    // 4. 收集完整回复，存入对话历史
+    var fullResponse string
+    for event := range iter {
+        writeSSE(w, event)
+        fullResponse += event.Text
+    }
+    a.session.AppendMessage(ctx, sessionID, Message{Role: "assistant", Content: fullResponse})
+
+    return nil
+}
+```
+
+### 5.7 并发安全
+
+| 场景 | 策略 |
+|------|------|
+| 同一 Session 并发请求 | Redis LPUSH 天然原子，客户端侧通过前端禁用发送按钮防并发 |
+| 多个 Session 之间 | Redis 天然隔离，不同 Key 互不影响 |
+| Graph 执行中 Session 过期 | Eino Checkpoint Get 失败 → 返回"会话已过期，请重新开始" |
+| Redis 不可用 | 降级为内存存储（单实例），日志告警 |
+
+### 5.8 数据量估算
+
+| 指标 | 估算值 |
+|------|:--:|
+| 单条消息大小 | ~500 bytes（JSON） |
+| 20 轮对话（40 条消息） | ~20 KB |
+| 单个 Checkpoint | ~2 KB（状态变量 + 节点位置） |
+| 100 并发 Session | ~2.2 MB Redis 内存 |
+| TTL 30 分钟后 | 自动回收 |
 
 ---
+
+## 六、LLM 节点内的 Prompt 设计
 
 ## 六、LLM 节点内的 Prompt 设计
 
