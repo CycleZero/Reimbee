@@ -32,9 +32,11 @@ func NewFileStorage(vc *viper.Viper) (FileStorage, error) {
 		return NewMinIOFileStorage(
 			vc.GetString("storage.minio.endpoint"),
 			vc.GetString("storage.minio.bucket"),
+			vc.GetString("storage.minio.access_key"),
+			vc.GetString("storage.minio.secret_key"),
 			vc.GetBool("storage.minio.use_ssl"),
 			vc.GetString("storage.minio.base_url"),
-		), nil
+		)
 
 	default:
 		return nil, fmt.Errorf("未知存储驱动: %s (可选: local, minio)", driver)

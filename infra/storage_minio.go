@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -8,70 +9,103 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 // MinIOFileStorage MinIO（S3 兼容）文件存储实现
-// 演示阶段为骨架，实际接入需引入 github.com/minio/minio-go
 type MinIOFileStorage struct {
-	endpoint   string
+	client     *minio.Client
 	bucketName string
-	useSSL     bool
-	baseURL    string // MinIO 对外访问地址
+	baseURL    string
 }
 
 // NewMinIOFileStorage 创建 MinIO 文件存储实例
-func NewMinIOFileStorage(endpoint, bucketName string, useSSL bool, baseURL string) *MinIOFileStorage {
-	return &MinIOFileStorage{
-		endpoint:   endpoint,
-		bucketName: bucketName,
-		useSSL:     useSSL,
-		baseURL:    baseURL,
+// 自动检查 Bucket 是否存在，不存在则创建
+func NewMinIOFileStorage(endpoint, bucketName, accessKey, secretKey string, useSSL bool, baseURL string) (*MinIOFileStorage, error) {
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: useSSL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("连接 MinIO 失败: %w", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	exists, err := client.BucketExists(ctx, bucketName)
+	if err != nil {
+		return nil, fmt.Errorf("检查 Bucket 失败: %w", err)
+	}
+	if !exists {
+		if err := client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{}); err != nil {
+			return nil, fmt.Errorf("创建 Bucket '%s' 失败: %w", bucketName, err)
+		}
+	}
+
+	return &MinIOFileStorage{
+		client:     client,
+		bucketName: bucketName,
+		baseURL:    baseURL,
+	}, nil
 }
 
 // Save 保存文件到 MinIO
 func (s *MinIOFileStorage) Save(ctx context.Context, fileName string, mimeType string, reader io.Reader) (*UploadedFile, error) {
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("读取文件内容失败: %w", err)
+	}
+
 	fileID := uuid.New().String()
 	now := time.Now()
 	ext := filepath.Ext(fileName)
 	if ext == "" {
 		ext = mimeToExt(mimeType)
 	}
+	objectName := filepath.Join(now.Format("2006/01/02"), fileID+ext)
 
-	// MinIO 对象路径: 2026/07/04/uuid.jpg
-	objectPath := filepath.Join(now.Format("2006/01/02"), fileID+ext)
+	_, err = s.client.PutObject(ctx, s.bucketName, objectName,
+		bytes.NewReader(data), int64(len(data)),
+		minio.PutObjectOptions{ContentType: mimeType},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("上传文件到 MinIO 失败: %w", err)
+	}
 
-	// TODO: 接入 minio-go SDK
-	// _, err := s.client.PutObject(ctx, s.bucketName, objectPath, reader, -1,
-	//     minio.PutObjectOptions{ContentType: mimeType})
-
-	_ = objectPath
 	return &UploadedFile{
 		FileID:    fileID,
 		FileName:  fileName,
 		MimeType:  mimeType,
-		Size:      0, // TODO: 从 PutObject 返回值获取
-		URL:       fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, objectPath),
-		Path:      objectPath,
+		Size:      int64(len(data)),
+		URL:       fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, objectName),
+		Path:      objectName,
 		CreatedAt: now.Format(time.RFC3339),
-	}, fmt.Errorf("MinIO 存储暂未实现（需引入 minio-go SDK）")
+	}, nil
 }
 
 // Get 从 MinIO 读取文件
-func (s *MinIOFileStorage) Get(ctx context.Context, fileID string) (io.ReadCloser, error) {
-	// TODO: s.client.GetObject(ctx, s.bucketName, fileID, minio.GetObjectOptions{})
-	_ = fileID
-	return nil, fmt.Errorf("MinIO 存储暂未实现")
+func (s *MinIOFileStorage) Get(ctx context.Context, objectName string) (io.ReadCloser, error) {
+	obj, err := s.client.GetObject(ctx, s.bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("从 MinIO 读取文件失败: %w", err)
+	}
+	return obj, nil
 }
 
 // Delete 从 MinIO 删除文件
-func (s *MinIOFileStorage) Delete(ctx context.Context, fileID string) error {
-	// TODO: s.client.RemoveObject(ctx, s.bucketName, fileID, minio.RemoveObjectOptions{})
-	_ = fileID
-	return fmt.Errorf("MinIO 存储暂未实现")
+func (s *MinIOFileStorage) Delete(ctx context.Context, objectName string) error {
+	return s.client.RemoveObject(ctx, s.bucketName, objectName, minio.RemoveObjectOptions{})
 }
 
 // URL 返回 MinIO 文件访问 URL
-func (s *MinIOFileStorage) URL(_ context.Context, fileID string) string {
-	return fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, fileID)
+func (s *MinIOFileStorage) URL(_ context.Context, objectName string) string {
+	return fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, objectName)
 }
+
+// Client 返回原始 MinIO Client（供测试使用）
+func (s *MinIOFileStorage) Client() *minio.Client { return s.client }
+
+// BucketName 返回 Bucket 名称
+func (s *MinIOFileStorage) BucketName() string { return s.bucketName }
