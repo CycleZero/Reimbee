@@ -8,9 +8,8 @@ var ProviderSet = wire.NewSet(
 	NewCustomRedisClient,
 	GetDB,
 
-	// OCR 识别器（默认使用 Mock 实现，生产通过配置切换）
-	wire.Bind(new(OCRRecognizer), new(*MockOCRRecognizer)),
-	NewMockOCRRecognizer,
+	// OCR 识别器 —— 配置驱动工厂，根据 ocr.driver 决定实现
+	NewOCRRecognizer,
 
 	// PDF 生成器（默认 Mock）
 	wire.Bind(new(PDFGenerator), new(*MockPDFGenerator)),
