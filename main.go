@@ -11,6 +11,14 @@ import (
 
 func main() {
 	vc := conf.GetConfig()
+	// 初始化日志（必须在 GetLogger 之前调用）
+	if err := log.InitLogger(
+		vc.GetString("log.mode"),
+		vc.GetString("log.level"),
+		vc.GetString("log.dir"),
+	); err != nil {
+		panic("日志初始化失败: " + err.Error())
+	}
 	logger := log.GetLogger()
 
 	app := initApp(vc, logger)
