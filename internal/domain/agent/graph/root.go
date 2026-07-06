@@ -50,8 +50,17 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 	// 意图分类节点：ChatModel（如有）或关键词降级
 	if deps.ChatModel != nil {
 		// ChatModel 模式：LLM 分析用户意图
+		// 先通过 Lambda 构建 Prompt（AgentInput → []*schema.Message），再送入 ChatModel
+		g.AddLambdaNode("build_intent_prompt", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) ([]*schema.Message, error) {
+			prompt := agent.BuildIntentClassifyPrompt(input.Message)
+			return []*schema.Message{
+				schema.SystemMessage("你是一个意图分类器。请分析用户输入并返回JSON格式的意图分类结果。"),
+				schema.UserMessage(prompt),
+			}, nil
+		}))
 		g.AddChatModelNode("intent_classifier", deps.ChatModel)
-		g.AddEdge(compose.START, "intent_classifier")
+		g.AddEdge(compose.START, "build_intent_prompt")
+		g.AddEdge("build_intent_prompt", "intent_classifier")
 
 		// 意图路由 Lambda——解析 LLM JSON 输出
 		g.AddLambdaNode("intent_router", compose.InvokableLambda(func(ctx context.Context, msg *schema.Message) (string, error) {
@@ -84,7 +93,15 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 
 	// 通用对话节点——ChatModel 或 Lambda 降级
 	if deps.ChatModel != nil {
+		g.AddLambdaNode("build_chat_prompt", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) ([]*schema.Message, error) {
+			prompt := agent.BuildGeneralChatPrompt()
+			return []*schema.Message{
+				schema.SystemMessage(prompt),
+				schema.UserMessage(input.Message),
+			}, nil
+		}))
 		g.AddChatModelNode("general_chat", deps.ChatModel)
+		g.AddEdge("build_chat_prompt", "general_chat")
 	} else {
 		deps.Logger.Debug("通用对话降级为模板回复")
 		g.AddLambdaNode("general_chat", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
