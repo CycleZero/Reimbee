@@ -21,4 +21,9 @@ var ProviderSet = wire.NewSet(
 	// 邮件发送器（默认 Mock）
 	wire.Bind(new(EmailSender), new(*MockEmailSender)),
 	NewMockEmailSender,
+
+	// 会话持久化 —— MySQL 主存储 + Redis 缓存层
+	NewMySQLSessionStore,
+	wire.Bind(new(SessionStore), new(*MySQLSessionStore)),
+	NewRedisSessionCache,
 )

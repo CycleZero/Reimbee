@@ -3,6 +3,7 @@ package domain
 import (
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
 	"github.com/CycleZero/Reimbee/internal/domain/budget"
+	"github.com/CycleZero/Reimbee/internal/domain/compliance"
 	"github.com/CycleZero/Reimbee/internal/domain/department"
 	"github.com/CycleZero/Reimbee/internal/domain/employee"
 	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
@@ -15,6 +16,7 @@ var ProviderSet = wire.NewSet(
 
 	approval.ProviderSet,
 	budget.ProviderSet,
+	compliance.ProviderSet,
 	department.ProviderSet,
 	employee.ProviderSet,
 	reimbursement.ProviderSet,
