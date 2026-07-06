@@ -11,6 +11,9 @@ var ProviderSet = wire.NewSet(
 	// OCR 识别器 —— 配置驱动工厂，根据 ocr.driver 决定实现
 	NewOCRRecognizer,
 
+	// 文件存储 —— 配置驱动工厂，根据 storage.driver 决定实现
+	NewFileStorage,
+
 	// PDF 生成器（默认 Mock）
 	wire.Bind(new(PDFGenerator), new(*MockPDFGenerator)),
 	NewMockPDFGenerator,
