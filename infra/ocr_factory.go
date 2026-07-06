@@ -18,7 +18,7 @@ func NewOCRRecognizer(vc *viper.Viper) (OCRRecognizer, error) {
 	}
 
 	switch driver {
-	case "multimodal":
+	case "multimodal", "qwen-vl":
 		return NewMultimodalLLMRecognizer(vc), nil
 	case "paddle":
 		return NewPaddleOCRRecognizer(vc.GetString("ocr.paddle.endpoint"),

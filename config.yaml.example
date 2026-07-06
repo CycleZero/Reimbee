@@ -56,16 +56,23 @@ openai:
   max_tokens: 4096
 
 # ==========================================
-# OCR 票据识别
+# OCR 票据识别（千问 VL，性价比最高 ¥0.05/M 输入）
 # ==========================================
 ocr:
-  driver: "multimodal"               # multimodal | paddle | mock
+  driver: "qwen-vl"                    # qwen-vl | multimodal | paddle | mock
 
-  # 多模态大模型（推荐）
+  # 千问 VL 多模态（推荐：qwen3-vl-flash，OCR 精准 + 便宜）
+  qwen_vl:
+    base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    api_key: "${DASHSCOPE_API_KEY}"
+    model: "qwen3-vl-flash"           # qwen3-vl-flash(最便宜) / qwen3-vl-plus(更高精度)
+    timeout: 30s
+
+  # 通用多模态（OpenAI 兼容 API）
   multimodal:
-    base_url: "${OPENAI_BASE_URL}"   # 共用 OpenAI 兼容 API
+    base_url: "${OPENAI_BASE_URL}"
     api_key: "${OPENAI_API_KEY}"
-    model: "${OPENAI_MODEL:-gpt-4o}" # 需支持 Vision
+    model: "${OPENAI_MODEL:-gpt-4o}"
     timeout: 30s
 
   # PaddleOCR 微服务（本地部署）
@@ -134,27 +141,16 @@ jwt:
   expire_hours: 24
 
 # ==========================================
-# 嵌入模型配置
+# 嵌入模型（千问 text-embedding-v4，DashScope API，¥0.50/百万tokens）
 # ==========================================
 embedding:
-  driver: "openai"                      # openai | bge-m3 | qwen
-
-  openai:
-    model: "text-embedding-3-small"
-    dimensions: 512
-
-  bge_m3:
-    endpoint: "http://localhost:11434"
-    model: "bge-m3"
-    timeout: 30s
+  driver: "qwen"                        # qwen | openai | bge-m3
 
   qwen:
-    mode: "ollama"                      # ollama | dashscope
-    ollama_endpoint: "http://localhost:11434"
-    ollama_model: "qwen2-embedding"
+    mode: "dashscope"                   # dashscope(云端API) | ollama(本地免费)
     dashscope_api_key: "${DASHSCOPE_API_KEY}"
     dashscope_model: "text-embedding-v4"
-    dimensions: 1024
+    dimensions: 1024                    # 64~2048，默认1024
     timeout: 30s
 
 # ==========================================
