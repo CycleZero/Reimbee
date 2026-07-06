@@ -22,6 +22,16 @@ func NewApprovalService(biz *ApprovalBiz, logger *log.Logger) *ApprovalService {
 }
 
 // GetProgress 获取审批进度
+// @Summary 获取审批进度
+// @Description 根据报销单ID获取该报销单的审批流转记录
+// @Tags 审批管理
+// @Accept json
+// @Produce json
+// @Param id path int true "报销单ID"
+// @Success 200 {array} ApprovalRecordResponse "审批记录列表"
+// @Failure 400 {object} map[string]interface{} "报销单ID格式错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/reimbursements/{id}/approvals [get]
 func (s *ApprovalService) GetProgress(c *gin.Context) {
 	reimbursementID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -44,6 +54,17 @@ func (s *ApprovalService) GetProgress(c *gin.Context) {
 }
 
 // Approve 审批通过
+// @Summary 审批通过
+// @Description 审批人对指定审批记录进行通过操作，可附带审批意见
+// @Tags 审批管理
+// @Accept json
+// @Produce json
+// @Param id path int true "审批记录ID"
+// @Param request body object false "审批请求体，comment字段为可选审批意见"
+// @Success 200 {object} map[string]interface{} "审批已通过"
+// @Failure 400 {object} map[string]interface{} "审批记录ID格式错误"
+// @Failure 409 {object} map[string]interface{} "审批操作失败"
+// @Router /api/approvals/{id}/approve [post]
 func (s *ApprovalService) Approve(c *gin.Context) {
 	recordID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -64,6 +85,17 @@ func (s *ApprovalService) Approve(c *gin.Context) {
 }
 
 // Reject 驳回审批
+// @Summary 驳回审批
+// @Description 审批人对指定审批记录进行驳回操作，必须提供驳回原因
+// @Tags 审批管理
+// @Accept json
+// @Produce json
+// @Param id path int true "审批记录ID"
+// @Param request body object true "驳回请求体，reason字段必填"
+// @Success 200 {object} map[string]interface{} "审批已驳回"
+// @Failure 400 {object} map[string]interface{} "请求参数错误或驳回原因不能为空"
+// @Failure 409 {object} map[string]interface{} "驳回操作失败"
+// @Router /api/approvals/{id}/reject [post]
 func (s *ApprovalService) Reject(c *gin.Context) {
 	recordID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

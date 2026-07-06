@@ -110,8 +110,6 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		api.POST("/reimbursements/:id/submit", hub.ReimbursementService.Submit)
 	}
 
-	// SSE 对话接口
-	api.GET("/chat/stream", func(c *gin.Context) {
-		c.JSON(501, gin.H{"message": "Agent 对话接口待实现"})
-	})
+	// SSE 对话接口（Agent 流式响应）
+	api.GET("/chat/stream", hub.AgentService.HandleChat)
 }

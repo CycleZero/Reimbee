@@ -1,0 +1,1753 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/api/approvals/{id}/approve": {
+            "post": {
+                "description": "审批人对指定审批记录进行通过操作，可附带审批意见",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "审批管理"
+                ],
+                "summary": "审批通过",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "审批记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "审批请求体，comment字段为可选审批意见",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "审批已通过",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "审批记录ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "审批操作失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/approvals/{id}/reject": {
+            "post": {
+                "description": "审批人对指定审批记录进行驳回操作，必须提供驳回原因",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "审批管理"
+                ],
+                "summary": "驳回审批",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "审批记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "驳回请求体，reason字段必填",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "审批已驳回",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误或驳回原因不能为空",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "驳回操作失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/budgets": {
+            "post": {
+                "description": "管理员为指定部门创建财年预算",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "预算管理"
+                ],
+                "summary": "创建预算记录",
+                "parameters": [
+                    {
+                        "description": "创建预算请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/budget.CreateBudgetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "预算创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/budget.BudgetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "该部门该财年预算已存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/budgets/dashboard": {
+            "get": {
+                "description": "获取指定财年所有部门的预算概览，包含汇总统计",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "预算管理"
+                ],
+                "summary": "获取预算看板",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "财年，默认2026",
+                        "name": "year",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "预算看板数据",
+                        "schema": {
+                            "$ref": "#/definitions/budget.DashboardResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/budgets/{id}": {
+            "get": {
+                "description": "根据预算ID获取单条预算记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "预算管理"
+                ],
+                "summary": "获取预算详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "预算ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "预算详情",
+                        "schema": {
+                            "$ref": "#/definitions/budget.BudgetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "预算ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "预算记录不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "管理员更新指定预算记录的年度预算金额",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "预算管理"
+                ],
+                "summary": "更新预算金额",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "预算ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新预算请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/budget.UpdateBudgetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "预算更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/budget.BudgetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "预算更新失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/chat/stream": {
+            "get": {
+                "description": "通过 SSE（Server-Sent Events）与报销智能助手进行实时对话交互",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Agent对话"
+                ],
+                "summary": "Agent 流式对话",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话ID（UUID v7）",
+                        "name": "session_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户消息内容",
+                        "name": "message",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE事件流",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "缺少必填参数",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "服务器不支持流式响应",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/departments": {
+            "get": {
+                "description": "分页查询所有部门，返回部门列表及总数",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "部门管理"
+                ],
+                "summary": "获取部门列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部门列表",
+                        "schema": {
+                            "$ref": "#/definitions/department.ListDepartmentResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "管理员创建新部门，部门名称必须唯一",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "部门管理"
+                ],
+                "summary": "创建新部门",
+                "parameters": [
+                    {
+                        "description": "创建部门请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/department.CreateDepartmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "部门创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/department.DepartmentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "部门名称已存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/departments/{id}": {
+            "get": {
+                "description": "根据部门ID获取单个部门的详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "部门管理"
+                ],
+                "summary": "获取部门详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部门详情",
+                        "schema": {
+                            "$ref": "#/definitions/department.DepartmentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "部门ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "部门不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "管理员更新指定部门的名称或主管",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "部门管理"
+                ],
+                "summary": "更新部门信息",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新部门请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/department.UpdateDepartmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部门更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/department.DepartmentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "部门不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "部门名称冲突",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "管理员删除指定部门（如有员工归属则不可删除）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "部门管理"
+                ],
+                "summary": "删除部门",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部门删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "部门ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "部门不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "部门下存在关联数据，无法删除",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/employees": {
+            "get": {
+                "description": "分页查询所有员工，返回员工列表及总数",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "员工管理"
+                ],
+                "summary": "获取员工列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "员工列表",
+                        "schema": {
+                            "$ref": "#/definitions/employee.ListEmployeeResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "管理员创建新员工，工号必须唯一",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "员工管理"
+                ],
+                "summary": "创建新员工",
+                "parameters": [
+                    {
+                        "description": "创建员工请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/employee.CreateEmployeeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "员工创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/employee.EmployeeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "工号或邮箱已存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/employees/approvers": {
+            "get": {
+                "description": "获取所有具有审批权限的员工列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "员工管理"
+                ],
+                "summary": "获取审批人列表",
+                "responses": {
+                    "200": {
+                        "description": "审批人列表",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/employee.EmployeeResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/employees/{id}": {
+            "get": {
+                "description": "根据员工ID获取单个员工的详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "员工管理"
+                ],
+                "summary": "获取员工详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "员工ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "员工详情",
+                        "schema": {
+                            "$ref": "#/definitions/employee.EmployeeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "员工ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "员工不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "管理员更新指定员工的姓名、邮箱、部门或角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "员工管理"
+                ],
+                "summary": "更新员工信息",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "员工ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新员工请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/employee.UpdateEmployeeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "员工更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/employee.EmployeeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "工号或邮箱冲突",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "管理员删除指定员工（如有未完结的报销单则不可删除）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "员工管理"
+                ],
+                "summary": "删除员工",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "员工ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "员工删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "员工ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "员工存在关联数据，无法删除",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements": {
+            "get": {
+                "description": "分页查询报销单，可按员工工号筛选",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "获取报销单列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "员工工号（可选筛选）",
+                        "name": "employee_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "报销单列表",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ListReimbursementResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "员工创建报销单草稿，状态为 draft，需后续提交",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "创建报销单（草稿）",
+                "parameters": [
+                    {
+                        "description": "创建报销单请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.CreateReimbursementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "报销单创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/no/{no}": {
+            "get": {
+                "description": "根据报销单号获取报销单详细信息，包含票据和审批记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "获取报销单详情（按单号）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "报销单号（如 REIMB-2026-0001）",
+                        "name": "no",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "报销单详情",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "报销单不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/pending": {
+            "get": {
+                "description": "获取所有状态为待审批的报销单列表（审批人专用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "获取待审批报销单",
+                "responses": {
+                    "200": {
+                        "description": "待审批报销单列表",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/{id}": {
+            "get": {
+                "description": "根据报销单ID获取报销单详细信息，包含票据和审批记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "获取报销单详情（按ID）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "报销单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "报销单详情",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "报销单ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "报销单不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/{id}/approvals": {
+            "get": {
+                "description": "根据报销单ID获取该报销单的审批流转记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "审批管理"
+                ],
+                "summary": "获取审批进度",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "报销单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "审批记录列表",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/approval.ApprovalRecordResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "报销单ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/{id}/approve": {
+            "post": {
+                "description": "审批人通过报销单，更新报销单状态并记录审批操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "审批通过报销单",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "报销单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "审批通过成功",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "报销单ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "审批操作失败（状态不允许或无权限）",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/{id}/reject": {
+            "post": {
+                "description": "审批人驳回报销单，报销单状态回退为 draft",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "驳回报销单",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "报销单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "驳回成功",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "报销单ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "驳回操作失败（状态不允许或无权限）",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reimbursements/{id}/submit": {
+            "post": {
+                "description": "将草稿状态的报销单提交进入审批流程",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "提交报销单",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "报销单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "提交报销单请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.SubmitReimbursementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "报销单提交成功",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "提交失败（状态不允许或预算不足）",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "approval.ApprovalRecordResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "action_at": {
+                    "type": "string"
+                },
+                "approver_email": {
+                    "type": "string"
+                },
+                "approver_name": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "reimbursement_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "budget.BudgetResponse": {
+            "type": "object",
+            "properties": {
+                "annual_budget": {
+                    "description": "年度预算(分)",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "integer"
+                },
+                "fiscal_year": {
+                    "type": "integer"
+                },
+                "frozen_amount": {
+                    "description": "已冻结(分)",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "remaining": {
+                    "description": "可用余额(分)",
+                    "type": "integer"
+                },
+                "spent_amount": {
+                    "description": "已结算(分)",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "usage_rate": {
+                    "description": "使用率百分比",
+                    "type": "number"
+                }
+            }
+        },
+        "budget.CreateBudgetRequest": {
+            "type": "object",
+            "required": [
+                "annual_budget",
+                "department_id",
+                "fiscal_year"
+            ],
+            "properties": {
+                "annual_budget": {
+                    "description": "年度预算(分)",
+                    "type": "integer"
+                },
+                "department_id": {
+                    "description": "部门ID",
+                    "type": "integer"
+                },
+                "fiscal_year": {
+                    "description": "财年",
+                    "type": "integer"
+                }
+            }
+        },
+        "budget.DashboardResponse": {
+            "type": "object",
+            "properties": {
+                "departments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/budget.BudgetResponse"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/budget.DashboardSummary"
+                }
+            }
+        },
+        "budget.DashboardSummary": {
+            "type": "object",
+            "properties": {
+                "overall_usage": {
+                    "description": "总体使用率",
+                    "type": "number"
+                },
+                "total_budget": {
+                    "description": "总预算(分)",
+                    "type": "integer"
+                },
+                "total_remaining": {
+                    "description": "总剩余(分)",
+                    "type": "integer"
+                },
+                "total_spent": {
+                    "description": "总已结算(分)",
+                    "type": "integer"
+                }
+            }
+        },
+        "budget.UpdateBudgetRequest": {
+            "type": "object",
+            "required": [
+                "annual_budget"
+            ],
+            "properties": {
+                "annual_budget": {
+                    "description": "年度预算(分)",
+                    "type": "integer"
+                }
+            }
+        },
+        "department.CreateDepartmentRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "manager_id": {
+                    "description": "部门主管员工ID，可选",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "部门名称",
+                    "type": "string"
+                }
+            }
+        },
+        "department.DepartmentResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "manager_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "department.ListDepartmentResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/department.DepartmentResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "department.UpdateDepartmentRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "manager_id": {
+                    "description": "部门主管员工ID，可选",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "新部门名称",
+                    "type": "string"
+                }
+            }
+        },
+        "employee.CreateEmployeeRequest": {
+            "type": "object",
+            "required": [
+                "department_id",
+                "employee_id",
+                "name"
+            ],
+            "properties": {
+                "department_id": {
+                    "description": "所属部门ID",
+                    "type": "integer"
+                },
+                "email": {
+                    "description": "邮箱",
+                    "type": "string"
+                },
+                "employee_id": {
+                    "description": "工号",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "姓名",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "角色，默认 employee",
+                    "type": "string"
+                }
+            }
+        },
+        "employee.EmployeeResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "department": {
+                    "description": "部门名称",
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "employee_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_approver": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "employee.ListEmployeeResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/employee.EmployeeResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "employee.UpdateEmployeeRequest": {
+            "type": "object",
+            "required": [
+                "department_id",
+                "name"
+            ],
+            "properties": {
+                "department_id": {
+                    "description": "所属部门ID",
+                    "type": "integer"
+                },
+                "email": {
+                    "description": "邮箱",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "姓名",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "角色",
+                    "type": "string"
+                }
+            }
+        },
+        "reimbursement.ApprovalInfoResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "action_at": {
+                    "type": "string"
+                },
+                "approver_name": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "reimbursement.CreateReimbursementRequest": {
+            "type": "object",
+            "required": [
+                "department_id",
+                "employee_id",
+                "employee_name"
+            ],
+            "properties": {
+                "department_id": {
+                    "description": "部门ID",
+                    "type": "integer"
+                },
+                "employee_id": {
+                    "description": "工号",
+                    "type": "string"
+                },
+                "employee_name": {
+                    "description": "申请人姓名",
+                    "type": "string"
+                },
+                "submit_note": {
+                    "description": "报销事由",
+                    "type": "string"
+                }
+            }
+        },
+        "reimbursement.InvoiceItemResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "check_result": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "invoice_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "reimbursement.ListReimbursementResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reimbursement.ReimbursementResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "reimbursement.ReimbursementResponse": {
+            "type": "object",
+            "properties": {
+                "approvals": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reimbursement.ApprovalInfoResponse"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "integer"
+                },
+                "employee_id": {
+                    "type": "string"
+                },
+                "employee_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "invoices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reimbursement.InvoiceItemResponse"
+                    }
+                },
+                "need_special_approval": {
+                    "type": "boolean"
+                },
+                "reimbursement_no": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "submit_note": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "reimbursement.SubmitReimbursementRequest": {
+            "type": "object",
+            "required": [
+                "total_amount"
+            ],
+            "properties": {
+                "total_amount": {
+                    "description": "报销总金额(分)",
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

@@ -24,3 +24,6 @@ run:
 # 安装依赖
 tidy:
 	go mod tidy
+
+swagger:
+	swag init

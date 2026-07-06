@@ -22,6 +22,16 @@ func NewEmployeeService(biz *EmployeeBiz, logger *log.Logger) *EmployeeService {
 }
 
 // List 获取员工列表
+// @Summary 获取员工列表
+// @Description 分页查询所有员工，返回员工列表及总数
+// @Tags 员工管理
+// @Accept json
+// @Produce json
+// @Param page query int false "页码，默认1"
+// @Param page_size query int false "每页数量，默认10"
+// @Success 200 {object} ListEmployeeResponse "员工列表"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/employees [get]
 func (s *EmployeeService) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -40,7 +50,17 @@ func (s *EmployeeService) List(c *gin.Context) {
 	c.JSON(http.StatusOK, ListEmployeeResponse{List: resp, Total: total, Page: page})
 }
 
-// GetByID 根据 ID 获取员工详情
+// GetByID 根据ID获取员工详情
+// @Summary 获取员工详情
+// @Description 根据员工ID获取单个员工的详细信息
+// @Tags 员工管理
+// @Accept json
+// @Produce json
+// @Param id path int true "员工ID"
+// @Success 200 {object} EmployeeResponse "员工详情"
+// @Failure 400 {object} map[string]interface{} "员工ID格式错误"
+// @Failure 404 {object} map[string]interface{} "员工不存在"
+// @Router /api/employees/{id} [get]
 func (s *EmployeeService) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -57,6 +77,14 @@ func (s *EmployeeService) GetByID(c *gin.Context) {
 }
 
 // ListApprovers 获取审批人列表
+// @Summary 获取审批人列表
+// @Description 获取所有具有审批权限的员工列表
+// @Tags 员工管理
+// @Accept json
+// @Produce json
+// @Success 200 {array} EmployeeResponse "审批人列表"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/employees/approvers [get]
 func (s *EmployeeService) ListApprovers(c *gin.Context) {
 	approvers, err := s.biz.ListApprovers()
 	if err != nil {
@@ -73,6 +101,16 @@ func (s *EmployeeService) ListApprovers(c *gin.Context) {
 }
 
 // Create 创建员工
+// @Summary 创建新员工
+// @Description 管理员创建新员工，工号必须唯一
+// @Tags 员工管理
+// @Accept json
+// @Produce json
+// @Param request body CreateEmployeeRequest true "创建员工请求"
+// @Success 201 {object} EmployeeResponse "员工创建成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 409 {object} map[string]interface{} "工号或邮箱已存在"
+// @Router /api/employees [post]
 func (s *EmployeeService) Create(c *gin.Context) {
 	var req CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -92,6 +130,17 @@ func (s *EmployeeService) Create(c *gin.Context) {
 }
 
 // Update 更新员工
+// @Summary 更新员工信息
+// @Description 管理员更新指定员工的姓名、邮箱、部门或角色
+// @Tags 员工管理
+// @Accept json
+// @Produce json
+// @Param id path int true "员工ID"
+// @Param request body UpdateEmployeeRequest true "更新员工请求"
+// @Success 200 {object} EmployeeResponse "员工更新成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 409 {object} map[string]interface{} "工号或邮箱冲突"
+// @Router /api/employees/{id} [put]
 func (s *EmployeeService) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -117,6 +166,16 @@ func (s *EmployeeService) Update(c *gin.Context) {
 }
 
 // Delete 删除员工
+// @Summary 删除员工
+// @Description 管理员删除指定员工（如有未完结的报销单则不可删除）
+// @Tags 员工管理
+// @Accept json
+// @Produce json
+// @Param id path int true "员工ID"
+// @Success 200 {object} map[string]interface{} "员工删除成功"
+// @Failure 400 {object} map[string]interface{} "员工ID格式错误"
+// @Failure 409 {object} map[string]interface{} "员工存在关联数据，无法删除"
+// @Router /api/employees/{id} [delete]
 func (s *EmployeeService) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

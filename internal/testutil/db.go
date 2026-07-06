@@ -20,7 +20,7 @@ func NewTestData() *infra.Data {
 		panic("创建测试数据库失败: " + err.Error())
 	}
 
-	// 自动迁移所有业务模型（按依赖顺序）
+	// 自动迁移所有业务模型（按依赖顺序，父表先于子表）
 	if err := db.AutoMigrate(
 		&model.Department{},
 		&model.Employee{},
@@ -30,6 +30,7 @@ func NewTestData() *infra.Data {
 		&model.ApprovalRecord{},
 		&model.PolicyDocument{},
 		&model.PolicyChunk{},
+		&model.SessionMessage{}, // Agent 会话消息持久化
 	); err != nil {
 		panic("迁移测试数据库失败: " + err.Error())
 	}

@@ -24,6 +24,15 @@ func NewBudgetService(biz *BudgetBiz, logger *log.Logger) *BudgetService {
 }
 
 // Dashboard 获取当前财年的预算看板
+// @Summary 获取预算看板
+// @Description 获取指定财年所有部门的预算概览，包含汇总统计
+// @Tags 预算管理
+// @Accept json
+// @Produce json
+// @Param year query int false "财年，默认2026"
+// @Success 200 {object} DashboardResponse "预算看板数据"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/budgets/dashboard [get]
 func (s *BudgetService) Dashboard(c *gin.Context) {
 	year := defaultFiscalYear
 	if y := c.Query("year"); y != "" {
@@ -65,7 +74,17 @@ func (s *BudgetService) Dashboard(c *gin.Context) {
 	})
 }
 
-// GetByID 根据 ID 获取预算详情
+// GetByID 根据ID获取预算详情
+// @Summary 获取预算详情
+// @Description 根据预算ID获取单条预算记录
+// @Tags 预算管理
+// @Accept json
+// @Produce json
+// @Param id path int true "预算ID"
+// @Success 200 {object} BudgetResponse "预算详情"
+// @Failure 400 {object} map[string]interface{} "预算ID格式错误"
+// @Failure 404 {object} map[string]interface{} "预算记录不存在"
+// @Router /api/budgets/{id} [get]
 func (s *BudgetService) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -82,6 +101,16 @@ func (s *BudgetService) GetByID(c *gin.Context) {
 }
 
 // Create 创建预算记录
+// @Summary 创建预算记录
+// @Description 管理员为指定部门创建财年预算
+// @Tags 预算管理
+// @Accept json
+// @Produce json
+// @Param request body CreateBudgetRequest true "创建预算请求"
+// @Success 201 {object} BudgetResponse "预算创建成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 409 {object} map[string]interface{} "该部门该财年预算已存在"
+// @Router /api/budgets [post]
 func (s *BudgetService) Create(c *gin.Context) {
 	var req CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -98,6 +127,17 @@ func (s *BudgetService) Create(c *gin.Context) {
 }
 
 // Update 更新预算
+// @Summary 更新预算金额
+// @Description 管理员更新指定预算记录的年度预算金额
+// @Tags 预算管理
+// @Accept json
+// @Produce json
+// @Param id path int true "预算ID"
+// @Param request body UpdateBudgetRequest true "更新预算请求"
+// @Success 200 {object} BudgetResponse "预算更新成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 409 {object} map[string]interface{} "预算更新失败"
+// @Router /api/budgets/{id} [put]
 func (s *BudgetService) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

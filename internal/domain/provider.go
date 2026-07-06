@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"github.com/CycleZero/Reimbee/internal/domain/agent"
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
 	"github.com/CycleZero/Reimbee/internal/domain/budget"
 	"github.com/CycleZero/Reimbee/internal/domain/compliance"
@@ -14,6 +15,7 @@ import (
 var ProviderSet = wire.NewSet(
 	NewServiceHub,
 
+	agent.ProviderSet,
 	approval.ProviderSet,
 	budget.ProviderSet,
 	compliance.ProviderSet,

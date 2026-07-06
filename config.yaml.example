@@ -119,7 +119,12 @@ compliance:
 agent:
   session_ttl_minutes: 30            # 会话超时（分钟）
   max_history_turns: 20              # 最大对话轮数
+  max_phase_turns: 10                # 每 Phase 最大交互轮次（防死循环）
   checkpoint_cleanup_hours: 1        # Checkpoint 孤儿清理（小时）
+  llm_max_retries: 3                 # LLM API 最大重试次数
+  llm_retry_backoff_seconds: 2       # 重试退避初始间隔（秒），指数增长
+  tool_timeout_seconds: 30           # 工具调用超时（秒）
+  intent_confidence_threshold: 0.7   # 意图分类置信度阈值，低于此值询问用户
 
 # ==========================================
 # JWT 认证
@@ -127,3 +132,48 @@ agent:
 jwt:
   secret: "${JWT_SECRET:-reimbee-jwt-secret-change-in-production}"
   expire_hours: 24
+
+# ==========================================
+# 嵌入模型配置
+# ==========================================
+embedding:
+  driver: "openai"                      # openai | bge-m3 | qwen
+
+  openai:
+    model: "text-embedding-3-small"
+    dimensions: 512
+
+  bge_m3:
+    endpoint: "http://localhost:11434"
+    model: "bge-m3"
+    timeout: 30s
+
+  qwen:
+    mode: "ollama"                      # ollama | dashscope
+    ollama_endpoint: "http://localhost:11434"
+    ollama_model: "qwen2-embedding"
+    dashscope_api_key: "${DASHSCOPE_API_KEY}"
+    dashscope_model: "text-embedding-v4"
+    dimensions: 1024
+    timeout: 30s
+
+# ==========================================
+# 向量库配置
+# ==========================================
+vector_store:
+  driver: "inmemory"                    # inmemory | milvus | pgvector | chroma
+
+  milvus:
+    endpoint: "localhost:19530"
+    collection: "reimbee_policies"
+    metric_type: "COSINE"
+    timeout: 30s
+
+  pgvector:
+    dsn: "${PGVECTOR_DSN}"
+    table: "reimbee_policies"
+
+  chroma:
+    endpoint: "http://localhost:8000"
+    collection: "reimbee_policies"
+    timeout: 30s
