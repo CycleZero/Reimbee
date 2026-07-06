@@ -1,29 +1,129 @@
-data:
-  db:
-    host: localhost
-    port: 3306
-    user: root
-    password: your_password
-    db_name: gin_template
-  redis:
-    host: localhost
-    port: 6379
-    password: ""
+# ==========================================
+# Reimbee — 企业财务报销助手 配置文件
+# ==========================================
 
+# ==========================================
+# 应用基础设置
+# ==========================================
+app:
+  dev_mode: true           # 开发模式：true=彩色控制台日志，false=JSON 日志
+  enable_db_debug: true     # GORM 调试日志
+
+# ==========================================
+# HTTP 服务
+# ==========================================
 server:
   http:
-    host: 0.0.0.0
-    port: 8000
+    host: "0.0.0.0"
+    port: 8080
     pprof:
       enable: true
       port: 6060
-      host: 0.0.0.0
+      host: "0.0.0.0"
 
+# ==========================================
+# 日志
+# ==========================================
 log:
-  mode: dev       # dev | prod
-  level: debug    # debug | info | warn | error
-  dir: ./data/log
+  mode: "dev"               # dev | prod
+  level: "debug"            # debug | info | warn | error
+  dir: "./data/log"
 
-app:
-  dev_mode: true
-  enable_db_debug: true
+# ==========================================
+# MySQL 数据库
+# ==========================================
+data:
+  db:
+    host: "${DB_HOST:-localhost}"
+    port: "${DB_PORT:-3306}"
+    user: "${DB_USER:-root}"
+    password: "${DB_PASSWORD:-}"
+    db_name: "${DB_NAME:-reimbee}"
+
+  redis:
+    host: "${REDIS_HOST:-localhost}"
+    port: "${REDIS_PORT:-6379}"
+    password: "${REDIS_PASSWORD:-}"
+
+# ==========================================
+# LLM 大模型（OpenAI 兼容 API）
+# ==========================================
+openai:
+  base_url: "${OPENAI_BASE_URL}"     # e.g. https://api.openai.com/v1
+  api_key: "${OPENAI_API_KEY}"       # sk-xxx
+  model: "${OPENAI_MODEL:-gpt-4o}"   # gpt-4o / doubao-pro-32k / deepseek-chat
+  temperature: 0.3
+  max_tokens: 4096
+
+# ==========================================
+# OCR 票据识别
+# ==========================================
+ocr:
+  driver: "multimodal"               # multimodal | paddle | mock
+
+  # 多模态大模型（推荐）
+  multimodal:
+    base_url: "${OPENAI_BASE_URL}"   # 共用 OpenAI 兼容 API
+    api_key: "${OPENAI_API_KEY}"
+    model: "${OPENAI_MODEL:-gpt-4o}" # 需支持 Vision
+    timeout: 30s
+
+  # PaddleOCR 微服务（本地部署）
+  paddle:
+    endpoint: "http://localhost:5001"
+    timeout: 30s
+
+# ==========================================
+# 文件存储
+# ==========================================
+storage:
+  driver: "local"                    # local | minio
+
+  # 本地磁盘
+  local:
+    base_dir: "./uploads"
+    base_url: "/uploads"
+
+  # MinIO / S3 兼容对象存储
+  minio:
+    endpoint: "${MINIO_ENDPOINT:-localhost:9000}"
+    bucket: "${MINIO_BUCKET:-reimbee}"
+    access_key: "${MINIO_ACCESS_KEY:-minioadmin}"
+    secret_key: "${MINIO_SECRET_KEY:-minioadmin}"
+    use_ssl: false
+    base_url: "${MINIO_BASE_URL:-http://localhost:9000}"
+
+# ==========================================
+# SMTP 邮件
+# ==========================================
+smtp:
+  host: "${SMTP_HOST:-smtp.qq.com}"
+  port: "${SMTP_PORT:-587}"
+  user: "${SMTP_USER:-}"
+  password: "${SMTP_PASSWORD:-}"
+  from: "${SMTP_FROM:-noreply@reimbee.com}"
+
+# ==========================================
+# 合规规则（单位：分）
+# ==========================================
+compliance:
+  hotel_daily_max: 30000             # 住宿 ¥300/天
+  transport_max: 150000              # 交通 ¥1500/次
+  entertainment_per_person: 20000    # 招待 ¥200/人
+  office_max: 500000                 # 办公用品 ¥5000/次
+  invoice_max_age_days: 90           # 发票有效期 90 天
+
+# ==========================================
+# Agent 对话
+# ==========================================
+agent:
+  session_ttl_minutes: 30            # 会话超时（分钟）
+  max_history_turns: 20              # 最大对话轮数
+  checkpoint_cleanup_hours: 1        # Checkpoint 孤儿清理（小时）
+
+# ==========================================
+# JWT 认证
+# ==========================================
+jwt:
+  secret: "${JWT_SECRET:-reimbee-jwt-secret-change-in-production}"
+  expire_hours: 24
