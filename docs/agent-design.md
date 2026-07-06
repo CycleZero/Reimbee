@@ -1120,9 +1120,9 @@ func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string,
 
 ## 六、LLM 节点内的 Prompt 设计
 
-## 六、LLM 节点内的 Prompt 设计
-
 LLM 节点不再需要"工具调用决策"。它只需做一件事：**基于当前节点上下文，生成合适的自然语言回复**。
+
+（完整 Prompt 库见 `docs/agent-design-supplement.md` §五）
 
 ### 6.1 各类 LLM 节点的 Prompt 模板
 
