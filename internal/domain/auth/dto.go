@@ -22,3 +22,11 @@ type LoginResponse struct {
 	Role       string `json:"role"`        // 角色
 	ExpiresIn  int64  `json:"expires_in"`  // 过期秒数
 }
+
+// RegisterResponse 注册响应
+type RegisterResponse struct {
+	Message    string `json:"message"`     // 提示信息
+	EmployeeID string `json:"employee_id"` // 分配的工号
+	Name       string `json:"name"`        // 姓名
+	Role       string `json:"role"`        // 角色
+}
