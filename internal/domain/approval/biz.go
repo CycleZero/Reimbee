@@ -35,7 +35,7 @@ func (b *ApprovalBiz) CreateApprovalChain(reimbursementID uint, approvers []*mod
 			ReimbursementID: reimbursementID,
 			ApproverName:    approver.Name,
 			ApproverEmail:   approver.Email,
-			Action:          "pending",
+			Action:          model.ApprovalActionPending,
 		}
 		if err := b.repo.Create(record); err != nil {
 			b.logger.Error("创建审批记录失败", zap.String("审批人", approver.Name), zap.Error(err))
@@ -58,13 +58,13 @@ func (b *ApprovalBiz) Approve(recordID uint, comment string) error {
 		return fmt.Errorf("审批记录不存在")
 	}
 
-	if record.Action != "pending" {
+	if record.Action != model.ApprovalActionPending {
 		b.logger.Warn("审批记录已处理，不可重复操作", zap.Uint("审批记录ID", recordID), zap.String("当前状态", record.Action))
 		return fmt.Errorf("该审批已处理（当前状态: %s），不可重复操作", record.Action)
 	}
 
 	now := time.Now()
-	record.Action = "approved"
+	record.Action = model.ApprovalActionApproved
 	record.Comment = comment
 	record.ActionAt = &now
 
@@ -92,13 +92,13 @@ func (b *ApprovalBiz) Reject(recordID uint, reason string) error {
 		return fmt.Errorf("审批记录不存在")
 	}
 
-	if record.Action != "pending" {
+	if record.Action != model.ApprovalActionPending {
 		b.logger.Warn("审批记录已处理，不可重复操作", zap.Uint("审批记录ID", recordID), zap.String("当前状态", record.Action))
 		return fmt.Errorf("该审批已处理（当前状态: %s），不可重复操作", record.Action)
 	}
 
 	now := time.Now()
-	record.Action = "rejected"
+	record.Action = model.ApprovalActionRejected
 	record.Comment = reason
 	record.ActionAt = &now
 
@@ -122,11 +122,11 @@ func (b *ApprovalBiz) IsAllApproved(reimbursementID uint) (bool, error) {
 	}
 
 	for _, r := range records {
-		if r.Action == "pending" {
+		if r.Action == model.ApprovalActionPending {
 			b.logger.Debug("仍有审批人未处理", zap.String("审批人", r.ApproverName))
 			return false, nil
 		}
-		if r.Action == "rejected" {
+		if r.Action == model.ApprovalActionRejected {
 			b.logger.Debug("有审批人已驳回", zap.String("审批人", r.ApproverName))
 			return false, nil
 		}

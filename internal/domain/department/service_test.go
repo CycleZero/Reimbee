@@ -60,7 +60,12 @@ func setupEngine(t *testing.T) (*gin.Engine, *infra.Data, func()) {
 
 	middleware.IsMiddleWireRegisterFinished = true
 	middleware.AuthMiddleWire = func(optional bool) gin.HandlerFunc {
-		return func(c *gin.Context) { c.Next() }
+		return func(c *gin.Context) {
+			c.Set("user_id", uint(1))
+			c.Set("employee_id", "E001")
+			c.Set("role", "admin")
+			c.Next()
+		}
 	}
 
 	gin.SetMode(gin.TestMode)

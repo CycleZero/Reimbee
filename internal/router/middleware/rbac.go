@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/CycleZero/Reimbee/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,12 +36,12 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 
 // RequireApprover 要求审批人或管理员角色
 func RequireApprover() gin.HandlerFunc {
-	return RequireRole("approver", "admin")
+	return RequireRole(model.RoleApprover, model.RoleAdmin)
 }
 
 // RequireAdmin 要求管理员角色
 func RequireAdmin() gin.HandlerFunc {
-	return RequireRole("admin")
+	return RequireRole(model.RoleAdmin)
 }
 
 // GetCurrentRole 从 Context 获取当前用户角色

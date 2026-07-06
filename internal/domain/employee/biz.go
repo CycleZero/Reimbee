@@ -37,7 +37,7 @@ func (b *EmployeeBiz) Create(employeeID, name, email string, deptID uint, role s
 		DepartmentID: deptID,
 		Email:        email,
 		Role:         role,
-		IsApprover:   role == "approver" || role == "admin",
+		IsApprover:   model.IsApproverRole(role),
 	}
 	if err := b.repo.Create(emp); err != nil {
 		b.logger.Error("创建员工失败", zap.String("工号", employeeID), zap.Error(err))

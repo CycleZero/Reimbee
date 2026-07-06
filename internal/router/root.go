@@ -30,7 +30,7 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	api := root.Group("/api")
+	api := root.Group("/api", middleware.AuthMiddleWire(false))
 
 	// ==========================================
 	// 管理员专属路由
@@ -70,6 +70,10 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		approver.POST("/approvals/:id/approve", hub.ApprovalService.Approve)
 		approver.POST("/approvals/:id/reject", hub.ApprovalService.Reject)
 
+		// 报销单级操作（强制通过/驳回）
+		approver.POST("/reimbursements/:id/approve", hub.ReimbursementService.Approve)
+		approver.POST("/reimbursements/:id/reject", hub.ReimbursementService.Reject)
+
 		// 待审批列表
 		approver.GET("/reimbursements/pending", hub.ReimbursementService.ListPending)
 
@@ -79,44 +83,34 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 	}
 
 	// ==========================================
-	// 所有已认证用户路由
+	// 通用路由（所有已认证用户可访问）
 	// ==========================================
-	auth := api.Group("", middleware.AuthMiddleWire(false))
 	{
-		// 部门查询（任何人可查看）
-		dept := auth.Group("/departments")
-		{
-			dept.GET("", hub.DepartmentService.List)
-			dept.GET("/:id", hub.DepartmentService.GetByID)
-		}
+		// 部门查询
+		api.GET("/departments", hub.DepartmentService.List)
+		api.GET("/departments/:id", hub.DepartmentService.GetByID)
 
-		// 审批人列表（任何人可查看）
-		auth.GET("/employees/approvers", hub.EmployeeService.ListApprovers)
+		// 审批人列表
+		api.GET("/employees/approvers", hub.EmployeeService.ListApprovers)
 
-		// 预算看板（任何人可查看）
-		auth.GET("/budgets/dashboard", hub.BudgetService.Dashboard)
-		auth.GET("/budgets/:id", hub.BudgetService.GetByID)
+		// 预算看板
+		api.GET("/budgets/dashboard", hub.BudgetService.Dashboard)
+		api.GET("/budgets/:id", hub.BudgetService.GetByID)
 
-		// 报销单——查询（任何人可查自己的）
-		reimb := auth.Group("/reimbursements")
-		{
-			reimb.GET("", hub.ReimbursementService.List)
-			reimb.GET("/no/:no", hub.ReimbursementService.GetByNo)
-			reimb.GET("/:id", hub.ReimbursementService.GetByID)
+		// 报销单——查询
+		api.GET("/reimbursements", hub.ReimbursementService.List)
+		api.GET("/reimbursements/no/:no", hub.ReimbursementService.GetByNo)
+		api.GET("/reimbursements/:id", hub.ReimbursementService.GetByID)
 
-			// 审批进度查询
-			reimb.GET("/:id/approvals", hub.ApprovalService.GetProgress)
-		}
+		// 审批进度查询
+		api.GET("/reimbursements/:id/approvals", hub.ApprovalService.GetProgress)
 
-		// 报销单——创建与提交（员工操作）
-		reimb.POST("", hub.ReimbursementService.Create)
-		reimb.POST("/:id/submit", hub.ReimbursementService.Submit)
-
-		// 报销单——审批（审批人操作，权限由 RequireApprover 保证）
-		// approve/reject 已在上方 approver 组中定义
+		// 报销单——创建与提交
+		api.POST("/reimbursements", hub.ReimbursementService.Create)
+		api.POST("/reimbursements/:id/submit", hub.ReimbursementService.Submit)
 	}
 
-	// SSE 对话接口（WebSocket-like，使用 Query 参数传递 token）
+	// SSE 对话接口
 	api.GET("/chat/stream", func(c *gin.Context) {
 		c.JSON(501, gin.H{"message": "Agent 对话接口待实现"})
 	})

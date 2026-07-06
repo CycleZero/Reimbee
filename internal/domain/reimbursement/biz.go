@@ -25,13 +25,13 @@ func generateReimbursementNo() string {
 	return fmt.Sprintf("REIMB-%d-%04d", currentYear, seq)
 }
 
-// 报销单状态常量
+// 报销单状态常量（引用 model 统一定义）
 const (
-	StatusDraft     = "draft"     // 草稿
-	StatusPending   = "pending"   // 待审批（已提交，审批链已创建）
-	StatusReviewing = "reviewing" // 审批中（至少一位审批人已操作）
-	StatusApproved  = "approved"  // 已通过（所有审批人均通过）
-	StatusRejected  = "rejected"  // 已驳回（至少一位审批人驳回）
+	StatusDraft     = model.ReimbStatusDraft
+	StatusPending   = model.ReimbStatusPending
+	StatusReviewing = model.ReimbStatusReviewing
+	StatusApproved  = model.ReimbStatusApproved
+	StatusRejected  = model.ReimbStatusRejected
 )
 
 // ReimbursementBiz 报销单业务逻辑层，负责报销单生命周期管理和跨域编排
@@ -179,7 +179,7 @@ func (b *ReimbursementBiz) Approve(id uint) (*model.Reimbursement, error) {
 
 	// 将所有审批记录标记为通过
 	for _, a := range rm.Approvals {
-		if a.Action == "pending" {
+		if a.Action == model.ApprovalActionPending {
 			if err := b.approvalBiz.Approve(a.ID, "系统自动审批"); err != nil {
 				b.logger.Error("更新审批记录失败", zap.Uint("审批记录ID", a.ID), zap.Error(err))
 				return nil, fmt.Errorf("更新审批记录失败: %w", err)
