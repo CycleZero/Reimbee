@@ -762,19 +762,17 @@ CREATE TABLE session_messages (
 ### 5.4 Session Store 接口设计
 
 ```go
-// SessionStore 会话持久化接口（屏蔽底层存储差异）
+// SessionStore 会话持久化接口
+// 调用方只需要"存消息、取历史、清会话"，不关心底层是 MySQL 还是 Redis
 type SessionStore interface {
-    // AppendMessage 追加一条消息，持久化到 MySQL
-    AppendMessage(ctx context.Context, sessionID string, msg Message) error
-    
-    // GetHistory 获取最近 N 轮对话（先查 Redis 缓存，未命中回源 MySQL）
-    GetHistory(ctx context.Context, sessionID string, maxTurns int) ([]Message, error)
-    
-    // EndSession 结束会话——标记会话完成，清理 Redis 缓存（MySQL 数据保留）
-    EndSession(ctx context.Context, sessionID string) error
-    
-    // DeleteSession 硬删除会话（用户主动清除历史）
-    DeleteSession(ctx context.Context, sessionID string) error
+    // SaveMessage 保存一条消息到会话（持久化到 MySQL，同时更新 Redis 热缓存）
+    SaveMessage(ctx context.Context, sessionID string, msg Message) error
+
+    // GetHistory 获取会话最近的消息（先查缓存，未命中回源 MySQL）
+    GetHistory(ctx context.Context, sessionID string, limit int) ([]Message, error)
+
+    // Clear 清除会话所有消息（支持报销完成后清理，实现层负责 MySQL DELETE + Redis DEL）
+    Clear(ctx context.Context, sessionID string) error
 }
 
 type Message struct {
@@ -786,6 +784,15 @@ type Message struct {
 }
 ```
 
+**接口设计原则**：
+
+| 原则 | 体现 |
+|------|------|
+| 动词一致 | Save / Get / Clear，全 CRUD 风格，无 business-specific 命名 |
+| 单一职责 | 每个方法只做一件事。`Clear` 内部处理 MySQL DELETE + Redis DEL，调用方不感知 |
+| 不泄露实现 | 接口注释提到 MySQL/Redis 仅作为文档参考，调用方不需要知道缓存层 |
+| 对称性 | Save → Get → Clear 形成完整的生命周期闭环 |
+
 ### 5.5 MySQL 实现（默认）
 
 ```go
@@ -794,7 +801,7 @@ type MySQLSessionStore struct {
     cache *RedisSessionCache  // 可选，nil 时降级纯 MySQL
 }
 
-func (s *MySQLSessionStore) AppendMessage(ctx context.Context, sessionID string, msg Message) error {
+func (s *MySQLSessionStore) SaveMessage(ctx context.Context, sessionID string, msg Message) error {
     // 1. 持久化到 MySQL
     record := &SessionMessage{
         SessionID: sessionID,
@@ -807,7 +814,7 @@ func (s *MySQLSessionStore) AppendMessage(ctx context.Context, sessionID string,
 
     // 2. 更新 Redis 缓存（非阻塞，失败不影响主流程）
     if s.cache != nil {
-        _ = s.cache.PrependMessage(ctx, sessionID, msg)
+        _ = s.cache.Prepend(ctx, sessionID, msg)
     }
     return nil
 }
@@ -857,8 +864,8 @@ type RedisSessionCache struct {
     ttl    time.Duration // 5 分钟（热缓存，短 TTL）
 }
 
-// PrependMessage 追加单条消息到缓存列表头部
-func (c *RedisSessionCache) PrependMessage(ctx context.Context, sessionID string, msg Message) error {
+// Prepend 追加单条消息到缓存列表头部
+func (c *RedisSessionCache) Prepend(ctx context.Context, sessionID string, msg Message) error {
     key := fmt.Sprintf("reimbee:cache:session:%s:messages", sessionID)
     data, _ := json.Marshal(msg)
     pipe := c.client.Pipeline()
@@ -995,7 +1002,7 @@ type AgentRunner struct {
 
 func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string, w io.Writer) error {
     // 1. 持久化用户消息
-    a.session.AppendMessage(ctx, sessionID, Message{Role: "user", Content: userMsg})
+    a.session.SaveMessage(ctx, sessionID, Message{Role: "user", Content: userMsg})
 
     // 2. 获取历史（缓存优先，未命中回源 MySQL）
     history, _ := a.session.GetHistory(ctx, sessionID, 10)
@@ -1016,11 +1023,11 @@ func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string,
         writeSSE(w, event)
         fullResponse += event.Text
     }
-    a.session.AppendMessage(ctx, sessionID, Message{Role: "assistant", Content: fullResponse})
+    a.session.SaveMessage(ctx, sessionID, Message{Role: "assistant", Content: fullResponse})
 
-    // 5. 如果报销已完成，清理 Checkpoint
+    // 5. 如果报销已完成，清理会话
     if eventIndicatesCompletion(iter.LastEvent()) {
-        a.session.EndSession(ctx, sessionID)
+        a.session.Clear(ctx, sessionID)
     }
 
     return nil
