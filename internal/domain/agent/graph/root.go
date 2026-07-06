@@ -47,36 +47,87 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 
 	g := compose.NewGraph[agent.AgentInput, *schema.Message]()
 
-	// 意图分类节点：ChatModel（如有）或关键词降级
+	// ============================================
+	// 第一步：先注册所有分支目标节点（必须在 AddBranch 之前）
+	// ============================================
+
+	// 报销子流程
+	g.AddLambdaNode("new_reimbursement", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+		msg := schema.UserMessage(input.Message)
+		return deps.ReimbursementRunnable.Invoke(ctx, msg)
+	}))
+
+	// 进度查询
+	if deps.ProgressGraph != nil {
+		if err := g.AddGraphNode("query_progress", deps.ProgressGraph); err != nil {
+			return nil, fmt.Errorf("挂载进度查询子流程失败: %w", err)
+		}
+	}
+
+	// 预算查询
+	if deps.BudgetGraph != nil {
+		if err := g.AddGraphNode("query_budget", deps.BudgetGraph); err != nil {
+			return nil, fmt.Errorf("挂载预算查询子流程失败: %w", err)
+		}
+	}
+
+	// 政策咨询
+	if deps.PolicyGraph != nil {
+		if err := g.AddGraphNode("policy_question", deps.PolicyGraph); err != nil {
+			return nil, fmt.Errorf("挂载政策咨询子流程失败: %w", err)
+		}
+	}
+
+	// 修改报销
+	if deps.ModifyGraph != nil {
+		if err := g.AddGraphNode("modify_reimbursement", deps.ModifyGraph); err != nil {
+			return nil, fmt.Errorf("挂载修改报销子流程失败: %w", err)
+		}
+	}
+
+	// 通用对话
 	if deps.ChatModel != nil {
-		// ChatModel 模式：LLM 分析用户意图
-		// 先通过 Lambda 构建 Prompt（AgentInput → []*schema.Message），再送入 ChatModel
+		g.AddLambdaNode("build_chat_prompt", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) ([]*schema.Message, error) {
+			return []*schema.Message{
+				schema.SystemMessage(agent.BuildGeneralChatPrompt()),
+				schema.UserMessage(input.Message),
+			}, nil
+		}))
+		g.AddChatModelNode("general_chat", deps.ChatModel)
+		g.AddEdge("build_chat_prompt", "general_chat")
+	} else {
+		g.AddLambdaNode("general_chat", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+			return schema.AssistantMessage("您好！我是 Reimbee 报销助手。我可以帮您发起报销、查询进度、查看预算或解答政策问题。", nil), nil
+		}))
+	}
+
+	// ============================================
+	// 第二步：意图分类 + 路由
+	// ============================================
+	if deps.ChatModel != nil {
 		g.AddLambdaNode("build_intent_prompt", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) ([]*schema.Message, error) {
-			prompt := agent.BuildIntentClassifyPrompt(input.Message)
 			return []*schema.Message{
 				schema.SystemMessage("你是一个意图分类器。请分析用户输入并返回JSON格式的意图分类结果。"),
-				schema.UserMessage(prompt),
+				schema.UserMessage(agent.BuildIntentClassifyPrompt(input.Message)),
 			}, nil
 		}))
 		g.AddChatModelNode("intent_classifier", deps.ChatModel)
-		g.AddEdge(compose.START, "build_intent_prompt")
-		g.AddEdge("build_intent_prompt", "intent_classifier")
-
-		// 意图路由 Lambda——解析 LLM JSON 输出
 		g.AddLambdaNode("intent_router", compose.InvokableLambda(func(ctx context.Context, msg *schema.Message) (string, error) {
 			return routeIntent(ctx, msg, deps.Logger), nil
 		}))
+		g.AddEdge(compose.START, "build_intent_prompt")
+		g.AddEdge("build_intent_prompt", "intent_classifier")
 		g.AddEdge("intent_classifier", "intent_router")
 	} else {
-		// 降级模式：直接关键词路由
-		deps.Logger.Debug("ChatModel未配置，使用关键词匹配降级")
 		g.AddLambdaNode("intent_router", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (string, error) {
 			return classifyByKeywords(input.Message), nil
 		}))
 		g.AddEdge(compose.START, "intent_router")
 	}
 
-	// 条件分支：根据路由结果跳转到对应子流程
+	// ============================================
+	// 第三步：条件分支——所有目标节点已注册，分支可安全定义
+	// ============================================
 	g.AddBranch("intent_router", compose.NewGraphBranch(
 		func(ctx context.Context, route string) (string, error) {
 			return route, nil
@@ -91,85 +142,19 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 		},
 	))
 
-	// 通用对话节点——ChatModel 或 Lambda 降级
-	if deps.ChatModel != nil {
-		g.AddLambdaNode("build_chat_prompt", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) ([]*schema.Message, error) {
-			prompt := agent.BuildGeneralChatPrompt()
-			return []*schema.Message{
-				schema.SystemMessage(prompt),
-				schema.UserMessage(input.Message),
-			}, nil
-		}))
-		g.AddChatModelNode("general_chat", deps.ChatModel)
-		g.AddEdge("build_chat_prompt", "general_chat")
-	} else {
-		deps.Logger.Debug("通用对话降级为模板回复")
-		g.AddLambdaNode("general_chat", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-			return schema.AssistantMessage("您好！我是 Reimbee 报销助手。我可以帮您发起报销、查询进度、查看预算或解答政策问题。", nil), nil
-		}))
-	}
-
+	// ============================================
+	// 第四步：所有节点 → END 边
+	// ============================================
+	g.AddEdge("new_reimbursement", compose.END)
+	g.AddEdge("query_progress", compose.END)
+	g.AddEdge("query_budget", compose.END)
+	g.AddEdge("policy_question", compose.END)
+	g.AddEdge("modify_reimbursement", compose.END)
 	g.AddEdge("general_chat", compose.END)
 
 	// ============================================
-	// 子流程 Graph 嵌套
-	// 若子流程已构建则挂载，否则用 Lambda 降级为"即将上线"提示
-	// ============================================
-
-	if deps.ProgressGraph != nil {
-		deps.Logger.Debug("挂载进度查询子流程")
-		if err := g.AddGraphNode("query_progress", deps.ProgressGraph); err != nil {
-			return nil, fmt.Errorf("挂载进度查询子流程失败: %w", err)
-		}
-	} else {
-		deps.Logger.Debug("进度查询子流程未提供，使用降级")
-		g.AddLambdaNode("query_progress", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-			return schema.AssistantMessage("进度查询功能即将上线，您可以通过报销单号在系统中查看审批进度。", nil), nil
-		}))
-	}
-	g.AddEdge("query_progress", compose.END)
-
-	if deps.BudgetGraph != nil {
-		if err := g.AddGraphNode("query_budget", deps.BudgetGraph); err != nil {
-			return nil, fmt.Errorf("挂载预算查询子流程失败: %w", err)
-		}
-	} else {
-		g.AddLambdaNode("query_budget", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-			return schema.AssistantMessage("预算查询功能即将上线。", nil), nil
-		}))
-	}
-	g.AddEdge("query_budget", compose.END)
-
-	if deps.PolicyGraph != nil {
-		if err := g.AddGraphNode("policy_question", deps.PolicyGraph); err != nil {
-			return nil, fmt.Errorf("挂载政策咨询子流程失败: %w", err)
-		}
-	} else {
-		g.AddLambdaNode("policy_question", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-			return schema.AssistantMessage("政策咨询功能即将上线，当前支持差旅、招待、办公用品等报销标准查询。", nil), nil
-		}))
-	}
-	g.AddEdge("policy_question", compose.END)
-
-	if deps.ModifyGraph != nil {
-		if err := g.AddGraphNode("modify_reimbursement", deps.ModifyGraph); err != nil {
-			return nil, fmt.Errorf("挂载修改报销子流程失败: %w", err)
-		}
-	} else {
-		g.AddLambdaNode("modify_reimbursement", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-			return schema.AssistantMessage("修改报销功能即将上线，您可以修改被驳回的报销单并重新提交。", nil), nil
-		}))
-	}
-	g.AddEdge("modify_reimbursement", compose.END)
-
-	// 报销子流程——完整三阶段 ChatModelAgent，通过 Lambda 适配类型
-	g.AddLambdaNode("new_reimbursement", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-		msg := schema.UserMessage(input.Message)
-		return deps.ReimbursementRunnable.Invoke(ctx, msg)
-	}))
-	g.AddEdge("new_reimbursement", compose.END)
-
 	// 编译
+	// ============================================
 	runnable, err := g.Compile(ctx,
 		compose.WithGraphName("reimbee_root"),
 		compose.WithMaxRunSteps(50),
