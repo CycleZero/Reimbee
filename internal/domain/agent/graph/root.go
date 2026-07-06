@@ -113,53 +113,60 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 
 	// ============================================
 	// 子流程 Graph 嵌套
-	// 各子流程作为独立编译单元通过 AddGraphNode 嵌入 Root Graph
-	// 当 ChatModel 为 nil 时，子流程内部自动降级为模板回复
+	// 若子流程已构建则挂载，否则用 Lambda 降级为"即将上线"提示
 	// ============================================
 
 	if deps.ProgressGraph != nil {
 		deps.Logger.Debug("挂载进度查询子流程")
 		if err := g.AddGraphNode("query_progress", deps.ProgressGraph); err != nil {
-			deps.Logger.Error("挂载进度查询子流程失败", zap.Error(err))
 			return nil, fmt.Errorf("挂载进度查询子流程失败: %w", err)
 		}
-		g.AddEdge("query_progress", compose.END)
 	} else {
-		deps.Logger.Debug("进度查询子流程未提供，跳过挂载")
+		deps.Logger.Debug("进度查询子流程未提供，使用降级")
+		g.AddLambdaNode("query_progress", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+			return schema.AssistantMessage("进度查询功能即将上线，您可以通过报销单号在系统中查看审批进度。", nil), nil
+		}))
 	}
+	g.AddEdge("query_progress", compose.END)
 
 	if deps.BudgetGraph != nil {
-		deps.Logger.Debug("挂载预算查询子流程")
 		if err := g.AddGraphNode("query_budget", deps.BudgetGraph); err != nil {
-			deps.Logger.Error("挂载预算查询子流程失败", zap.Error(err))
 			return nil, fmt.Errorf("挂载预算查询子流程失败: %w", err)
 		}
-		g.AddEdge("query_budget", compose.END)
 	} else {
-		deps.Logger.Debug("预算查询子流程未提供，跳过挂载")
+		g.AddLambdaNode("query_budget", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+			return schema.AssistantMessage("预算查询功能即将上线。", nil), nil
+		}))
 	}
+	g.AddEdge("query_budget", compose.END)
 
 	if deps.PolicyGraph != nil {
-		deps.Logger.Debug("挂载政策咨询子流程")
 		if err := g.AddGraphNode("policy_question", deps.PolicyGraph); err != nil {
-			deps.Logger.Error("挂载政策咨询子流程失败", zap.Error(err))
 			return nil, fmt.Errorf("挂载政策咨询子流程失败: %w", err)
 		}
-		g.AddEdge("policy_question", compose.END)
 	} else {
-		deps.Logger.Debug("政策咨询子流程未提供，跳过挂载")
+		g.AddLambdaNode("policy_question", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+			return schema.AssistantMessage("政策咨询功能即将上线，当前支持差旅、招待、办公用品等报销标准查询。", nil), nil
+		}))
 	}
+	g.AddEdge("policy_question", compose.END)
 
 	if deps.ModifyGraph != nil {
-		deps.Logger.Debug("挂载修改报销子流程")
 		if err := g.AddGraphNode("modify_reimbursement", deps.ModifyGraph); err != nil {
-			deps.Logger.Error("挂载修改报销子流程失败", zap.Error(err))
 			return nil, fmt.Errorf("挂载修改报销子流程失败: %w", err)
 		}
-		g.AddEdge("modify_reimbursement", compose.END)
 	} else {
-		deps.Logger.Debug("修改报销子流程未提供，跳过挂载")
+		g.AddLambdaNode("modify_reimbursement", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+			return schema.AssistantMessage("修改报销功能即将上线，您可以修改被驳回的报销单并重新提交。", nil), nil
+		}))
 	}
+	g.AddEdge("modify_reimbursement", compose.END)
+
+	// 报销子流程（new_reimbursement）——始终使用降级节点，完整 Graph 待后续挂载
+	g.AddLambdaNode("new_reimbursement", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
+		return schema.AssistantMessage("您好！我是 Reimbee 报销助手。请上传票据图片开始报销流程，我会帮您自动识别票据信息、检查合规性并生成报销单。", nil), nil
+	}))
+	g.AddEdge("new_reimbursement", compose.END)
 
 	// 编译
 	runnable, err := g.Compile(ctx,
