@@ -30,6 +30,13 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
+	// 认证路由（无需 JWT）
+	authGroup := root.Group("/api/auth")
+	{
+		authGroup.POST("/login", hub.AuthService.Login)
+		authGroup.POST("/register", hub.AuthService.Register)
+	}
+
 	api := root.Group("/api", middleware.AuthMiddleWire(false))
 
 	// ==========================================

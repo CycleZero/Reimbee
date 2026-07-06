@@ -3,6 +3,7 @@ package domain
 import (
 	"github.com/CycleZero/Reimbee/internal/domain/agent"
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
+	"github.com/CycleZero/Reimbee/internal/domain/auth"
 	"github.com/CycleZero/Reimbee/internal/domain/budget"
 	"github.com/CycleZero/Reimbee/internal/domain/department"
 	"github.com/CycleZero/Reimbee/internal/domain/employee"
@@ -11,6 +12,7 @@ import (
 
 // ServiceHub 服务聚合中心，集中管理所有业务服务
 type ServiceHub struct {
+	AuthService          *auth.AuthService
 	AgentService         *agent.AgentService
 	DepartmentService    *department.DepartmentService
 	EmployeeService      *employee.EmployeeService
@@ -20,6 +22,7 @@ type ServiceHub struct {
 }
 
 func NewServiceHub(
+	authSvc *auth.AuthService,
 	agentSvc *agent.AgentService,
 	dept *department.DepartmentService,
 	emp *employee.EmployeeService,
@@ -28,6 +31,7 @@ func NewServiceHub(
 	reim *reimbursement.ReimbursementService,
 ) *ServiceHub {
 	return &ServiceHub{
+		AuthService:          authSvc,
 		AgentService:         agentSvc,
 		DepartmentService:    dept,
 		EmployeeService:      emp,

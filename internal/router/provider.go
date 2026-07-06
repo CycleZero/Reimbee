@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/CycleZero/Reimbee/internal/router/middleware"
+	"github.com/spf13/viper"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
@@ -25,8 +26,12 @@ func (r *RegisteredMiddleWire) Register() {
 
 // NewRegisterMiddleWire 创建中间件注册器
 // jwtSecret 可以从配置中读取，这里使用固定值作为示例
-func NewRegisterMiddleWire() RegisteredMiddleWire {
+func NewRegisterMiddleWire(vc *viper.Viper) RegisteredMiddleWire {
+	secret := vc.GetString("jwt.secret")
+	if secret == "" {
+		secret = "reimbee-jwt-secret-change-in-production"
+	}
 	return RegisteredMiddleWire{
-		JwtAuthMiddleWire: middleware.JwtAuthMiddleWire("your-jwt-secret-key-change-in-production"),
+		JwtAuthMiddleWire: middleware.JwtAuthMiddleWire(secret),
 	}
 }

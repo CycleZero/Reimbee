@@ -7,6 +7,7 @@ type Employee struct {
 	gorm.Model
 	EmployeeID   string      `gorm:"type:varchar(20);uniqueIndex;not null;comment:工号" json:"employee_id"`
 	Name         string      `gorm:"type:varchar(50);not null;comment:姓名" json:"name"`
+	PasswordHash string      `gorm:"type:varchar(255);not null;default:'';comment:密码哈希(bcrypt)" json:"-"`
 	DepartmentID uint        `gorm:"index;comment:所属部门ID" json:"department_id"`
 	Department   *Department `gorm:"foreignKey:DepartmentID" json:"department,omitempty"`
 	Email        string      `gorm:"type:varchar(100);comment:工作邮箱" json:"email"`
