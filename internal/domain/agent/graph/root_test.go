@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"context"
 	"testing"
 
 	"github.com/CycleZero/Reimbee/log"
@@ -250,14 +249,14 @@ func TestTruncate(t *testing.T) {
 }
 
 // ============================================
-// routeIntent 测试
+// RouteIntent 测试
 // ============================================
 
 func TestRouteIntent_NilMessage(t *testing.T) {
 	logger := nopLogger()
-	got := routeIntent(context.Background(), nil, logger)
+	got := RouteIntent(nil, logger)
 	if got != "general_chat" {
-		t.Errorf("routeIntent(nil) = %q，期望 general_chat（nil 消息应路由到通用对话）", got)
+		t.Errorf("RouteIntent(nil) = %q，期望 general_chat（nil 消息应路由到通用对话）", got)
 	}
 }
 
@@ -266,9 +265,9 @@ func TestRouteIntent_ValidJSON_HighConfidence(t *testing.T) {
 	msg := &schema.Message{
 		Content: `{"intent":"new_reimbursement","entities":{},"confidence":0.95,"reason":"用户明确发起了报销请求"}`,
 	}
-	got := routeIntent(context.Background(), msg, logger)
+	got := RouteIntent(msg, logger)
 	if got != "new_reimbursement" {
-		t.Errorf("routeIntent(高置信度JSON) = %q，期望 new_reimbursement", got)
+		t.Errorf("RouteIntent(高置信度JSON) = %q，期望 new_reimbursement", got)
 	}
 }
 
@@ -277,9 +276,9 @@ func TestRouteIntent_ValidJSON_LowConfidence(t *testing.T) {
 	msg := &schema.Message{
 		Content: `{"intent":"new_reimbursement","entities":{},"confidence":0.5,"reason":"置信度较低"}`,
 	}
-	got := routeIntent(context.Background(), msg, logger)
+	got := RouteIntent(msg, logger)
 	if got != "general_chat" {
-		t.Errorf("routeIntent(低置信度JSON, 0.5) = %q，期望 general_chat", got)
+		t.Errorf("RouteIntent(低置信度JSON, 0.5) = %q，期望 general_chat", got)
 	}
 }
 
@@ -289,9 +288,9 @@ func TestRouteIntent_ValidJSON_EdgeConfidence(t *testing.T) {
 	msg := &schema.Message{
 		Content: `{"intent":"query_progress","confidence":0.7,"reason":"用户查询进度"}`,
 	}
-	got := routeIntent(context.Background(), msg, logger)
+	got := RouteIntent(msg, logger)
 	if got != "query_progress" {
-		t.Errorf("routeIntent(置信度=0.7) = %q，期望 query_progress", got)
+		t.Errorf("RouteIntent(置信度=0.7) = %q，期望 query_progress", got)
 	}
 }
 
@@ -313,9 +312,9 @@ func TestRouteIntent_ValidJSON_AllIntents(t *testing.T) {
 			msg := &schema.Message{
 				Content: `{"intent":"` + tt.intent + `","entities":{},"confidence":0.95,"reason":"test"}`,
 			}
-			got := routeIntent(context.Background(), msg, logger)
+			got := RouteIntent(msg, logger)
 			if got != tt.route {
-				t.Errorf("routeIntent(intent=%q) = %q，期望 %q", tt.intent, got, tt.route)
+				t.Errorf("RouteIntent(intent=%q) = %q，期望 %q", tt.intent, got, tt.route)
 			}
 		})
 	}
@@ -327,9 +326,9 @@ func TestRouteIntent_InvalidJSON_FallbackToKeywords(t *testing.T) {
 	msg := &schema.Message{
 		Content: "我要报销一张发票",
 	}
-	got := routeIntent(context.Background(), msg, logger)
+	got := RouteIntent(msg, logger)
 	if got != "new_reimbursement" {
-		t.Errorf("routeIntent(非JSON消息) = %q，期望 new_reimbursement（降级关键词匹配）", got)
+		t.Errorf("RouteIntent(非JSON消息) = %q，期望 new_reimbursement（降级关键词匹配）", got)
 	}
 }
 
@@ -338,8 +337,8 @@ func TestRouteIntent_EmptyContent(t *testing.T) {
 	msg := &schema.Message{
 		Content: "",
 	}
-	got := routeIntent(context.Background(), msg, logger)
+	got := RouteIntent(msg, logger)
 	if got != "general_chat" {
-		t.Errorf("routeIntent(空内容) = %q，期望 general_chat", got)
+		t.Errorf("RouteIntent(空内容) = %q，期望 general_chat", got)
 	}
 }
