@@ -15,10 +15,10 @@ var ProviderSet = wire.NewSet(
 	GetDB,
 
 	// OCR 识别器 —— 配置驱动工厂，根据 ocr.driver 决定实现
-	NewOCRRecognizer,
+	MustNewOCRRecognizer,
 
 	// 文件存储 —— 配置驱动工厂，根据 storage.driver 决定实现
-	NewFileStorage,
+	MustNewFileStorage,
 
 	// PDF 生成器（真实实现，gofpdf 轻量引擎）
 	NewGofpdfPDFGenerator,
@@ -56,4 +56,22 @@ func MustNewVectorStore(vc *viper.Viper, emb embedding.Embedder, logger *log.Log
 		panic("创建向量库失败: " + err.Error())
 	}
 	return vs
+}
+
+// MustNewOCRRecognizer 包装 NewOCRRecognizer，panic 替代 error
+func MustNewOCRRecognizer(vc *viper.Viper) OCRRecognizer {
+	r, err := NewOCRRecognizer(vc)
+	if err != nil {
+		panic("创建OCR识别器失败: " + err.Error())
+	}
+	return r
+}
+
+// MustNewFileStorage 包装 NewFileStorage，panic 替代 error
+func MustNewFileStorage(vc *viper.Viper) FileStorage {
+	s, err := NewFileStorage(vc)
+	if err != nil {
+		panic("创建文件存储失败: " + err.Error())
+	}
+	return s
 }

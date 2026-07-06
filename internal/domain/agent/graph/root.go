@@ -31,12 +31,12 @@ type intentOutput struct {
 // RootGraphDeps Root Graph 构建所需的依赖
 type RootGraphDeps struct {
 	Logger                  *log.Logger
-	ChatModel               model.ToolCallingChatModel                                       // 共享 ChatModel 实例，用于意图分类 + 通用对话
-	ReimbursementRunnable   compose.Runnable[agent.ReimbursementState, *schema.Message]       // 报销子流程（已编译）
-	ProgressGraph           *compose.Graph[agent.AgentInput, *schema.Message]                 // 进度查询子流程（未编译，由 Root Graph 统一编译）
-	BudgetGraph             *compose.Graph[agent.AgentInput, *schema.Message]                 // 预算查询子流程（未编译）
-	PolicyGraph             *compose.Graph[agent.AgentInput, *schema.Message]                 // 政策咨询子流程（未编译）
-	ModifyGraph             *compose.Graph[agent.AgentInput, *schema.Message]                 // 修改报销子流程（未编译）
+	ChatModel               model.ToolCallingChatModel
+	ReimbursementRunnable   compose.Runnable[*schema.Message, *schema.Message]                  // 报销子流程（已编译）
+	ProgressGraph           *compose.Graph[agent.AgentInput, *schema.Message]                   // 进度查询（未编译）
+	BudgetGraph             *compose.Graph[agent.AgentInput, *schema.Message]                   // 预算查询（未编译）
+	PolicyGraph             *compose.Graph[agent.AgentInput, *schema.Message]                   // 政策咨询（未编译）
+	ModifyGraph             *compose.Graph[agent.AgentInput, *schema.Message]                   // 修改报销（未编译）
 }
 
 // NewRootGraph 构建顶层 Root Graph
@@ -162,9 +162,10 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 	}
 	g.AddEdge("modify_reimbursement", compose.END)
 
-	// 报销子流程（new_reimbursement）——始终使用降级节点，完整 Graph 待后续挂载
+	// 报销子流程——完整三阶段 ChatModelAgent，通过 Lambda 适配类型
 	g.AddLambdaNode("new_reimbursement", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-		return schema.AssistantMessage("您好！我是 Reimbee 报销助手。请上传票据图片开始报销流程，我会帮您自动识别票据信息、检查合规性并生成报销单。", nil), nil
+		msg := schema.UserMessage(input.Message)
+		return deps.ReimbursementRunnable.Invoke(ctx, msg)
 	}))
 	g.AddEdge("new_reimbursement", compose.END)
 
