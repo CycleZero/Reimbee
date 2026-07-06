@@ -761,37 +761,110 @@ CREATE TABLE session_messages (
 
 ### 5.4 Session Store 接口设计
 
+**关键发现**：Eino **没有内置** Session/会话持久化机制。`adk.Runner` 返回事件迭代器，调用方需自行管理对话历史。消息格式必须适配 Eino 的 `schema.Message`。
+
 ```go
 // SessionStore 会话持久化接口
-// 调用方只需要"存消息、取历史、清会话"，不关心底层是 MySQL 还是 Redis
+// 底层存储 Eino 原生的 []*schema.Message 切片（JSON 序列化），
+// 包含完整的 tool_calls / tool_call_id 等元数据
 type SessionStore interface {
-    // SaveMessage 保存一条消息到会话（持久化到 MySQL，同时更新 Redis 热缓存）
-    SaveMessage(ctx context.Context, sessionID string, msg Message) error
+    // SaveMessages 保存一轮完整交互的消息（user + assistant + tool 消息）
+    SaveMessages(ctx context.Context, sessionID string, msgs []*schema.Message) error
 
-    // GetHistory 获取会话最近的消息（先查缓存，未命中回源 MySQL）
-    GetHistory(ctx context.Context, sessionID string, limit int) ([]Message, error)
+    // GetHistory 获取会话最近的 N 条消息（按时间正序）
+    GetHistory(ctx context.Context, sessionID string, limit int) ([]*schema.Message, error)
 
-    // Clear 清除会话所有消息（支持报销完成后清理，实现层负责 MySQL DELETE + Redis DEL）
+    // Clear 清除会话所有消息
     Clear(ctx context.Context, sessionID string) error
-}
-
-type Message struct {
-    ID        int64     `json:"id"`
-    SessionID string    `json:"session_id"`
-    Role      string    `json:"role"`    // "user" | "assistant"
-    Content   string    `json:"content"`
-    Timestamp time.Time `json:"timestamp"`
 }
 ```
 
-**接口设计原则**：
+**为什么直接存 `[]*schema.Message`**：
 
-| 原则 | 体现 |
+| 方案 | 问题 |
 |------|------|
-| 动词一致 | Save / Get / Clear，全 CRUD 风格，无 business-specific 命名 |
-| 单一职责 | 每个方法只做一件事。`Clear` 内部处理 MySQL DELETE + Redis DEL，调用方不感知 |
-| 不泄露实现 | 接口注释提到 MySQL/Redis 仅作为文档参考，调用方不需要知道缓存层 |
-| 对称性 | Save → Get → Clear 形成完整的生命周期闭环 |
+| 自定义 Message 结构 | 丢失 `ToolCalls`/`ToolCallID`/`ToolName`，Agent 无法从历史恢复多轮工具调用上下文 |
+| 存 `[]*schema.Message` | Eino 原生格式，`adk.WithMessages(history)` 直接注入，零转换 |
+
+**Eino 消息类型速查**：
+
+| Role | Content | 额外字段 | 含义 |
+|------|---------|---------|------|
+| `user` | "我要报销" | — | 用户输入 |
+| `assistant` | "请上传发票" | — | Agent 文本回复 |
+| `assistant` | "" | `ToolCalls: [{Name:"recognize_invoice", Args:"..."}]` | Agent 决定调工具 |
+| `tool` | `{"amount":1500}` | `ToolCallID:"call_xxx"`, `ToolName:"recognize_invoice"` | 工具返回结果 |
+
+**数据库存储**：MySQL 存整个 `[]*schema.Message` 的 JSON 序列化。查询时反序列化直接注入 Eino。
+
+```go
+// SaveMessages 将一轮消息序列化后存入 MySQL
+func (s *MySQLSessionStore) SaveMessages(ctx context.Context, sessionID string, msgs []*schema.Message) error {
+    for _, msg := range msgs {
+        data, _ := json.Marshal(msg)
+        record := &SessionMessage{
+            SessionID: sessionID,
+            Role:      string(msg.Role),
+            Content:   msg.Content,
+            RawJSON:   string(data),  // 完整 JSON（含 ToolCalls 等）
+        }
+        if err := s.db.Create(record).Error; err != nil {
+            return fmt.Errorf("保存消息失败: %w", err)
+        }
+    }
+    // 更新 Redis 热缓存
+    if s.cache != nil {
+        _ = s.cache.Set(ctx, sessionID, msgs)
+    }
+    return nil
+}
+
+// GetHistory 从 MySQL 查询并反序列化为 []*schema.Message
+func (s *MySQLSessionStore) GetHistory(ctx context.Context, sessionID string, limit int) ([]*schema.Message, error) {
+    // 1. 尝试 Redis 缓存
+    if s.cache != nil {
+        if msgs, ok := s.cache.Get(ctx, sessionID); ok {
+            return msgs, nil
+        }
+    }
+    // 2. 回源 MySQL
+    var records []SessionMessage
+    s.db.Where("session_id = ?", sessionID).
+        Order("id ASC").Limit(limit).Find(&records)
+
+    msgs := make([]*schema.Message, 0, len(records))
+    for _, r := range records {
+        var msg schema.Message
+        json.Unmarshal([]byte(r.RawJSON), &msg)
+        msgs = append(msgs, &msg)
+    }
+    return msgs, nil
+}
+```
+
+**AgentRunner 中的使用**：
+
+```go
+func (a *AgentRunner) StreamChat(ctx context.Context, sessionID, userMsg string, w io.Writer) error {
+    // 1. 获取历史
+    history, _ := a.session.GetHistory(ctx, sessionID, 20)
+
+    // 2. 追加用户消息到历史
+    userMessage := schema.UserMessage(userMsg)
+    history = append(history, userMessage)
+
+    // 3. 执行 Graph（Eino 从 Checkpoint 恢复或新建）
+    iter := a.graph.Stream(ctx, GraphInput{
+        SessionID: sessionID,
+        Messages:  history,  // ← 直接传入 Eino Message 切片
+    })
+
+    // 4. 持久化本轮消息
+    a.session.SaveMessages(ctx, sessionID, history)
+
+    return nil
+}
+```
 
 ### 5.5 MySQL 实现（默认）
 
