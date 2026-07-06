@@ -28,6 +28,8 @@ func NewTestData() *infra.Data {
 		&model.Reimbursement{},
 		&model.InvoiceItem{},
 		&model.ApprovalRecord{},
+		&model.PolicyDocument{},
+		&model.PolicyChunk{},
 	); err != nil {
 		panic("迁移测试数据库失败: " + err.Error())
 	}
@@ -37,6 +39,9 @@ func NewTestData() *infra.Data {
 
 // CleanDB 清空测试数据库的所有数据（保留表结构）
 func CleanDB(data *infra.Data) {
+	data.DB.Exec("DELETE FROM session_messages")
+	data.DB.Exec("DELETE FROM policy_chunks")
+	data.DB.Exec("DELETE FROM policy_documents")
 	data.DB.Exec("DELETE FROM approval_records")
 	data.DB.Exec("DELETE FROM invoice_items")
 	data.DB.Exec("DELETE FROM reimbursements")
