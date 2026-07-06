@@ -8,11 +8,13 @@ import (
 
 // RequestMetadata 请求元数据，通过中间件注入到 gin.Context 中
 type RequestMetadata struct {
-	UserID    uint
-	Request   *http.Request
-	ClientIP  string
-	UserAgent string
-	RequestID string
+	UserID     uint   `json:"user_id"`
+	EmployeeID string `json:"employee_id"` // 工号
+	Role       string `json:"role"`       // employee / approver / admin
+	Request    *http.Request
+	ClientIP   string
+	UserAgent  string
+	RequestID  string
 }
 
 // GetRequestMetadata 从 context 中获取请求元数据

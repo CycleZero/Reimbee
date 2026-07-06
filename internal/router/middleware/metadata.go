@@ -16,15 +16,17 @@ var (
 	AuthMiddleWire               func(optional bool) gin.HandlerFunc
 )
 
-// AddMetaData 为每个请求添加元数据（RequestID、ClientIP 等）
+// AddMetaData 为每个请求添加元数据（RequestID、ClientIP、用户身份等）
 func AddMetaData() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		meta := &common.RequestMetadata{
-			UserID:    0,
-			Request:   c.Request,
-			ClientIP:  c.ClientIP(),
-			UserAgent: c.Request.UserAgent(),
-			RequestID: generateRequestID(),
+			UserID:     0,
+			EmployeeID: GetCurrentEmployeeID(c),
+			Role:       GetCurrentRole(c),
+			Request:    c.Request,
+			ClientIP:   c.ClientIP(),
+			UserAgent:  c.Request.UserAgent(),
+			RequestID:  generateRequestID(),
 		}
 		common.SetRequestMetadata(c, meta)
 		c.Next()

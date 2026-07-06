@@ -47,14 +47,24 @@ func JwtAuthMiddleWire(jwtSecret string) func(optional bool) gin.HandlerFunc {
 				return
 			}
 
-			// 提取 claims 中的 user_id
-			if claims, ok := token.Claims.(jwt.MapClaims); ok {
-				if userID, ok := claims["user_id"]; ok {
-					if uid, ok := userID.(float64); ok {
-						c.Set("user_id", uint(uid))
-					}
+		// 提取 claims 中的 user_id, employee_id, role
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if userID, ok := claims["user_id"]; ok {
+				if uid, ok := userID.(float64); ok {
+					c.Set("user_id", uint(uid))
 				}
 			}
+			if empID, ok := claims["employee_id"]; ok {
+				if eid, ok := empID.(string); ok {
+					c.Set("employee_id", eid)
+				}
+			}
+			if role, ok := claims["role"]; ok {
+				if r, ok := role.(string); ok {
+					c.Set("role", r)
+				}
+			}
+		}
 
 			c.Next()
 		}
