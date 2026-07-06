@@ -20,10 +20,16 @@ type intentOutput struct {
 	Reason     string            `json:"reason"`
 }
 
+// userContextKey 用于在 context 中传递用户上下文（AgentInput）
+// 修复 B1: sub-graph 通过此 key 恢复完整的用户信息
+type userContextKey struct{}
+
 type RootGraphDeps struct {
-	Logger                *log.Logger
-	ChatModel             model.ToolCallingChatModel
-	ReimbursementRunnable compose.Runnable[*schema.Message, *schema.Message]
+	Logger    *log.Logger
+	ChatModel model.ToolCallingChatModel
+	Config    *agent.AgentConfig // B4 修复：classifyIntent 读取配置阈值
+
+	ReimbursementRunnable compose.Runnable[[]*schema.Message, *schema.Message]
 	ProgressRunnable      compose.Runnable[*schema.Message, *schema.Message]
 	BudgetRunnable        compose.Runnable[*schema.Message, *schema.Message]
 	PolicyRunnable        compose.Runnable[*schema.Message, *schema.Message]
@@ -39,8 +45,11 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 
 	g := compose.NewGraph[agent.AgentInput, *schema.Message]()
 
-	g.AddLambdaNode("dispatcher", compose.InvokableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.Message, error) {
-		return dispatchToWorkflow(ctx, input, deps), nil
+	// StreamableLambda 支持真正的流式输出（修复 B6）
+	g.AddLambdaNode("dispatcher", compose.StreamableLambda(func(ctx context.Context, input agent.AgentInput) (*schema.StreamReader[*schema.Message], error) {
+		result := dispatchToWorkflow(ctx, input, deps)
+		// 将单个结果包装为流式 Reader
+		return schema.StreamReaderFromArray([]*schema.Message{result}), nil
 	}))
 
 	g.AddEdge(compose.START, "dispatcher")
@@ -59,24 +68,27 @@ func NewRootGraph(ctx context.Context, deps RootGraphDeps) (compose.Runnable[age
 }
 
 // dispatchToWorkflow 意图分类 + 子流程路由 + 回复生成
+// 将用户上下文（SessionID/UserID/EmployeeID/Role）注入 context，
+// 子图可通过 agentInputAdapter 恢复完整的 AgentInput
 func dispatchToWorkflow(ctx context.Context, input agent.AgentInput, deps RootGraphDeps) *schema.Message {
 	deps.Logger.Debug("开始分发请求",
 		zap.String("用户消息", truncate(input.Message, 50)))
 
-	// 意图分类
+	// 将用户上下文注入 context（修复 B1/B7）
+	ctx = context.WithValue(ctx, userContextKey{}, input)
+
 	route := classifyIntent(ctx, input, deps)
 	deps.Logger.Info("意图分类完成",
 		zap.String("意图", route),
 		zap.String("用户消息", truncate(input.Message, 30)))
 
-	// 路由分发
 	msg := schema.UserMessage(input.Message)
 
 	switch route {
 	case "new_reimbursement":
 		if deps.ReimbursementRunnable != nil {
 			deps.Logger.Debug("执行报销子流程")
-			resp, err := deps.ReimbursementRunnable.Invoke(ctx, msg)
+			resp, err := deps.ReimbursementRunnable.Invoke(ctx, []*schema.Message{msg})
 			if err != nil {
 				deps.Logger.Error("报销子流程执行失败", zap.Error(err))
 				return schema.AssistantMessage("抱歉，报销流程处理出错了，请稍后重试。", nil)
@@ -145,7 +157,13 @@ func dispatchToWorkflow(ctx context.Context, input agent.AgentInput, deps RootGr
 }
 
 // classifyIntent 意图分类（ChatModel 优先，关键词降级）
+// 置信度阈值从 AgentConfig 读取（默认 0.7），修复 B4
 func classifyIntent(ctx context.Context, input agent.AgentInput, deps RootGraphDeps) string {
+	threshold := 0.7
+	if deps.Config != nil && deps.Config.IntentConfidenceThreshold > 0 {
+		threshold = deps.Config.IntentConfidenceThreshold
+	}
+
 	if deps.ChatModel != nil {
 		prompt := agent.BuildIntentClassifyPrompt(input.Message)
 		resp, err := deps.ChatModel.Generate(ctx,
@@ -155,7 +173,7 @@ func classifyIntent(ctx context.Context, input agent.AgentInput, deps RootGraphD
 			})
 		if err == nil && resp != nil {
 			var intent intentOutput
-			if json.Unmarshal([]byte(resp.Content), &intent) == nil && intent.Confidence >= 0.7 {
+			if json.Unmarshal([]byte(resp.Content), &intent) == nil && intent.Confidence >= threshold {
 				switch intent.Intent {
 				case "new_reimbursement", "query_progress", "query_budget",
 					"policy_question", "modify_reimbursement":
@@ -200,11 +218,14 @@ func containsAny(s string, keywords ...string) bool {
 	return false
 }
 
+// truncate 按字符(rune)截断字符串到指定长度，超过则追加 "..."
+// 与 runner.go 中的 truncateStr 行为一致，正确处理中文等多字节字符
 func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(runes[:maxLen]) + "..."
 }
 
 // RouteIntent 导出供测试使用：解析 LLM JSON 输出 → 路由目标

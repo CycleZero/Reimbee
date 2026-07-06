@@ -118,4 +118,34 @@ func (ts *ToolSet) GetAllTools() []tool.InvokableTool {
 	}
 }
 
+// ============================================
+// BaseTool 方法（用于 compose.AddToolsNode 的 ReAct 模式）
+// tool.InvokableTool 继承 tool.BaseTool，直接转型即可
+// ============================================
+
+// GetPhase1BaseTools 返回 Phase 1 的工具（[]tool.BaseTool）
+func (ts *ToolSet) GetPhase1BaseTools() []tool.BaseTool {
+	return []tool.BaseTool{ts.OCR, ts.Compliance}
+}
+
+// GetPhase2BaseTools 返回 Phase 2 的工具（[]tool.BaseTool）
+func (ts *ToolSet) GetPhase2BaseTools() []tool.BaseTool {
+	return []tool.BaseTool{ts.Compliance, ts.Budget}
+}
+
+// GetPhase3BaseTools 返回 Phase 3 的工具（[]tool.BaseTool）
+func (ts *ToolSet) GetPhase3BaseTools() []tool.BaseTool {
+	return []tool.BaseTool{ts.PDF, ts.Email, ts.Progress}
+}
+
+// GetProgressBaseTools 返回进度查询相关工具
+func (ts *ToolSet) GetProgressBaseTools() []tool.BaseTool {
+	return []tool.BaseTool{ts.Progress, ts.QueryRecords}
+}
+
+// GetBudgetBaseTools 返回预算查询相关工具
+func (ts *ToolSet) GetBudgetBaseTools() []tool.BaseTool {
+	return []tool.BaseTool{ts.Budget}
+}
+
 

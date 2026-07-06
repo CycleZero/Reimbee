@@ -20,6 +20,71 @@ definitions:
       updated_at:
         type: string
     type: object
+  auth.LoginRequest:
+    properties:
+      employee_id:
+        description: 工号
+        type: string
+      password:
+        description: 密码
+        type: string
+    required:
+    - employee_id
+    - password
+    type: object
+  auth.LoginResponse:
+    properties:
+      employee_id:
+        description: 工号
+        type: string
+      expires_in:
+        description: 过期秒数
+        type: integer
+      name:
+        description: 姓名
+        type: string
+      role:
+        description: 角色
+        type: string
+      token:
+        description: JWT Token
+        type: string
+    type: object
+  auth.RegisterRequest:
+    properties:
+      department_id:
+        description: 部门ID
+        type: integer
+      email:
+        description: 邮箱（可选）
+        type: string
+      name:
+        description: 姓名
+        type: string
+      password:
+        description: 密码（至少6位）
+        minLength: 6
+        type: string
+    required:
+    - department_id
+    - name
+    - password
+    type: object
+  auth.RegisterResponse:
+    properties:
+      employee_id:
+        description: 分配的工号
+        type: string
+      message:
+        description: 提示信息
+        type: string
+      name:
+        description: 姓名
+        type: string
+      role:
+        description: 角色
+        type: string
+    type: object
   budget.BudgetResponse:
     properties:
       annual_budget:
@@ -396,6 +461,75 @@ paths:
       summary: 驳回审批
       tags:
       - 审批管理
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 验证工号和密码，返回 JWT Token
+      parameters:
+      - description: 登录请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功，返回 JWT
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 工号或密码错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户登录
+      tags:
+      - 认证
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户，工号自动分配（EMP001起），密码 bcrypt 加密
+      parameters:
+      - description: 注册请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 注册成功，返回分配的工号
+          schema:
+            $ref: '#/definitions/auth.RegisterResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 工号已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户注册
+      tags:
+      - 认证
   /api/budgets:
     post:
       consumes:

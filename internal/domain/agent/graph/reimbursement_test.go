@@ -5,110 +5,90 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CycleZero/Reimbee/log"
-	"go.uber.org/zap"
+	"github.com/CycleZero/Reimbee/internal/testutil"
+	"github.com/cloudwego/eino/schema"
 )
-
-func nopLoggerForReimb() *log.Logger {
-	return &log.Logger{Logger: zap.NewNop()}
-}
 
 // ============================================
 // NewReimbursementGraph 编译测试
 // ============================================
 
-func TestNewReimbursementGraph_Compiles(t *testing.T) {
-	ctx := context.Background()
+func TestNewReimbursementGraph_CompilesWithMockModel(t *testing.T) {
+	mockModel := testutil.NewTextReplyChatModel("报销处理完成，单号 REIMB-2026-0001")
 	deps := ReimbursementGraphDeps{
-		Logger:    nopLoggerForReimb(),
+		Logger:    nopLogger(),
+		ToolSet:   nil,
+		ChatModel: mockModel,
+	}
+
+	runnable, err := NewReimbursementGraph(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("NewReimbursementGraph 编译失败: %v", err)
+	}
+	if runnable == nil {
+		t.Fatal("NewReimbursementGraph 返回 nil runnable")
+	}
+	t.Logf("NewReimbursementGraph 编译成功")
+}
+
+func TestNewReimbursementGraph_NilChatModelReturnsError(t *testing.T) {
+	deps := ReimbursementGraphDeps{
+		Logger:    nopLogger(),
 		ToolSet:   nil,
 		ChatModel: nil,
 	}
 
-	runnable, err := NewReimbursementGraph(ctx, deps)
-
-	if err != nil {
-		t.Logf("NewReimbursementGraph 编译失败（已知问题，待 Phase D 修复）: %v", err)
+	_, err := NewReimbursementGraph(context.Background(), deps)
+	if err == nil {
+		t.Fatal("期望返回错误（chatModel 为 nil），但错误为 nil")
 	}
-	if runnable == nil && err == nil {
-		t.Fatal("NewReimbursementGraph 返回 nil runnable，但无错误")
+	if !strings.Contains(err.Error(), "chatModel") {
+		t.Errorf("错误消息应包含 'chatModel'，实际: %v", err)
 	}
-	if runnable != nil {
-		t.Logf("NewReimbursementGraph 编译成功，runnable 类型: %T", runnable)
-	}
+	t.Logf("nil chatModel 正确返回错误: %v", err)
 }
 
 // ============================================
-// 类型兼容性测试
+// 运行时行为测试
 // ============================================
 
-func TestNewReimbursementGraph_TypeMismatchError(t *testing.T) {
-	ctx := context.Background()
+func TestNewReimbursementGraph_GuardLoopExceedsSteps(t *testing.T) {
+	// Phase1 Guard 始终失败（无票据），图应因 exceeded max steps 而错误退出
+	mockModel := testutil.NewTextReplyChatModel("请上传票据图片以便继续。")
+
 	deps := ReimbursementGraphDeps{
-		Logger:    nopLoggerForReimb(),
+		Logger:    nopLogger(),
 		ToolSet:   nil,
-		ChatModel: nil,
+		ChatModel: mockModel,
 	}
 
-	_, err := NewReimbursementGraph(ctx, deps)
+	runnable, err := NewReimbursementGraph(context.Background(), deps)
 	if err != nil {
-		msg := err.Error()
-		if !strings.Contains(msg, "type") && !strings.Contains(msg, "mismatch") {
-			t.Logf("编译错误（非类型不匹配）: %v", err)
-		} else {
-			t.Logf("类型不匹配错误（预期行为，待 Phase D 修复）: %v", err)
-		}
+		t.Fatalf("编译失败: %v", err)
+	}
+
+	_, err = runnable.Invoke(context.Background(),
+		[]*schema.Message{schema.UserMessage("报销")})
+
+	if err == nil {
+		t.Error("期望因 Guard 循环超限而返回错误")
 	} else {
-		t.Log("NewReimbursementGraph 编译成功 — 类型不匹配已修复")
+		t.Logf("Guard 循环正确超限: %v", err)
 	}
 }
 
 // ============================================
-// 依赖验证测试
+// 依赖验证
 // ============================================
 
 func TestReimbursementGraphDeps_Defaults(t *testing.T) {
 	deps := ReimbursementGraphDeps{
-		Logger:    nopLoggerForReimb(),
-		ToolSet:   nil,
-		ChatModel: nil,
+		Logger: nopLogger(),
 	}
 
 	if deps.Logger == nil {
 		t.Error("Logger 不应为 nil")
 	}
-	if deps.ToolSet != nil {
-		t.Log("ToolSet 非 nil，将使用工具集")
-	}
-	if deps.ChatModel != nil {
-		t.Log("ChatModel 非 nil，将使用 LLM 模式")
-	}
-}
-
-// ============================================
-// Graph 构建步骤验证
-// ============================================
-
-func TestNewReimbursementGraph_NodesExist(t *testing.T) {
-	ctx := context.Background()
-	deps := ReimbursementGraphDeps{
-		Logger:    nopLoggerForReimb(),
-		ToolSet:   nil,
-		ChatModel: nil,
-	}
-
-	runnable, err := NewReimbursementGraph(ctx, deps)
-	if err != nil {
-		msg := err.Error()
-		t.Logf("编译错误信息: %s", msg)
-		if !strings.Contains(msg, "编译报销子流程Graph失败") {
-			t.Error("错误消息应包含中文前缀 '编译报销子流程Graph失败'")
-		}
-		return
-	}
-
-	if runnable == nil {
-		t.Fatal("编译成功但 runnable 为 nil")
-	}
-	t.Logf("报销子流程 Graph 编译成功")
+	// ToolSet/ChatModel nil 应该被安全处理
+	t.Log("ReimbursementGraphDeps 默认值验证通过")
 }

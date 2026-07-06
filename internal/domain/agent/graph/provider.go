@@ -54,6 +54,7 @@ func NewRootGraphRunnable(
 	deps := RootGraphDeps{
 		Logger:                logger,
 		ChatModel:             chatModel,
+		Config:                config,
 		ReimbursementRunnable: reimbRunnable,
 		ProgressRunnable:      progressRunnable,
 		BudgetRunnable:        budgetRunnable,
@@ -93,11 +94,19 @@ type agentInputAdapter struct {
 
 func (a *agentInputAdapter) Invoke(ctx context.Context, input *schema.Message, opts ...compose.Option) (*schema.Message, error) {
 	ai := agent.AgentInput{Message: input.Content}
+	if uc, ok := ctx.Value(userContextKey{}).(agent.AgentInput); ok {
+		ai = uc
+		ai.Message = input.Content
+	}
 	return a.inner.Invoke(ctx, ai, opts...)
 }
 
 func (a *agentInputAdapter) Stream(ctx context.Context, input *schema.Message, opts ...compose.Option) (*schema.StreamReader[*schema.Message], error) {
 	ai := agent.AgentInput{Message: input.Content}
+	if uc, ok := ctx.Value(userContextKey{}).(agent.AgentInput); ok {
+		ai = uc
+		ai.Message = input.Content
+	}
 	return a.inner.Stream(ctx, ai, opts...)
 }
 

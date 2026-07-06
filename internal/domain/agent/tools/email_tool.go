@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/log"
@@ -67,7 +68,7 @@ func NewEmailTool(emailSender infra.EmailSender, logger *log.Logger) *EmailTool 
 
 			return EmailOutput{
 				Success:   true,
-				MessageID: fmt.Sprintf("msg_%d_%d", input.ReimbursementID, context.Background()), // Mock ID
+				MessageID: fmt.Sprintf("msg_%d_%d", input.ReimbursementID, time.Now().UnixNano()), // 使用纳秒时间戳作为消息ID
 			}, nil
 		},
 	)
