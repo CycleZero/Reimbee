@@ -7,20 +7,21 @@ import (
 
 // ProviderSet 智能体模块的 Wire 依赖注入集合
 var ProviderSet = wire.NewSet(
-	// Phase A — 配置加载
+	// 配置加载
 	LoadAgentConfig,
+	LoadLoopConfig,
 
-	// Phase B — 工具层
+	// 工具层
 	tools.ProviderSet,
 
-	// Phase D — ChatModel
+	// ChatModel
 	MustNewChatModel,
 
-	// Phase D — Checkpoint 持久化
+	// Checkpoint 持久化（Eino 只提供接口，我们提供 MySQL 实现）
 	NewMySQLCheckpointStore,
 	wire.Bind(new(CheckpointStore), new(*MySQLCheckpointStore)),
 
-	// Phase D — 运行引擎 + HTTP 服务
-	NewAgentRunner,
+	// v3.0: LoopManager + HTTP 服务
+	NewLoopManager,
 	NewAgentService,
 )

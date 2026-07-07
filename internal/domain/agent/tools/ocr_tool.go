@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/internal/domain/agent/types"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/cloudwego/eino/components/tool/utils"
 	"go.uber.org/zap"
@@ -35,7 +36,8 @@ type OCROutput struct {
 
 // NewOCRTool 创建票据识别工具，封装 infra.OCRRecognizer + infra.FileStorage
 // Phase 1（信息收集）阶段的核心加速工具——失败不阻塞流程，引导用户手动输入
-func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, logger *log.Logger) *OCRTool {
+// store 参数为 v3.0 新增，后续版本工具将直接调用 store.SaveState 更新 ReimbursementState
+func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store infra.SessionStore, logger *log.Logger) *OCRTool {
 	t, err := utils.InferTool[OCRInput, OCROutput](
 		"recognize_invoice",
 		"识别票据图片，自动提取金额、开票日期、费用类别、销售方等信息。识别失败时返回 error 字段，Agent 应引导用户手动输入",
@@ -75,6 +77,21 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, logge
 			)
 
 			amountInCents := int64(result.Amount * 100)
+
+			// v3.0: 持久化 OCR 识别结果到 ReimbursementState
+			if sid := getSessionIDFromCtx(ctx); sid != "" {
+				var state types.ReimbursementState
+				store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
+				state.Invoices = append(state.Invoices, types.InvoiceState{
+					Amount:   amountInCents,
+					Category: result.Category,
+				})
+				state.TotalAmount += amountInCents
+				if state.CurrentPhase == "" {
+					state.CurrentPhase = "phase1_collect"
+				}
+				store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state)
+			}
 
 			return OCROutput{
 				InvoiceCode:   result.InvoiceCode,

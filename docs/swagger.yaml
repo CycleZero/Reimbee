@@ -658,36 +658,51 @@ paths:
     get:
       consumes:
       - application/json
-      description: 通过 SSE（Server-Sent Events）与报销智能助手进行实时对话交互
+      description: 通过 SSE（Server-Sent Events）与报销智能助手进行实时多轮对话交互。
       parameters:
-      - description: 会话ID（UUID v7）
+      - description: 会话ID（UUID v7），同一会话多次请求复用此 ID
         in: query
         name: session_id
         required: true
         type: string
-      - description: 用户消息内容
+      - description: 用户消息内容，支持自然语言（中文）
         in: query
         name: message
+        required: true
+        type: string
+      - description: Bearer JWT Token（由 /api/auth/login 签发）
+        in: header
+        name: Authorization
         required: true
         type: string
       produces:
       - text/event-stream
       responses:
         "200":
-          description: SSE事件流
+          description: SSE 事件流（text/event-stream）
           schema:
             type: string
         "400":
-          description: 缺少必填参数
+          description: 缺少必填参数（session_id 或 message）
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证（JWT 无效或过期）
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: 服务器不支持流式响应
+          description: 服务器不支持流式响应（http.Flusher 不可用）
           schema:
             additionalProperties: true
             type: object
-      summary: Agent 流式对话
+        "503":
+          description: 服务繁忙（TurnLoop 已停止，无法接收新消息）
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Agent 流式对话（SSE）
       tags:
       - Agent对话
   /api/departments:

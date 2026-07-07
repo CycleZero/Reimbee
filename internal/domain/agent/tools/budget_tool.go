@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/internal/domain/agent/types"
 	"github.com/CycleZero/Reimbee/internal/domain/budget"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -25,7 +27,8 @@ type BudgetOutput struct {
 }
 
 // NewBudgetTool 创建预算检查工具，封装 budget.BudgetBiz
-func NewBudgetTool(budgetBiz *budget.BudgetBiz, logger *log.Logger) *BudgetTool {
+// store 参数为 v3.0 新增，后续版本工具将直接调用 store.SaveState 更新 ReimbursementState
+func NewBudgetTool(budgetBiz *budget.BudgetBiz, store infra.SessionStore, logger *log.Logger) *BudgetTool {
 	t, err := utils.InferTool[BudgetInput, BudgetOutput](
 		"check_budget",
 		"查询指定部门的当前财年预算余额。若本次报销金额超过可用余额，将触发特殊审批流程（need_special_approval=true）。返回可用余额、是否触发特殊审批、以及部门预算使用率",
@@ -50,6 +53,18 @@ func NewBudgetTool(budgetBiz *budget.BudgetBiz, logger *log.Logger) *BudgetTool 
 				zap.Bool("需要特殊审批", needSpecial),
 				zap.Float64("使用率", usageRate),
 			)
+
+			// v3.0: 持久化预算检查结果到 ReimbursementState
+			if sid := getSessionIDFromCtx(ctx); sid != "" {
+				var state types.ReimbursementState
+				store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
+				state.BudgetResult = &types.BudgetCheckResult{
+					Remaining:           remaining,
+					NeedSpecialApproval: needSpecial,
+					UsageRate:           usageRate,
+				}
+				store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state)
+			}
 
 			return BudgetOutput{
 				Remaining:           remaining,

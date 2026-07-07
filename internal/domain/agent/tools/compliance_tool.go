@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/internal/domain/agent/types"
 	"github.com/CycleZero/Reimbee/internal/domain/compliance"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -26,7 +28,8 @@ type ComplianceOutput struct {
 }
 
 // NewComplianceTool 创建合规检查工具，封装 compliance.ComplianceBiz
-func NewComplianceTool(complianceBiz *compliance.ComplianceBiz, logger *log.Logger) *ComplianceTool {
+// store 参数为 v3.0 新增，后续版本工具将直接调用 store.SaveState 更新 ReimbursementState
+func NewComplianceTool(complianceBiz *compliance.ComplianceBiz, store infra.SessionStore, logger *log.Logger) *ComplianceTool {
 	t, err := utils.InferTool[ComplianceInput, ComplianceOutput](
 		"check_compliance",
 		"检查票据金额是否符合企业报销政策标准（差旅住宿、交通、招待费、办公用品等），并检查发票是否在有效期内。返回 pass（通过）、warning（接近上限需审批确认）或 error（严重超限不可提交）",
@@ -53,6 +56,19 @@ func NewComplianceTool(complianceBiz *compliance.ComplianceBiz, logger *log.Logg
 				zap.String("消息", result.Message),
 				zap.String("规则ID", result.RuleID),
 			)
+
+			// v3.0: 持久化合规检查结果到 ReimbursementState
+			if sid := getSessionIDFromCtx(ctx); sid != "" {
+				var state types.ReimbursementState
+				store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
+				state.ComplianceResult = &types.ComplianceCheckResult{
+					Result:  result.Result,
+					Level:   result.Level,
+					Message: result.Message,
+					RuleID:  result.RuleID,
+				}
+				store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state)
+			}
 
 			return ComplianceOutput{
 				Result:  result.Result,

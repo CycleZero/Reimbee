@@ -46,8 +46,11 @@ func newMockToolSet(t *testing.T) *tools.ToolSet {
 		&tools.EmailTool{InvokableTool: &mockInvokableTool{name: "send_email"}},
 		&tools.ProgressTool{InvokableTool: &mockInvokableTool{name: "query_progress"}},
 		&tools.QueryTool{InvokableTool: &mockInvokableTool{name: "query_records"}},
+		&tools.ConfirmInvoiceTool{InvokableTool: &mockInvokableTool{name: "confirm_invoice"}},
+		&tools.ConfirmSubmitTool{InvokableTool: &mockInvokableTool{name: "confirm_submit"}},
 		&tools.CreateReimbTool{InvokableTool: &mockInvokableTool{name: "create_reimbursement"}},
 		&tools.SubmitReimbTool{InvokableTool: &mockInvokableTool{name: "submit_reimbursement"}},
+		nil, // v3.0: SessionStore（测试中为 nil）
 		testLogger(t),
 	)
 }
@@ -62,8 +65,8 @@ func TestToolSet_GetPhase1Tools(t *testing.T) {
 
 	got := ts.GetPhase1Tools()
 
-	if len(got) != 2 {
-		t.Errorf("GetPhase1Tools() 应返回 2 个工具，实际返回 %d 个", len(got))
+	if len(got) != 3 {
+		t.Errorf("GetPhase1Tools() 应返回 3 个工具，实际返回 %d 个", len(got))
 	}
 
 	// 验证工具名称
@@ -82,20 +85,23 @@ func TestToolSet_GetPhase1Tools(t *testing.T) {
 	if !names["check_compliance"] {
 		t.Error("Phase 1 工具应包含 check_compliance (Compliance)")
 	}
+	if !names["confirm_invoice"] {
+		t.Error("Phase 1 工具应包含 confirm_invoice (ConfirmInvoice)")
+	}
 }
 
 // ============================================
 // GetPhase2Tools 测试
 // ============================================
 
-// TestToolSet_GetPhase2Tools 验证 Phase 2（校验确认）返回 2 个工具：Compliance + Budget
+// TestToolSet_GetPhase2Tools 验证 Phase 2（校验确认）返回 3 个工具：Compliance + Budget + ConfirmSubmit
 func TestToolSet_GetPhase2Tools(t *testing.T) {
 	ts := newMockToolSet(t)
 
 	got := ts.GetPhase2Tools()
 
-	if len(got) != 2 {
-		t.Errorf("GetPhase2Tools() 应返回 2 个工具，实际返回 %d 个", len(got))
+	if len(got) != 3 {
+		t.Errorf("GetPhase2Tools() 应返回 3 个工具，实际返回 %d 个", len(got))
 	}
 
 	names := make(map[string]bool)
@@ -159,8 +165,8 @@ func TestToolSet_GetAllTools(t *testing.T) {
 
 	got := ts.GetAllTools()
 
-	if len(got) != 9 {
-		t.Errorf("GetAllTools() 应返回 9 个工具，实际返回 %d 个", len(got))
+	if len(got) != 11 {
+		t.Errorf("GetAllTools() 应返回 11 个工具，实际返回 %d 个", len(got))
 	}
 
 	names := make(map[string]bool)

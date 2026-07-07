@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"time"
+
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -76,4 +78,40 @@ func applyDefaults(cfg *AgentConfig) {
 	if cfg.IntentConfidenceThreshold <= 0 {
 		cfg.IntentConfidenceThreshold = 0.7
 	}
+}
+
+// ============================================
+// LoopConfig —— v3.0 TurnLoop 会话生命周期配置
+// ============================================
+
+// LoopConfig TurnLoop 会话生命周期配置
+// 由 LoopManager 读取，控制会话超时清理和对话历史注入
+type LoopConfig struct {
+	SessionTTL      time.Duration // 会话空闲超时时间（超过后 LoopManager 自动销毁 SessionLoop）
+	MaxHistoryTurns int           // 每轮 Turn 注入 ChatModelAgent 的最大历史对话轮数
+	CleanupInterval time.Duration // 后台清理 goroutine 的检查间隔
+}
+
+// DefaultLoopConfig 返回生产级默认 LoopConfig
+// 所有值均可通过 AgentConfig 的对应字段覆盖（兼容旧配置）
+func DefaultLoopConfig() *LoopConfig {
+	return &LoopConfig{
+		SessionTTL:      30 * time.Minute,
+		MaxHistoryTurns: 20,
+		CleanupInterval: 60 * time.Second,
+	}
+}
+
+// LoadLoopConfig 从 AgentConfig 构建 LoopConfig
+// 如果 AgentConfig 中对应字段未设置（零值），使用 DefaultLoopConfig 的默认值
+func LoadLoopConfig(ac *AgentConfig) *LoopConfig {
+	cfg := DefaultLoopConfig()
+	if ac.SessionTTLMinutes > 0 {
+		cfg.SessionTTL = time.Duration(ac.SessionTTLMinutes) * time.Minute
+	}
+	if ac.MaxHistoryTurns > 0 {
+		cfg.MaxHistoryTurns = ac.MaxHistoryTurns
+	}
+	// CleanupInterval 暂无独立配置项，使用默认值 60s
+	return cfg
 }
