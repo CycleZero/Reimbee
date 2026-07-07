@@ -37,6 +37,8 @@ type LoopManager struct {
 	policyAgent   *adk.ChatModelAgent
 	modifyAgent   *adk.ChatModelAgent
 
+	chatModel model.ToolCallingChatModel // LLM 实例（用于 PrepareAgent 意图分类）
+
 	logger *log.Logger
 	config *LoopConfig
 }
@@ -71,10 +73,11 @@ func NewLoopManager(
 	}
 
 	m := &LoopManager{
-		loops:  make(map[string]*SessionLoop),
-		store:  store,
-		logger: logger,
-		config: config,
+		loops:     make(map[string]*SessionLoop),
+		store:     store,
+		logger:    logger,
+		config:    config,
+		chatModel: chatModel,
 	}
 
 	// 构建依赖结构体，传递给 initAgents

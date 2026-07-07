@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -191,7 +192,7 @@ func (m *LoopManager) makeGenInput(sessionID string) func(
 // ============================================
 
 // makePrepareAgent 返回 PrepareAgent 闭包，负责选择当前 Turn 使用的 Agent
-//  1. 意图分类（关键词匹配）
+//  1. ChatModel 意图分类（优先）→ 失败降级到关键词
 //  2. 简单意图（进度/预算/政策/修改/通用）→ 直接返回对应 Agent
 //  3. 报销流程 → 根据 ReimbursementState 选择 Phase Agent（物理隔离工具集）
 func (m *LoopManager) makePrepareAgent(sessionID string) func(
@@ -203,12 +204,19 @@ func (m *LoopManager) makePrepareAgent(sessionID string) func(
 	return func(ctx context.Context, _ *adk.TurnLoop[string, *schema.Message],
 		consumed []string) (adk.Agent, error) {
 
-		// ── 1. 意图分类 ──
-		route := classifyByKeywords(consumed[0])
+		msg := consumed[0]
+
+		// ── 1. 意图分类（ChatModel 优先 → 关键词降级）──
+		// ChatModel 能理解上下文（如 Phase 2 中说"提交申请"=confirm，而非 new_reimbursement）
+		// 关键词降级作为可靠后备（ChatModel 不可用或返回低置信度时）
+		route := classifyIntentByLLM(ctx, m, msg)
+		if route == "" {
+			route = classifyByKeywords(msg)
+		}
 		m.logger.Debug("意图分类",
 			zap.String("sessionID", sessionID),
 			zap.String("意图", route),
-			zap.String("用户消息", consumed[0]))
+			zap.String("用户消息", msg))
 
 		// ── 2. 简单意图 → 直接返回对应 Agent ──
 		switch route {
@@ -434,7 +442,62 @@ func (m *LoopManager) getSessionLoop(sessionID string) *SessionLoop {
 }
 
 // ============================================
-// classifyByKeywords — 关键词意图分类（降级方案）
+// classifyIntentByLLM — ChatModel 意图分类（优先方案）
+// ============================================
+//
+// 使用 LLM 根据用户消息理解上下文语义：
+//   如 Phase 2 中用户说"提交申请"→ 应理解为 confirm_submit 而非 new_reimbursement
+//   关键词分类无法区分这种上下文差异，因此 ChatModel 优先
+//
+// 返回空字符串表示 LLM 分类失败，由关键词降级兜底
+func classifyIntentByLLM(ctx context.Context, m *LoopManager, message string) string {
+	type intentOutput struct {
+		Intent     string  `json:"intent"`
+		Confidence float64 `json:"confidence"`
+	}
+
+	model := m.chatModel
+	if model == nil {
+		m.logger.Debug("ChatModel未配置，跳过LLM意图分类")
+		return ""
+	}
+
+	// 加载当前报销状态，注入提示词（帮助 LLM 理解上下文）
+
+	prompt := BuildIntentClassifyPrompt(message)
+	resp, err := model.Generate(ctx, []*schema.Message{
+		schema.SystemMessage(`你是一个意图分类器。分析用户输入并返回JSON。
+可选意图: new_reimbursement, query_progress, query_budget, policy_question, modify_reimbursement, general_chat
+返回格式: {"intent":"...","confidence":0.95}
+注意：结合上下文判断！如果用户之前在上传票据阶段说"确认"/"提交"，意图应为 new_reimbursement（走报销流程），而非 general_chat。`),
+		schema.UserMessage(prompt),
+	})
+	if err != nil {
+		m.logger.Debug("LLM意图分类失败，降级到关键词",
+			zap.Error(err))
+		return ""
+	}
+
+	var intent intentOutput
+	if err := json.Unmarshal([]byte(resp.Content), &intent); err != nil {
+		m.logger.Debug("LLM意图分类JSON解析失败，降级到关键词",
+			zap.String("响应内容", resp.Content[:min(len(resp.Content), 100)]),
+			zap.Error(err))
+		return ""
+	}
+
+	if intent.Confidence < 0.7 {
+		m.logger.Debug("LLM意图分类置信度过低，降级到关键词",
+			zap.String("意图", intent.Intent),
+			zap.Float64("置信度", intent.Confidence))
+		return ""
+	}
+
+	m.logger.Debug("LLM意图分类成功",
+		zap.String("意图", intent.Intent),
+		zap.Float64("置信度", intent.Confidence))
+	return intent.Intent
+}
 // ============================================
 
 // classifyByKeywords 基于关键词对用户消息进行意图分类
