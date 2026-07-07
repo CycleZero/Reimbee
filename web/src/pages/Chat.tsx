@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { ChatLayout } from '@/chat/ChatLayout';
 import { PhaseIndicator } from '@/chat/components/PhaseIndicator';
@@ -14,20 +14,12 @@ interface UploadedFile {
 }
 
 export default function Chat() {
-  const { sessionId: paramSessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
   const { message: antMsg } = App.useApp();
 
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const store = useChatStore();
-
-  // ── 组件挂载时初始化会话 ──
-  useEffect(() => {
-    if (paramSessionId && !store.currentSessionId) {
-      store.initSession(paramSessionId);
-    }
-  }, [paramSessionId]);
 
   const sessionId = store.currentSessionId;
   const connectionStatus = store.connectionStatus;
@@ -45,7 +37,7 @@ export default function Chat() {
 
       let sid = sessionId;
       if (!sid) {
-        sid = store.initSession(paramSessionId);
+        sid = store.initSession();
         navigate(`/chat/${sid}`, { replace: true });
       }
 
@@ -58,7 +50,7 @@ export default function Chat() {
       setPendingMessage(fullMsg);
       setUploadedFile(null); // 发送后清空已上传票据
     },
-    [sessionId, paramSessionId, connectionStatus, uploadedFile, store, navigate, antMsg],
+    [sessionId, connectionStatus, uploadedFile, store, navigate, antMsg],
   );
 
   const isDisabled = connectionStatus === 'connecting' || connectionStatus === 'connected';
