@@ -46,11 +46,6 @@ type SessionMessage struct {
 	// 用于还原为 *schema.Message 时保留所有信息
 	MessageMeta *string `gorm:"type:json;comment:Eino Message元数据(ToolCalls/ResponseMeta等，仅框架消费)" json:"message_meta,omitempty"`
 
-	// RawJSON v3 兼容字段——生产环境旧表有此 NOT NULL 列，保留以兼容 INSERT
-	// 新代码使用 MessageMeta 替代，此字段仅用于 GORM 自动填充默认值，避免写入报错
-	// Phase 5 生产环境 ALTER TABLE 后可移除此兼容字段
-	RawJSON string `gorm:"type:mediumtext;not null;default:'';comment:v3兼容(新代码用message_meta)" json:"-"`
-
 	CreatedAt time.Time `gorm:"autoCreateTime;comment:创建时间" json:"created_at"`
 }
 

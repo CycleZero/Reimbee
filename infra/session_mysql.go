@@ -95,7 +95,6 @@ func (s *MySQLSessionStore) SaveMessages(ctx context.Context, sessionID string, 
 		} else {
 			metaStr := string(metaBytes)
 			rec.MessageMeta = &metaStr
-			rec.RawJSON = metaStr
 		}
 
 		records = append(records, rec)
@@ -161,13 +160,6 @@ func (s *MySQLSessionStore) restoreMessage(rec *model.SessionMessage) *schema.Me
 	if rec.MessageMeta != nil {
 		var msg schema.Message
 		if err := json.Unmarshal([]byte(*rec.MessageMeta), &msg); err == nil {
-			return &msg
-		}
-	}
-
-	if rec.RawJSON != "" {
-		var msg schema.Message
-		if err := json.Unmarshal([]byte(rec.RawJSON), &msg); err == nil {
 			return &msg
 		}
 	}
