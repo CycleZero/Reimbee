@@ -27,8 +27,9 @@ type LoopManager struct {
 	loops map[string]*SessionLoop
 	store infra.SessionStore // 消息 + 业务状态持久化
 
-	reimburseAgent   *adk.ChatModelAgent
-	complianceModel  model.ToolCallingChatModel
+	reimburseAgent  *adk.ChatModelAgent
+	msgCollector    *messageCollector
+	complianceModel model.ToolCallingChatModel
 	chatModel        model.ToolCallingChatModel
 	checkpointStore  CheckpointStore
 

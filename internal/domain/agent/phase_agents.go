@@ -15,6 +15,9 @@ import (
 func (m *LoopManager) initAgent(ctx context.Context, deps LoopManagerDeps) {
 	deps.Logger.Info("初始化 ReimburseAgent（v4 单Agent模式）")
 
+	m.msgCollector = &messageCollector{}
+	mw := &collectorMiddleware{collector: m.msgCollector}
+
 	m.reimburseAgent = mustNewAgent(ctx, deps,
 		"reimburse_agent",
 		"企业报销全流程智能助手",
@@ -30,6 +33,7 @@ func (m *LoopManager) initAgent(ctx context.Context, deps LoopManagerDeps) {
 			deps.ToolSet.Progress,
 			deps.ToolSet.QueryRecords,
 		},
+		[]adk.ChatModelAgentMiddleware{mw},
 	)
 
 	deps.Logger.Info("ReimburseAgent初始化完成", zap.Int("工具数", 9))
@@ -37,7 +41,8 @@ func (m *LoopManager) initAgent(ctx context.Context, deps LoopManagerDeps) {
 
 // mustNewAgent 创建 ChatModelAgent 实例，失败时 panic
 func mustNewAgent(ctx context.Context, deps LoopManagerDeps,
-	name, desc, instruction string, toolList []tool.BaseTool) *adk.ChatModelAgent {
+	name, desc, instruction string, toolList []tool.BaseTool,
+	handlers []adk.ChatModelAgentMiddleware) *adk.ChatModelAgent {
 
 	agent, err := adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
 		Name:        name,
@@ -48,6 +53,7 @@ func mustNewAgent(ctx context.Context, deps LoopManagerDeps,
 			ToolsNodeConfig: compose.ToolsNodeConfig{Tools: toolList},
 		},
 		MaxIterations: 15,
+		Handlers:      handlers,
 	})
 	if err != nil {
 		deps.Logger.Error("创建Agent失败", zap.String("name", name), zap.Error(err))

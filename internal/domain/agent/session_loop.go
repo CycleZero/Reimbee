@@ -255,7 +255,6 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 		_ = writer.Flush()
 
 		var fullContent string
-		var collectedMsgs []*schema.Message
 
 		for {
 			select {
@@ -305,7 +304,6 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 						}
 					}
 				} else if mv.Message != nil {
-					collectedMsgs = append(collectedMsgs, mv.Message)
 					fullContent = mv.Message.Content
 					_ = writer.WriteEvent(NewMessageEvent(mv.Message.Content, false))
 					_ = writer.Flush()
@@ -314,14 +312,11 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 			case schema.Tool:
 				_ = writer.WriteEvent(NewToolResultEvent(mv.ToolName, mv.Message.Content))
 				_ = writer.Flush()
-				if mv.Message != nil {
-					collectedMsgs = append(collectedMsgs, mv.Message)
-				}
 			}
 		}
 
-		if len(collectedMsgs) > 0 {
-			if err := m.store.SaveMessages(ctx, sessionID, collectedMsgs); err != nil {
+		if msgs := m.msgCollector.takeAll(); len(msgs) > 0 {
+			if err := m.store.SaveMessages(ctx, sessionID, msgs); err != nil {
 				m.logger.Warn("保存消息失败", zap.Error(err))
 			}
 		} else if fullContent != "" {
