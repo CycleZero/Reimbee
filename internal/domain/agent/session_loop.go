@@ -255,20 +255,14 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 		_ = writer.Flush()
 
 		var fullContent string
+		var collectedMsgs []*schema.Message
 
-		// ── 3. 消费事件流 ──
 		for {
-			// FIRST: 检查 Preempt / Stop 信号（必须优先！）
 			select {
 			case <-tc.Preempted:
-				m.logger.Debug("当前Turn被Preempt",
-					zap.String("sessionID", sessionID))
-				// 框架会将 CancelError 吸收并自动开始新 Turn，这里只需返回 nil
 				sl.clearActiveWriter(nil)
 				return nil
 			case <-tc.Stopped:
-				m.logger.Debug("TurnLoop被Stop",
-					zap.String("sessionID", sessionID))
 				sl.clearActiveWriter(nil)
 				return nil
 			default:
@@ -276,25 +270,20 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 
 			event, ok := events.Next()
 			if !ok {
-				break // 事件流结束
+				break
 			}
 
-			// ── 3c. 错误处理 ──
 			if event.Err != nil {
-				// 框架已自动捕获 CancelError（Preempt/Stop），回调不应传播
 				if errors.As(event.Err, new(*adk.CancelError)) {
-					// 静默返回，框架会处理后续流程（Preempt→新Turn，Stop→退出）
 					sl.clearActiveWriter(nil)
 					return nil
 				}
-				// 真实错误才传播并在 SSE 中展示
 				_ = writer.WriteEvent(NewErrorEvent(event.Err.Error(), false, "agent_error"))
 				_ = writer.Flush()
 				sl.clearActiveWriter(event.Err)
 				return event.Err
 			}
 
-			// ── 3d. 跳过空输出 ──
 			if event.Output == nil || event.Output.MessageOutput == nil {
 				continue
 			}
@@ -303,9 +292,7 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 
 			switch mv.Role {
 			case schema.Assistant:
-				// LLM 文本输出（流式 or 完整）
 				if mv.IsStreaming {
-					// 流式：逐 chunk 推送增量
 					for {
 						chunk, err := mv.MessageStream.Recv()
 						if err != nil {
@@ -318,6 +305,7 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 						}
 					}
 				} else if mv.Message != nil {
+					collectedMsgs = append(collectedMsgs, mv.Message)
 					fullContent = mv.Message.Content
 					_ = writer.WriteEvent(NewMessageEvent(mv.Message.Content, false))
 					_ = writer.Flush()
@@ -326,11 +314,17 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 			case schema.Tool:
 				_ = writer.WriteEvent(NewToolResultEvent(mv.ToolName, mv.Message.Content))
 				_ = writer.Flush()
+				if mv.Message != nil {
+					collectedMsgs = append(collectedMsgs, mv.Message)
+				}
 			}
 		}
 
-		// ── 4. 持久化 assistant 完整回复 ──
-		if fullContent != "" {
+		if len(collectedMsgs) > 0 {
+			if err := m.store.SaveMessages(ctx, sessionID, collectedMsgs); err != nil {
+				m.logger.Warn("保存消息失败", zap.Error(err))
+			}
+		} else if fullContent != "" {
 			assistantMsg := schema.AssistantMessage(fullContent, nil)
 			if err := m.store.SaveMessages(ctx, sessionID, []*schema.Message{assistantMsg}); err != nil {
 				m.logger.Warn("保存assistant消息失败", zap.Error(err))
