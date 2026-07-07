@@ -1,4 +1,5 @@
 import { api } from './client';
+import { useAuthStore } from '@/stores/authStore';
 import type {
   LoginRequest,
   LoginResponse,
@@ -19,7 +20,9 @@ import type {
   SubmitReimbursementRequest,
   ApprovalRecord,
   PaginatedResponse,
+  UploadInvoiceResponse,
 } from '@/types/models';
+import type { SSEEvent as ChatStreamEvent } from '@/types/sse';
 
 // ============================================
 // 认证
@@ -187,4 +190,67 @@ export function approveApproval(id: number, comment?: string) {
 /** 审批人驳回审批记录 */
 export function rejectApproval(id: number, reason: string) {
   return api.post<void>(`/api/approvals/${id}/reject`, { reason });
+}
+
+// ============================================
+// Agent 对话 + 文件上传
+// ============================================
+
+/** SSE 流式对话：连接后持续接收 thinking/message/tool_result/done 等事件 */
+export function chatStream(
+  sessionId: string,
+  message: string,
+  onEvent: (event: ChatStreamEvent) => void,
+  onError?: (error: Error) => void,
+): AbortController {
+  const controller = new AbortController();
+  const token = useAuthStore.getState().token;
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+  const params = new URLSearchParams({ session_id: sessionId, message });
+  const url = `${baseUrl}/api/chat/stream?${params}`;
+
+  fetch(url, {
+    signal: controller.signal,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error ?? `SSE连接失败 (${response.status})`);
+      }
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('浏览器不支持流式响应');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE 格式: event: <type>\ndata: <json>\n\n
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              onEvent(parsed as ChatStreamEvent);
+            } catch { /* 忽略解析失败的帧 */ }
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') onError?.(err as Error);
+    });
+
+  return controller;
+}
+
+/** 上传票据图片（multipart/form-data） */
+export function uploadInvoice(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post<UploadInvoiceResponse>('/api/reimbursements/upload', formData);
 }

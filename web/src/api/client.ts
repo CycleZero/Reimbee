@@ -28,7 +28,11 @@ async function request<T = unknown>(
   }
 
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
+  // 默认 JSON 类型，multipart 上传时不设 Content-Type（浏览器自动添加 boundary）
+  const isFormData = body instanceof FormData;
+  if (!isFormData) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   if (!isPublic) {
     const token = useAuthStore.getState().token;
@@ -39,7 +43,7 @@ async function request<T = unknown>(
     ...init,
     method,
     headers,
-    body: body != null ? JSON.stringify(body) : undefined,
+    body: isFormData ? (body as FormData) : (body != null ? JSON.stringify(body) : undefined),
   });
 
   if (!response.ok) {

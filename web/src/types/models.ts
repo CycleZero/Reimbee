@@ -216,3 +216,16 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
 }
+
+// ============================================
+// 文件上传
+// ============================================
+
+/** 票据上传响应 — 与后端 reimbursement/dto.go UploadInvoiceResponse 对齐 */
+export interface UploadInvoiceResponse {
+  file_id: string;
+  file_name: string;
+  file_path: string;
+  url: string;
+  size: number;
+}
