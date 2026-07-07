@@ -48,7 +48,7 @@ func setupEngine(t *testing.T) (*gin.Engine, *infra.Data, func()) {
 
 	reimbRepo := reimbursement.NewReimbursementRepo(data)
 	reimbBiz := reimbursement.NewReimbursementBiz(logger, reimbRepo, budgetBiz, approvalBiz, empBiz)
-	reimbSvc := reimbursement.NewReimbursementService(reimbBiz, approvalBiz, logger)
+	reimbSvc := reimbursement.NewReimbursementService(reimbBiz, approvalBiz, nil, logger)
 
 	hub := &domain.ServiceHub{
 		DepartmentService:    deptSvc,

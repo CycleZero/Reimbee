@@ -67,49 +67,79 @@ func NewAgentService(loopManager *LoopManager, logger *log.Logger) *AgentService
 // @Failure 503 {object} map[string]interface{} "服务繁忙（TurnLoop 已停止，无法接收新消息）"
 // @Router /api/chat/stream [get]
 func (s *AgentService) HandleChat(c *gin.Context) {
-	// 1. 解析请求参数
+	// ── 步骤 1: 解析查询参数 ──
 	sessionID := c.Query("session_id")
 	message := c.Query("message")
 
+	s.logger.Debug("收到对话请求",
+		zap.String("sessionID", sessionID),
+		zap.String("消息(截断50字)", message[:min(len(message), 50)]))
+
 	if sessionID == "" {
+		s.logger.Warn("请求缺少session_id参数")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少 session_id 参数"})
 		return
 	}
 	if message == "" {
+		s.logger.Warn("请求缺少message参数", zap.String("sessionID", sessionID))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少 message 参数"})
 		return
 	}
 
-	// 2. 从 JWT 中间件注入的 context 中提取用户信息
+	// ── 步骤 2: 提取 JWT claims 中的用户身份信息 ──
 	userID := getUintFromContext(c, "user_id")
 	employeeID := getStringFromContext(c, "employee_id")
 	role := getStringFromContext(c, "role")
 
-	// 3. 创建 SSE 写入器（自动设置响应头）
+	s.logger.Debug("用户身份已提取",
+		zap.String("sessionID", sessionID),
+		zap.String("employeeID", employeeID),
+		zap.String("role", role),
+		zap.Uint("userID", userID))
+
+	// ── 步骤 3: 创建 SSE 写入器（自动设置 Content-Type: text/event-stream 等响应头）──
 	sseWriter, err := NewGinSSEWriter(c)
 	if err != nil {
-		s.logger.Error("创建SSE写入器失败", zap.Error(err))
+		s.logger.Error("创建SSE写入器失败",
+			zap.String("sessionID", sessionID),
+			zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器不支持流式响应"})
 		return
 	}
+	s.logger.Debug("SSE写入器已创建，响应头已发送",
+		zap.String("sessionID", sessionID))
 
-	// 4. 创建完成通知通道（OnAgentEvents 完成时关闭）
+	// ── 步骤 4: 创建完成通知通道 ──
+	// doneCh 由 OnAgentEvents 回调在流式输出完成后关闭，
+	// HTTP handler 通过 <-doneCh 阻塞等待，实现请求-响应同步
 	doneCh := make(chan error, 1)
 
-	s.logger.Info("SSE对话请求",
+	s.logger.Info("开始执行对话",
 		zap.String("sessionID", sessionID),
-		zap.String("用户", employeeID),
-		zap.String("消息", message[:min(len(message), 50)]),
-	)
+		zap.String("employeeID", employeeID),
+		zap.String("消息(截断50字)", message[:min(len(message), 50)]))
 
-	// 5. 向 TurnLoop 推送消息（SSE 输出在 OnAgentEvents 回调中完成）
+	// ── 步骤 5: 向 TurnLoop 推送消息（异步）──
+	// PushMessage 内部流程：
+	//   a. GetOrCreate(sessionID) → 获取或创建 SessionLoop + TurnLoop
+	//   b. 注册当前请求的 SSE writer 和 doneCh 到 SessionLoop
+	//   c. turnLoop.Push(message) → 触发 TurnLoop 内部状态机:
+	//      GenInput → PrepareAgent → Agent.Run → OnAgentEvents(SSE输出) → 完成
 	s.loopManager.PushMessage(sessionID, message, sseWriter, doneCh)
+	s.logger.Debug("消息已推送到TurnLoop，等待执行完成",
+		zap.String("sessionID", sessionID))
 
-	// 6. 阻塞等待本轮 Turn 完成
+	// ── 步骤 6: 阻塞等待本轮 Turn 完成 ──
+	// OnAgentEvents 执行完毕后通过 clearActiveWriter 向 doneCh 发送 nil，
+	// HTTP handler 收到信号后返回，SSE 连接关闭
 	if err := <-doneCh; err != nil {
-		s.logger.Error("对话执行失败", zap.Error(err))
+		s.logger.Error("对话执行失败",
+			zap.String("sessionID", sessionID),
+			zap.Error(err))
+	} else {
+		s.logger.Debug("对话执行成功",
+			zap.String("sessionID", sessionID))
 	}
-	s.logger.Debug("SSE对话流结束", zap.String("sessionID", sessionID))
 
 	_ = userID
 	_ = role

@@ -1160,6 +1160,59 @@
                 }
             }
         },
+        "/api/reimbursements/upload": {
+            "post": {
+                "description": "上传票据图片文件（支持 JPG/PNG/PDF），保存到文件存储（本地磁盘或 MinIO），返回文件路径供 Agent OCR 工具使用。",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "报销管理"
+                ],
+                "summary": "上传票据图片",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "票据图片文件（JPG/PNG/PDF/BMP/TIFF，最大 10MB）",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "上传成功，返回文件路径和访问 URL",
+                        "schema": {
+                            "$ref": "#/definitions/reimbursement.UploadInvoiceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "未选择文件或文件类型不支持",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "413": {
+                        "description": "文件过大",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "文件存储失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/reimbursements/{id}": {
             "get": {
                 "description": "根据报销单ID获取报销单详细信息，包含票据和审批记录",
@@ -1960,6 +2013,31 @@
                 "total_amount": {
                     "description": "报销总金额(分)",
                     "type": "integer"
+                }
+            }
+        },
+        "reimbursement.UploadInvoiceResponse": {
+            "type": "object",
+            "properties": {
+                "file_id": {
+                    "description": "文件唯一标识（UUID）",
+                    "type": "string"
+                },
+                "file_name": {
+                    "description": "原始文件名",
+                    "type": "string"
+                },
+                "file_path": {
+                    "description": "存储路径（供 Agent OCR 工具使用）",
+                    "type": "string"
+                },
+                "size": {
+                    "description": "文件大小（字节）",
+                    "type": "integer"
+                },
+                "url": {
+                    "description": "可访问 URL（用于前端预览）",
+                    "type": "string"
                 }
             }
         }

@@ -96,18 +96,17 @@ func (s *MySQLSessionStore) GetHistory(ctx context.Context, sessionID string, li
 	var records []model.SessionMessage
 
 	if limit > 0 {
-		// 使用子查询获取最近 N 条记录，再按时间正序排列
-		subQuery := s.db.WithContext(ctx).
-			Model(&model.SessionMessage{}).
-			Select("id").
-			Where("session_id = ?", sessionID).
-			Order("created_at DESC").
-			Limit(limit)
-
+		// 获取最近的 N 条记录（兼容 MySQL 5.7：不使用子查询中的 LIMIT）
+		// 使用嵌套查询包装：先按时间倒序取最近 N 条，再按正序排列
 		if err := s.db.WithContext(ctx).
-			Where("id IN (?)", subQuery).
-			Order("created_at ASC").
-			Find(&records).Error; err != nil {
+			Raw(`SELECT * FROM (
+				SELECT * FROM session_messages 
+				WHERE session_id = ? 
+				ORDER BY created_at DESC 
+				LIMIT ?
+			) AS recent 
+			ORDER BY created_at ASC`, sessionID, limit).
+			Scan(&records).Error; err != nil {
 			return nil, fmt.Errorf("查询会话历史失败: %w", err)
 		}
 	} else {

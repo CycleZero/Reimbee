@@ -25,24 +25,35 @@ func NewLocalFileStorage(baseDir, baseURL string) *LocalFileStorage {
 	return &LocalFileStorage{baseDir: baseDir, baseURL: baseURL}
 }
 
-// Save 保存文件到本地磁盘，按日期分目录
-func (s *LocalFileStorage) Save(ctx context.Context, fileName string, mimeType string, reader io.Reader) (*UploadedFile, error) {
-	// 生成唯一文件名
-	fileID := uuid.New().String()
+// Save 保存文件到本地磁盘
+// fileName 既可以是简单文件名（如 "invoice.jpg"，此时自动按日期分目录），
+// 也可以是完整相对路径（如 "EMP001/2026/07/07/uuid.jpg"，此时直接使用该路径）
+func (s *LocalFileStorage) Save(_ context.Context, fileName string, _ string, reader io.Reader) (*UploadedFile, error) {
 	now := time.Now()
-	ext := filepath.Ext(fileName)
-	if ext == "" {
-		ext = mimeToExt(mimeType)
-	}
-	savedName := fileID + ext
 
-	// 按日期分目录: uploads/2026/07/04/
-	dateDir := filepath.Join(s.baseDir, now.Format("2006/01/02"))
-	if err := os.MkdirAll(dateDir, 0755); err != nil {
+	// 解析路径：如果 fileName 包含路径分隔符，直接作为相对路径使用
+	// 否则按日期自动分目录
+	var relativePath string
+	if filepath.Dir(fileName) != "." {
+		// fileName 已是完整相对路径（含用户ID前缀），直接使用
+		relativePath = fileName
+	} else {
+		// 简单文件名：按日期自动分目录
+		fileID := uuid.New().String()
+		ext := filepath.Ext(fileName)
+		if ext == "" {
+			ext = ".bin"
+		}
+		relativePath = filepath.Join(now.Format("2006/01/02"), fileID+ext)
+	}
+
+	fullPath := filepath.Join(s.baseDir, relativePath)
+
+	// 确保父目录存在
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return nil, fmt.Errorf("创建存储目录失败: %w", err)
 	}
 
-	fullPath := filepath.Join(dateDir, savedName)
 	f, err := os.Create(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("创建文件失败: %w", err)
@@ -51,16 +62,14 @@ func (s *LocalFileStorage) Save(ctx context.Context, fileName string, mimeType s
 
 	written, err := io.Copy(f, reader)
 	if err != nil {
-		os.Remove(fullPath) // 写入失败清理半截文件
+		os.Remove(fullPath)
 		return nil, fmt.Errorf("写入文件失败: %w", err)
 	}
 
-	relativePath := filepath.Join(now.Format("2006/01/02"), savedName)
-
 	return &UploadedFile{
-		FileID:    fileID,
-		FileName:  fileName,
-		MimeType:  mimeType,
+		FileID:    uuid.New().String(),
+		FileName:  filepath.Base(fileName),
+		MimeType:  "", // 从调用方传入，不在此处存储
 		Size:      written,
 		URL:       s.baseURL + "/" + relativePath,
 		Path:      relativePath,

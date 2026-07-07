@@ -57,13 +57,19 @@ func NewBudgetTool(budgetBiz *budget.BudgetBiz, store infra.SessionStore, logger
 			// v3.0: 持久化预算检查结果到 ReimbursementState
 			if sid := getSessionIDFromCtx(ctx); sid != "" {
 				var state types.ReimbursementState
-				store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
+				if _, err := store.GetState(ctx, sid, infra.StateKeyReimbursement, &state); err != nil {
+					logger.Warn("读取报销状态失败", zap.Error(err))
+				}
 				state.BudgetResult = &types.BudgetCheckResult{
 					Remaining:           remaining,
 					NeedSpecialApproval: needSpecial,
 					UsageRate:           usageRate,
 				}
-				store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state)
+				if err := store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state); err != nil {
+					logger.Warn("保存报销状态失败", zap.Error(err))
+				}
+			} else {
+				logger.Warn("会话ID为空，跳过预算结果持久化")
 			}
 
 			return BudgetOutput{

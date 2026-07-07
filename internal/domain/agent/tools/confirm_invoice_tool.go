@@ -31,13 +31,25 @@ func NewConfirmInvoiceTool(store infra.SessionStore, logger *log.Logger) *Confir
 			sessionID := getSessionIDFromCtx(ctx)
 			logger.Debug("确认票据工具执行", zap.String("sessionID", sessionID), zap.Bool("确认", input.Confirmed))
 
+			if sessionID == "" {
+				logger.Warn("会话ID为空，跳过状态持久化")
+			}
+
 			var state types.ReimbursementState
-			_, _ = store.GetState(ctx, sessionID, infra.StateKeyReimbursement, &state)
+			if sessionID != "" {
+				if _, err := store.GetState(ctx, sessionID, infra.StateKeyReimbursement, &state); err != nil {
+					logger.Warn("读取报销状态失败", zap.Error(err))
+				}
+			}
 
 			if input.Confirmed {
 				state.UserConfirmed = true
 				state.CurrentPhase = "phase2_validate"
-				_ = store.SaveState(ctx, sessionID, infra.StateKeyReimbursement, &state)
+				if sessionID != "" {
+					if err := store.SaveState(ctx, sessionID, infra.StateKeyReimbursement, &state); err != nil {
+						logger.Warn("保存报销状态失败", zap.Error(err))
+					}
+				}
 				logger.Info("用户已确认票据，进入Phase2", zap.String("sessionID", sessionID))
 				return ConfirmInvoiceOutput{
 					Status:  "confirmed",

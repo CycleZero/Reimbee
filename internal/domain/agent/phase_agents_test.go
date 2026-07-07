@@ -293,8 +293,8 @@ func TestInitAgents_ChatAgentNoTools(t *testing.T) {
 func toolNameSet(t *testing.T, tl []tool.InvokableTool) map[string]bool {
 	t.Helper()
 	m := make(map[string]bool, len(tl))
-	for _, t := range tl {
-		info, err := t.Info(context.Background())
+	for _, tool := range tl {
+		info, err := tool.Info(context.Background())
 		if err != nil {
 			t.Fatalf("获取工具信息失败: %v", err)
 		}

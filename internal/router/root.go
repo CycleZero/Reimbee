@@ -115,6 +115,9 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		// 报销单——创建与提交
 		api.POST("/reimbursements", hub.ReimbursementService.Create)
 		api.POST("/reimbursements/:id/submit", hub.ReimbursementService.Submit)
+
+		// 票据上传（Agent Phase 1 信息收集的前置步骤）
+		api.POST("/reimbursements/upload", hub.ReimbursementService.UploadInvoice)
 	}
 
 	// SSE 对话接口（Agent 流式响应）

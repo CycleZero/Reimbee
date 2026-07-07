@@ -3,18 +3,26 @@ package testutil
 
 import (
 	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/log"
 	"github.com/CycleZero/Reimbee/model"
 
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
+
+func init() {
+	// 初始化全局 logger，避免测试中调用 log.SugaredLogger() 时 panic
+	// 所有导入 testutil 的测试包自动获得此初始化
+	log.SetGlobalLogger(&log.Logger{Logger: zap.NewNop()})
+}
 
 // NewTestData 创建用于测试的内存 SQLite 数据库，自动迁移所有模型
 func NewTestData() *infra.Data {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {
 		panic("创建测试数据库失败: " + err.Error())

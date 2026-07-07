@@ -81,7 +81,9 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 			// v3.0: 持久化 OCR 识别结果到 ReimbursementState
 			if sid := getSessionIDFromCtx(ctx); sid != "" {
 				var state types.ReimbursementState
-				store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
+				if _, err := store.GetState(ctx, sid, infra.StateKeyReimbursement, &state); err != nil {
+					logger.Warn("读取报销状态失败", zap.Error(err))
+				}
 				state.Invoices = append(state.Invoices, types.InvoiceState{
 					Amount:   amountInCents,
 					Category: result.Category,
@@ -90,7 +92,11 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 				if state.CurrentPhase == "" {
 					state.CurrentPhase = "phase1_collect"
 				}
-				store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state)
+				if err := store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state); err != nil {
+					logger.Warn("保存报销状态失败", zap.Error(err))
+				}
+			} else {
+				logger.Warn("会话ID为空，跳过OCR结果持久化")
 			}
 
 			return OCROutput{

@@ -55,3 +55,13 @@ type ListReimbursementResponse struct {
 	Total int64                    `json:"total"`
 	Page  int                      `json:"page"`
 }
+
+// UploadInvoiceResponse 票据上传响应
+// FilePath 是关键字段——前端将此值传给 Agent 对话，LLM 调用 recognize_invoice 工具时作为 image_path 参数
+type UploadInvoiceResponse struct {
+	FileID   string `json:"file_id"`   // 文件唯一标识（UUID）
+	FileName string `json:"file_name"` // 原始文件名
+	FilePath string `json:"file_path"` // 存储路径（供 Agent OCR 工具使用）
+	URL      string `json:"url"`       // 可访问 URL（用于前端预览）
+	Size     int64  `json:"size"`      // 文件大小（字节）
+}

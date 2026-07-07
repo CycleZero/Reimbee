@@ -57,6 +57,9 @@ func (m *LoopManager) createSessionLoop(sessionID string) *SessionLoop {
 	}
 
 	sl.turnLoop = adk.NewTurnLoop(cfg)
+	m.logger.Debug("TurnLoop创建成功，启动后台goroutine",
+		zap.String("sessionID", sessionID),
+		zap.Bool("启用Checkpoint", false)) // 后续版本启用
 	sl.turnLoop.Run(ctx) // 非阻塞启动后台 goroutine，等待 Push 触发首轮对话
 
 	return sl
@@ -236,16 +239,28 @@ func (m *LoopManager) makePrepareAgent(sessionID string) func(
 func (m *LoopManager) selectPhaseAgent(rs *ReimbursementState) adk.Agent {
 	switch {
 	case rs.ReimbursementNo != "":
-		// 已提交 → 后续查询走通用对话
+		if m.logger != nil {
+			m.logger.Debug("阶段路由：已提交报销单，使用通用对话Agent",
+				zap.String("报销单号", rs.ReimbursementNo))
+		}
 		return m.chatAgent
 	case rs.FinalConfirmed:
-		// 用户已确认提交 → Phase 3: 执行提交
+		if m.logger != nil {
+			m.logger.Debug("阶段路由：用户已最终确认，进入Phase3执行提交",
+				zap.Int64("总金额(分)", rs.TotalAmount),
+				zap.Int("票据数", len(rs.Invoices)))
+		}
 		return m.phase3Agent
 	case rs.UserConfirmed:
-		// 票据已确认 → Phase 2: 合规与预算校验
+		if m.logger != nil {
+			m.logger.Debug("阶段路由：用户已确认票据，进入Phase2校验阶段",
+				zap.Int("票据数", len(rs.Invoices)))
+		}
 		return m.phase2Agent
 	default:
-		// Phase 1: 信息收集（OCR 识别票据 + 合规标准查询）
+		if m.logger != nil {
+			m.logger.Debug("阶段路由：默认进入Phase1信息收集阶段")
+		}
 		return m.phase1Agent
 	}
 }

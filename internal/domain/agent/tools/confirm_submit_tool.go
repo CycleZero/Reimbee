@@ -31,13 +31,25 @@ func NewConfirmSubmitTool(store infra.SessionStore, logger *log.Logger) *Confirm
 			sessionID := getSessionIDFromCtx(ctx)
 			logger.Debug("确认提交工具执行", zap.String("sessionID", sessionID), zap.Bool("确认", input.Confirmed))
 
+			if sessionID == "" {
+				logger.Warn("会话ID为空，跳过状态持久化")
+			}
+
 			var state types.ReimbursementState
-			_, _ = store.GetState(ctx, sessionID, infra.StateKeyReimbursement, &state)
+			if sessionID != "" {
+				if _, err := store.GetState(ctx, sessionID, infra.StateKeyReimbursement, &state); err != nil {
+					logger.Warn("读取报销状态失败", zap.Error(err))
+				}
+			}
 
 			if input.Confirmed {
 				state.FinalConfirmed = true
 				state.CurrentPhase = "phase3_execute"
-				_ = store.SaveState(ctx, sessionID, infra.StateKeyReimbursement, &state)
+				if sessionID != "" {
+					if err := store.SaveState(ctx, sessionID, infra.StateKeyReimbursement, &state); err != nil {
+						logger.Warn("保存报销状态失败", zap.Error(err))
+					}
+				}
 				logger.Info("用户已最终确认，进入Phase3", zap.String("sessionID", sessionID))
 				return ConfirmSubmitOutput{
 					Status:  "confirmed",

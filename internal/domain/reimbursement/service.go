@@ -2,12 +2,16 @@ package reimbursement
 
 import (
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"time"
 
+	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/CycleZero/Reimbee/model"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -15,12 +19,13 @@ import (
 type ReimbursementService struct {
 	biz          *ReimbursementBiz
 	approvalBiz  *approval.ApprovalBiz
+	storage      infra.FileStorage // v3.0: 文件上传存储
 	logger       *log.Logger
 }
 
 // NewReimbursementService 创建报销单 HTTP 服务层实例
-func NewReimbursementService(biz *ReimbursementBiz, approvalBiz *approval.ApprovalBiz, logger *log.Logger) *ReimbursementService {
-	return &ReimbursementService{biz: biz, approvalBiz: approvalBiz, logger: logger}
+func NewReimbursementService(biz *ReimbursementBiz, approvalBiz *approval.ApprovalBiz, storage infra.FileStorage, logger *log.Logger) *ReimbursementService {
+	return &ReimbursementService{biz: biz, approvalBiz: approvalBiz, storage: storage, logger: logger}
 }
 
 // List 获取报销单列表
@@ -122,6 +127,126 @@ func (s *ReimbursementService) GetByNo(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toReimbursementResponse(rm))
+}
+
+// UploadInvoice 上传票据图片
+//
+// @Summary 上传票据图片
+// @Description 上传票据图片文件（支持 JPG/PNG/PDF），保存到文件存储（本地磁盘或 MinIO），返回文件路径供 Agent OCR 工具使用。
+//
+//	前端流程：用户选择图片 → 调用本接口上传 → 获得 file_path → 在对话中告知 Agent 路径
+//	Agent 流程：LLM 调用 recognize_invoice 工具 → storage.Get(file_path) → OCR 识别 → 结果存入 ReimbursementState
+//
+// @Tags 报销管理
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "票据图片文件（JPG/PNG/PDF/BMP/TIFF，最大 10MB）"
+// @Success 200 {object} UploadInvoiceResponse "上传成功，返回文件路径和访问 URL"
+// @Failure 400 {object} map[string]interface{} "未选择文件或文件类型不支持"
+// @Failure 413 {object} map[string]interface{} "文件过大"
+// @Failure 500 {object} map[string]interface{} "文件存储失败"
+// @Router /api/reimbursements/upload [post]
+func (s *ReimbursementService) UploadInvoice(c *gin.Context) {
+	s.logger.Debug("收到票据上传请求")
+
+	// ── 步骤 0: 从 JWT 提取用户身份 ──
+	employeeID, _ := c.Get("employee_id")
+	empID, _ := employeeID.(string)
+	if empID == "" {
+		s.logger.Warn("无法获取上传用户身份，拒绝上传")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证，请先登录"})
+		return
+	}
+
+	s.logger.Debug("上传用户身份已确认",
+		zap.String("employeeID", empID))
+
+	// ── 步骤 1: 获取上传文件 ──
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		s.logger.Warn("获取上传文件失败", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请选择要上传的票据图片"})
+		return
+	}
+	defer file.Close()
+
+	// ── 步骤 2: 校验文件大小（限制 10MB）──
+	const maxSize = 10 * 1024 * 1024
+	if header.Size > maxSize {
+		s.logger.Warn("上传文件过大",
+			zap.Int64("文件大小(字节)", header.Size),
+			zap.String("employeeID", empID))
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "文件大小超过 10MB 限制"})
+		return
+	}
+
+	// ── 步骤 3: 校验 MIME 类型 ──
+	mimeType := header.Header.Get("Content-Type")
+	if !isSupportedImageType(mimeType) {
+		s.logger.Warn("不支持的文件类型",
+			zap.String("MIME类型", mimeType),
+			zap.String("文件名", header.Filename))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的文件类型，仅支持 JPG/PNG/PDF/BMP/TIFF"})
+		return
+	}
+
+	// ── 步骤 4: 生成用户隔离的存储路径 ──
+	// 路径格式: {employeeID}/{日期}/{uuid}.{ext}
+	// 例如: EMP001/2026/07/07/a1b2c3d4.jpg
+	// 确保每个用户的文件存储在独立目录下，互不干扰
+	fileID := uuid.New().String()
+	ext := filepath.Ext(header.Filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	savedName := fileID + ext
+	now := time.Now()
+	dateDir := now.Format("2006/01/02")
+	relativePath := filepath.Join(empID, dateDir, savedName)
+
+	s.logger.Debug("生成用户隔离存储路径",
+		zap.String("employeeID", empID),
+		zap.String("相对路径", relativePath))
+
+	// ── 步骤 6: 写入文件存储 ──
+	// 使用 FileStorage.Save 写入（本地磁盘或 MinIO）
+	// pathPrefix 参数指示在基础路径下按用户分目录
+	uploaded, err := s.storage.Save(c.Request.Context(), relativePath, mimeType, file)
+	if err != nil {
+		s.logger.Error("文件存储失败",
+			zap.String("employeeID", empID),
+			zap.String("文件名", header.Filename),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "文件保存失败，请稍后重试"})
+		return
+	}
+
+	// ── 步骤 7: 记录存储信息 ──
+	s.logger.Info("票据上传成功",
+		zap.String("employeeID", empID),
+		zap.String("文件ID", uploaded.FileID),
+		zap.String("存储路径", uploaded.Path),
+		zap.Int64("文件大小(字节)", uploaded.Size))
+
+	// ── 步骤 8: 返回文件路径（供 Agent OCR 工具使用）──
+	c.JSON(http.StatusOK, UploadInvoiceResponse{
+		FileID:   uploaded.FileID,
+		FileName: header.Filename,
+		FilePath: uploaded.Path,
+		URL:      uploaded.URL,
+		Size:     uploaded.Size,
+	})
+}
+
+// isSupportedImageType 检查 MIME 类型是否在支持列表中
+func isSupportedImageType(mimeType string) bool {
+	switch mimeType {
+	case "image/jpeg", "image/png", "image/bmp", "image/tiff",
+		"application/pdf":
+		return true
+	default:
+		return false
+	}
 }
 
 // Create 创建报销单（草稿）
