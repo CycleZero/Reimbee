@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"sync"
 	"time"
 
@@ -160,15 +161,21 @@ func (m *LoopManager) makeGenInput(sessionID string) func(
 		ctx = context.WithValue(ctx, SessionIDContextKey{}, sessionID)
 
 		// ── 3. 保存用户消息 ──
+		stripUploadTag := regexp.MustCompile(`\n\[已上传票据:.*?\]`)
 		for _, item := range items {
-			userMsg := schema.UserMessage(item)
+			cleanMsg := stripUploadTag.ReplaceAllString(item, "")
+			userMsg := schema.UserMessage(cleanMsg)
 			if err := m.store.SaveMessages(ctx, sessionID, []*schema.Message{userMsg}); err != nil {
 				m.logger.Warn("保存用户消息失败", zap.Error(err))
 			}
 		}
 
 		// ── 4. 构建消息列表 ──
-		msgs := make([]*schema.Message, 0, len(history)+len(items))
+		msgs := make([]*schema.Message, 0, len(history)+len(items)+1)
+		if found && (len(rs.Invoices) > 0 || rs.ComplianceResult != nil) {
+			stateCtx := BuildStateSummary(&rs)
+			msgs = append(msgs, schema.SystemMessage(stateCtx))
+		}
 		msgs = append(msgs, history...)
 		for _, item := range items {
 			msgs = append(msgs, schema.UserMessage(item))
@@ -317,9 +324,11 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 				}
 
 			case schema.Tool:
-				// 工具调用结果
 				_ = writer.WriteEvent(NewToolResultEvent(mv.ToolName, mv.Message.Content))
 				_ = writer.Flush()
+				if mv.Message != nil {
+					m.store.SaveMessages(ctx, sessionID, []*schema.Message{mv.Message})
+				}
 			}
 		}
 
