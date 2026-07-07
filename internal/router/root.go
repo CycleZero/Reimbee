@@ -21,9 +21,10 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		panic("中间件注册未完成")
 	}
 
-	// 全局中间件
+	// 全局中间件（按顺序执行: CORS → MetaData → Logger → 后续）
 	root.Use(middleware.CORS())
 	root.Use(middleware.AddMetaData())
+	root.Use(middleware.RequestLogger())
 
 	// 健康检查（无需认证）
 	root.GET("/health", func(c *gin.Context) {
