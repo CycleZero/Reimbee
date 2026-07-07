@@ -125,19 +125,21 @@ func (s *MySQLSessionStore) GetHistory(ctx context.Context, sessionID string, li
 	}
 
 	var records []model.SessionMessage
-	query := s.db.WithContext(ctx).
-		Where("session_id = ?", sessionID).
-		Order("seq ASC")
 
 	if limit > 0 {
-		sub := s.db.Model(&model.SessionMessage{}).
-			Select("id").Where("session_id = ?", sessionID).
-			Order("seq DESC").Limit(limit)
-		query = query.Where("id IN (?)", sub).Order("seq ASC")
-	}
-
-	if err := query.Find(&records).Error; err != nil {
-		return nil, fmt.Errorf("查询会话历史失败: %w", err)
+		if err := s.db.WithContext(ctx).Raw(
+			"SELECT * FROM (SELECT * FROM session_messages WHERE session_id = ? ORDER BY seq DESC LIMIT ?) AS recent ORDER BY seq ASC",
+			sessionID, limit,
+		).Scan(&records).Error; err != nil {
+			return nil, fmt.Errorf("查询会话历史失败: %w", err)
+		}
+	} else {
+		if err := s.db.WithContext(ctx).
+			Where("session_id = ?", sessionID).
+			Order("seq ASC").
+			Find(&records).Error; err != nil {
+			return nil, fmt.Errorf("查询会话历史失败: %w", err)
+		}
 	}
 
 	msgs := make([]*schema.Message, 0, len(records))
