@@ -139,6 +139,29 @@ func (m *LoopManager) PushMessage(sessionID string, message string, sseWriter SS
 	sl.turnLoop.Push(message)
 }
 
+// InjectUserIdentity 注入用户身份信息到会话
+// 每次请求时将 JWT/元数据中的用户身份保存到 SessionStore，
+// 供 GenInput 加载 ReimbursementState 时自动填充 EmployeeID 字段
+func (m *LoopManager) InjectUserIdentity(sessionID string, userID uint, employeeID, role string) {
+	_ = m.GetOrCreate(sessionID) // 确保 SessionLoop 已创建
+
+	identity := map[string]any{
+		"user_id":     userID,
+		"employee_id": employeeID,
+		"role":        role,
+	}
+	if err := m.store.SaveState(context.Background(), sessionID, infra.StateKeyUserIdentity, &identity); err != nil {
+		m.logger.Warn("保存用户身份失败",
+			zap.String("sessionID", sessionID),
+			zap.Error(err))
+		return
+	}
+	m.logger.Debug("用户身份已注入会话",
+		zap.String("sessionID", sessionID),
+		zap.String("employeeID", employeeID),
+		zap.String("role", role))
+}
+
 // ============================================
 // cleanupLoop — 后台超时清理
 // ============================================

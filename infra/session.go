@@ -13,6 +13,7 @@ import (
 // StateKey 定义 SessionStore 中持久化状态的键名
 const (
 	StateKeyReimbursement = "reimbursement" // 报销流程状态 agent.ReimbursementState
+	StateKeyUserIdentity  = "user_identity" // 用户身份信息 (user_id, employee_id, role)
 )
 
 type SessionStore interface {

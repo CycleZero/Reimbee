@@ -138,7 +138,19 @@ func (m *LoopManager) makeGenInput(sessionID string) func(
 		// ── 2. 加载业务状态（首次为空，不需要提前创建）──
 		var rs ReimbursementState
 		found, _ := m.store.GetState(ctx, sessionID, infra.StateKeyReimbursement, &rs)
-		if found {
+		if !found {
+			// 首次对话：从 SessionStore 加载用户身份，填充 EmployeeID
+			var identity map[string]any
+			if ok, _ := m.store.GetState(ctx, sessionID, infra.StateKeyUserIdentity, &identity); ok {
+				if eid, ok := identity["employee_id"].(string); ok {
+					rs.EmployeeID = eid
+				}
+			}
+			m.logger.Debug("首次对话，已注入用户身份",
+				zap.String("sessionID", sessionID),
+				zap.String("employeeID", rs.EmployeeID))
+		}
+		if found || rs.EmployeeID != "" {
 			ctx = context.WithValue(ctx, StateContextKey{}, &rs)
 		}
 

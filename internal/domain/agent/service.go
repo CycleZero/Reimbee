@@ -4,6 +4,7 @@ package agent
 import (
 	"net/http"
 
+	"github.com/CycleZero/Reimbee/internal/common"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -86,18 +87,19 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 		return
 	}
 
-	// ── 步骤 2: 提取 JWT claims 中的用户身份信息 ──
-	userID := getUintFromContext(c, "user_id")
-	employeeID := getStringFromContext(c, "employee_id")
-	role := getStringFromContext(c, "role")
+	// ── 步骤 2: 从请求 metadata（由 AddMetaData 中间件注入）提取用户身份 ──
+	meta := common.GetRequestMetadata(c)
+	userID := meta.UserID
+	employeeID := meta.EmployeeID
+	role := meta.Role
 
-	s.logger.Debug("用户身份已提取",
+	s.logger.Debug("用户身份已提取（来自metadata）",
 		zap.String("sessionID", sessionID),
 		zap.String("employeeID", employeeID),
-		zap.String("role", role),
-		zap.Uint("userID", userID))
+		zap.Uint("userID", userID),
+		zap.String("role", role))
 
-	// ── 步骤 3: 创建 SSE 写入器（自动设置 Content-Type: text/event-stream 等响应头）──
+	// ── 步骤 3: 创建 SSE 写入器 ──
 	sseWriter, err := NewGinSSEWriter(c)
 	if err != nil {
 		s.logger.Error("创建SSE写入器失败",
@@ -106,12 +108,12 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器不支持流式响应"})
 		return
 	}
-	s.logger.Debug("SSE写入器已创建，响应头已发送",
-		zap.String("sessionID", sessionID))
 
-	// ── 步骤 4: 创建完成通知通道 ──
-	// doneCh 由 OnAgentEvents 回调在流式输出完成后关闭，
-	// HTTP handler 通过 <-doneCh 阻塞等待，实现请求-响应同步
+	// ── 步骤 4: 注入用户身份到会话 ──
+	// 首次对话时保存用户身份到 SessionStore，后续 GenInput 加载后直接使用
+	s.loopManager.InjectUserIdentity(sessionID, userID, employeeID, role)
+
+	// ── 步骤 5: 创建完成通知通道 ──
 	doneCh := make(chan error, 1)
 
 	s.logger.Info("开始执行对话",
@@ -119,19 +121,12 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 		zap.String("employeeID", employeeID),
 		zap.String("消息(截断50字)", message[:min(len(message), 50)]))
 
-	// ── 步骤 5: 向 TurnLoop 推送消息（异步）──
-	// PushMessage 内部流程：
-	//   a. GetOrCreate(sessionID) → 获取或创建 SessionLoop + TurnLoop
-	//   b. 注册当前请求的 SSE writer 和 doneCh 到 SessionLoop
-	//   c. turnLoop.Push(message) → 触发 TurnLoop 内部状态机:
-	//      GenInput → PrepareAgent → Agent.Run → OnAgentEvents(SSE输出) → 完成
+	// ── 步骤 5: 向 TurnLoop 推送消息 ──
 	s.loopManager.PushMessage(sessionID, message, sseWriter, doneCh)
 	s.logger.Debug("消息已推送到TurnLoop，等待执行完成",
 		zap.String("sessionID", sessionID))
 
 	// ── 步骤 6: 阻塞等待本轮 Turn 完成 ──
-	// OnAgentEvents 执行完毕后通过 clearActiveWriter 向 doneCh 发送 nil，
-	// HTTP handler 收到信号后返回，SSE 连接关闭
 	if err := <-doneCh; err != nil {
 		s.logger.Error("对话执行失败",
 			zap.String("sessionID", sessionID),
@@ -139,58 +134,6 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 	} else {
 		s.logger.Debug("对话执行成功",
 			zap.String("sessionID", sessionID))
-	}
-
-	_ = userID
-	_ = role
-}
-
-// ============================================
-// 辅助方法
-// ============================================
-
-// BuildAgentInput 从请求上下文构建 AgentInput
-// employeeID 和 role 从 JWT claims 中提取，sessionID 由前端生成
-func BuildAgentInput(sessionID, message, employeeID string, userID uint, role string) AgentInput {
-	return AgentInput{
-		SessionID:  sessionID,
-		UserID:     userID,
-		EmployeeID: employeeID,
-		Role:       role,
-		Message:    message,
-	}
-}
-
-// ============================================
-// 辅助函数
-// ============================================
-
-// getStringFromContext 从 Gin Context 中安全提取字符串值
-func getStringFromContext(c *gin.Context, key string) string {
-	val, exists := c.Get(key)
-	if !exists {
-		return ""
-	}
-	s, ok := val.(string)
-	if !ok {
-		return ""
-	}
-	return s
-}
-
-// getUintFromContext 从 Gin Context 中安全提取 uint 值
-func getUintFromContext(c *gin.Context, key string) uint {
-	val, exists := c.Get(key)
-	if !exists {
-		return 0
-	}
-	switch v := val.(type) {
-	case uint:
-		return v
-	case float64:
-		return uint(v)
-	default:
-		return 0
 	}
 }
 
