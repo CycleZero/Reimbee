@@ -37,7 +37,7 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 		authGroup.POST("/register", hub.AuthService.Register)
 	}
 
-	api := root.Group("/api", middleware.AuthMiddleWire(false))
+	api := root.Group("/api", middleware.AuthMiddleWire(true))
 
 	// ==========================================
 	// 管理员专属路由
