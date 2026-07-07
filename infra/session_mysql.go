@@ -107,7 +107,7 @@ func (s *MySQLSessionStore) SaveMessages(ctx context.Context, sessionID string, 
 	s.metaRepo.IncrementMessageCount(ctx, sessionID, uint(len(msgs)))
 
 	if s.cache != nil {
-		go s.cache.Set(context.Background(), sessionID, msgs)
+		go s.cache.Del(context.Background(), sessionID)
 	}
 
 	return nil

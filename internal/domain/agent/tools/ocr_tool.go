@@ -78,15 +78,23 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 
 			amountInCents := int64(result.Amount * 100)
 
-			// v3.0: 持久化 OCR 识别结果到 ReimbursementState
 			if sid := getSessionIDFromCtx(ctx); sid != "" {
 				var state types.ReimbursementState
 				if _, err := store.GetState(ctx, sid, infra.StateKeyReimbursement, &state); err != nil {
 					logger.Warn("读取报销状态失败", zap.Error(err))
 				}
+
+				for _, inv := range state.Invoices {
+					if inv.ImagePath == input.ImagePath {
+						logger.Warn("跳过重复OCR：票据已存在", zap.String("路径", input.ImagePath))
+						return OCROutput{Error: "该票据已识别过，请勿重复上传", Retry: false}, nil
+					}
+				}
+
 				state.Invoices = append(state.Invoices, types.InvoiceState{
-					Amount:   amountInCents,
-					Category: result.Category,
+					ImagePath: input.ImagePath,
+					Amount:    amountInCents,
+					Category:  result.Category,
 				})
 				state.TotalAmount += amountInCents
 				if state.CurrentPhase == "" {

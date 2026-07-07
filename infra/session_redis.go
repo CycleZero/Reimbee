@@ -30,7 +30,6 @@ func (c *RedisSessionCache) cacheKey(sessionID string) string {
 }
 
 // Set 将消息列表写入 Redis 缓存
-// 使用 Pipeline 批量写入，保留最近 40 条消息（约 20 轮对话）
 func (c *RedisSessionCache) Set(ctx context.Context, sessionID string, msgs []*schema.Message) error {
 	if len(msgs) == 0 {
 		return nil
@@ -39,19 +38,16 @@ func (c *RedisSessionCache) Set(ctx context.Context, sessionID string, msgs []*s
 	key := c.cacheKey(sessionID)
 	pipe := c.client.Pipeline()
 
-	// 从末尾遍历并 LPUSH，确保列表头部为最早的消息
-	// LPUSH 后列表顺序: [msg[0], msg[1], ..., msg[n-1]]
-	for i := len(msgs) - 1; i >= 0; i-- {
+	pipe.Del(ctx, key)
+	for i := 0; i < len(msgs); i++ {
 		data, err := json.Marshal(msgs[i])
 		if err != nil {
 			return fmt.Errorf("序列化消息失败: %w", err)
 		}
-		pipe.LPush(ctx, key, string(data))
+		pipe.RPush(ctx, key, string(data))
 	}
 
-	// 保留最近 40 条消息
-	pipe.LTrim(ctx, key, 0, 39)
-	// 设置过期时间
+	pipe.LTrim(ctx, key, -40, -1)
 	pipe.Expire(ctx, key, c.ttl)
 
 	if _, err := pipe.Exec(ctx); err != nil {
