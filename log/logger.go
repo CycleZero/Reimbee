@@ -39,6 +39,8 @@ var UseLawAsyncWriter = true
 //	true:         law.WriteAsyncer, 与控制台异步写入统一引擎
 var UseLawConsoleWriter = true
 
+var UseAsync = false
+
 type Logger struct {
 	*zap.Logger
 }
@@ -118,19 +120,29 @@ func NewLogger(
 	// 控制台输出：同步直写 color.Output，简单可靠
 	//consoleWriterSyncer := zapcore.AddSync(color.Output)
 	var consoleWriterSyncer zapcore.WriteSyncer
-	if UseLawConsoleWriter {
-		consoleWriterSyncer = zapcore.AddSync(NewLawAsyncWriter(color.Output))
+	if UseAsync {
+		if UseLawConsoleWriter {
+			consoleWriterSyncer = zapcore.AddSync(NewLawAsyncWriter(color.Output))
+		} else {
+			consoleWriterSyncer = NewBufferedWriteSyncer(color.Output, 64*1024)
+		}
 	} else {
-		consoleWriterSyncer = NewBufferedWriteSyncer(color.Output, 64*1024)
+		consoleWriterSyncer = zapcore.AddSync(color.Output)
 	}
+
 	var fileWriteSyncer zapcore.WriteSyncer
 	if logPath != "" {
-		if UseLawAsyncWriter {
-			fileWriteSyncer = zapcore.AddSync(NewLawAsyncWriter(NewFileWriter(logPath)))
+		if UseAsync {
+			if UseLawAsyncWriter {
+				fileWriteSyncer = zapcore.AddSync(NewLawAsyncWriter(NewFileWriter(logPath)))
+			} else {
+				fileWriteSyncer = NewAsyncWriteSyncer(NewFileWriter(logPath), 256*1024)
+			}
+			//fileWriteSyncer = zapcore.AddSync(NewFileWriter(logPath))
 		} else {
-			fileWriteSyncer = NewAsyncWriteSyncer(NewFileWriter(logPath), 256*1024)
+			fileWriteSyncer = zapcore.AddSync(NewFileWriter(logPath))
 		}
-		//fileWriteSyncer = zapcore.AddSync(NewFileWriter(logPath))
+
 	}
 
 	var cores []zapcore.Core
