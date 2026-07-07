@@ -1,0 +1,84 @@
+// ============================================
+// Chat 模块类型定义
+// 消息、工具调用、会话、注册表等核心类型
+// ============================================
+
+import type { ComponentType } from 'react';
+
+/** 消息角色 */
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+/** 工具调用记录 */
+export interface ToolCallRecord {
+  id: string;
+  toolName: string;
+  status: 'running' | 'success' | 'error';
+  input?: unknown;
+  output?: unknown;
+  errorMessage?: string;
+}
+
+/** 聊天消息 */
+export interface ChatMessage {
+  id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: number;
+  isStreaming?: boolean;
+  toolCalls?: ToolCallRecord[];
+}
+
+/** 报销流程阶段 */
+export type ReimbPhase = 'idle' | 'phase1_collect' | 'phase2_validate' | 'phase3_execute';
+
+/** 确认提示 */
+export interface ConfirmPrompt {
+  action: string;
+  prompt: string;
+  context?: unknown;
+}
+
+/** 会话列表项 */
+export interface SessionItem {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
+/** 连接状态 */
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+// ============================================
+// 注册表组件类型
+// ============================================
+
+/** 消息渲染器组件 Props */
+export interface MessageRendererProps {
+  message: ChatMessage;
+}
+
+/** 工具渲染器组件 Props */
+export interface ToolRendererProps {
+  call: ToolCallRecord;
+}
+
+/** 消息渲染器组件类型 */
+export type MessageRendererComponent = ComponentType<MessageRendererProps>;
+
+/** 工具渲染器组件类型 */
+export type ToolRendererComponent = ComponentType<ToolRendererProps>;
+
+// ============================================
+// SSE 事件处理器类型（用于 useChatStream 扩展）
+// ============================================
+
+export interface ChatStreamHandlers {
+  onThinking?: (message: string) => void;
+  onToolCall?: (tool: string, input: unknown) => void;
+  onToolResult?: (tool: string, output: unknown) => void;
+  onMessage?: (content: string, delta: boolean) => void;
+  onPhaseChange?: (from: string, to: string, summary: string) => void;
+  onConfirmRequired?: (action: string, prompt: string, context: unknown) => void;
+  onError?: (message: string, retry: boolean, code: string) => void;
+  onDone?: () => void;
+}

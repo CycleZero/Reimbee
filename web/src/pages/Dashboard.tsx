@@ -25,13 +25,10 @@ export default function Dashboard() {
   if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
   if (!data) return null;
 
-  const totalBudget = data.departments.reduce((s, d) => s + d.annual_budget, 0);
-  const totalSpent = data.departments.reduce((s, d) => s + d.spent_amount, 0);
-  const totalFrozen = data.departments.reduce((s, d) => s + d.frozen_amount, 0);
-  const totalRemaining = totalBudget - totalSpent - totalFrozen;
+  const { summary, departments } = data;
 
   const columns = [
-    { title: '部门', dataIndex: 'department_name', key: 'name' },
+    { title: '部门', dataIndex: 'department', key: 'name' },
     {
       title: '年度预算',
       dataIndex: 'annual_budget',
@@ -45,10 +42,16 @@ export default function Dashboard() {
       render: (v: number) => formatAmount(v),
     },
     {
+      title: '冻结',
+      dataIndex: 'frozen_amount',
+      key: 'frozen',
+      render: (v: number) => formatAmount(v),
+    },
+    {
       title: '剩余',
+      dataIndex: 'remaining',
       key: 'remaining',
-      render: (_: unknown, r: (typeof data.departments)[number]) =>
-        formatAmount(r.annual_budget - r.spent_amount - r.frozen_amount),
+      render: (v: number) => formatAmount(v),
     },
     {
       title: '使用率',
@@ -62,23 +65,37 @@ export default function Dashboard() {
     <>
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="总预算" value={formatAmount(totalBudget)} /></Card>
+          <Card>
+            <Statistic title="总预算" value={formatAmount(summary.total_budget)} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="已支出" value={formatAmount(totalSpent)} /></Card>
+          <Card>
+            <Statistic title="已支出" value={formatAmount(summary.total_spent)} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="冻结金额" value={formatAmount(totalFrozen)} /></Card>
+          <Card>
+            <Statistic
+              title="总使用率"
+              value={summary.overall_usage}
+              suffix="%"
+              precision={1}
+              formatter={(v) => ((v as number) * 100).toFixed(1)}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="剩余可用" value={formatAmount(totalRemaining)} /></Card>
+          <Card>
+            <Statistic title="剩余可用" value={formatAmount(summary.total_remaining)} />
+          </Card>
         </Col>
       </Row>
 
-      <Card title={`${data.year} 财年 — 各部门预算详情`}>
+      <Card title="各部门预算详情">
         <Table
           columns={columns}
-          dataSource={data.departments}
+          dataSource={departments}
           rowKey="id"
           pagination={false}
         />

@@ -5,11 +5,16 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
-import type { ToolCallRecord } from '@/stores/chatStore';
+import type { ToolRendererProps } from '../types';
 import { TOOL_LABELS } from '@/utils/constants';
 
-export function ToolCallCard({ call }: { call: ToolCallRecord }) {
+/**
+ * 工具调用卡片渲染器
+ * 默认渲染所有工具调用，可通过 registry 按 toolName 注册专用渲染器
+ */
+export function ToolCallCard({ call }: ToolRendererProps) {
   const label = TOOL_LABELS[call.toolName] ?? call.toolName;
+
   const statusIcon = {
     running: <LoadingOutlined spin style={{ color: '#1677FF' }} />,
     success: <CheckCircleOutlined style={{ color: '#52C41A' }} />,

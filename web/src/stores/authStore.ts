@@ -1,15 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Employee } from '@/types/models';
+import type { UserInfo } from '@/types/models';
 
 interface AuthState {
   token: string | null;
-  user: Employee | null;
+  user: UserInfo | null;
   isAuthenticated: boolean;
 
-  login: (token: string, user: Employee) => void;
+  login: (token: string, user: UserInfo) => void;
   logout: () => void;
-  setUser: (user: Employee) => void;
+  setUser: (user: UserInfo) => void;
 }
 
 export const useAuthStore = create<AuthState>()(

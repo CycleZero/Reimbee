@@ -12,6 +12,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
     "@ant-design/pro-layout": "^7.22.7",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "antd": "^6.5.0",
     "dayjs": "^1.11.21",
     "react": "^19.2.7",
