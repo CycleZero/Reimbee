@@ -326,9 +326,6 @@ func (m *LoopManager) makeOnAgentEvents(sessionID string) func(
 			case schema.Tool:
 				_ = writer.WriteEvent(NewToolResultEvent(mv.ToolName, mv.Message.Content))
 				_ = writer.Flush()
-				if mv.Message != nil {
-					m.store.SaveMessages(ctx, sessionID, []*schema.Message{mv.Message})
-				}
 			}
 		}
 
