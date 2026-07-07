@@ -54,7 +54,8 @@ func (m *LoopManager) createSessionLoop(sessionID string) *SessionLoop {
 		GenInput:      m.makeGenInput(sessionID),
 		PrepareAgent:  m.makePrepareAgent(sessionID),
 		OnAgentEvents: m.makeOnAgentEvents(sessionID),
-		// Store + CheckpointID 后续版本启用（用于审批中断/恢复场景）
+		Store:         m.checkpointStore,
+		CheckpointID:  sessionID,
 	}
 
 	sl.turnLoop = adk.NewTurnLoop(cfg)
@@ -188,13 +189,7 @@ func (m *LoopManager) makeGenInput(sessionID string) func(
 }
 
 // ============================================
-// makePrepareAgent — PrepareAgent 回调（意图分类 + 阶段路由）
-// ============================================
-
-// makePrepareAgent 返回 PrepareAgent 闭包，负责选择当前 Turn 使用的 Agent
-//  1. ChatModel 意图分类（优先）→ 失败降级到关键词
-//  2. 简单意图（进度/预算/政策/修改/通用）→ 直接返回对应 Agent
-//  3. 报销流程 → 根据 ReimbursementState 选择 Phase Agent（物理隔离工具集）
+// makePrepareAgent 返回 PrepareAgent 闭包，始终返回唯一 ReimburseAgent
 func (m *LoopManager) makePrepareAgent(sessionID string) func(
 	ctx context.Context,
 	loop *adk.TurnLoop[string, *schema.Message],
@@ -203,85 +198,7 @@ func (m *LoopManager) makePrepareAgent(sessionID string) func(
 
 	return func(ctx context.Context, _ *adk.TurnLoop[string, *schema.Message],
 		consumed []string) (adk.Agent, error) {
-
-		msg := consumed[0]
-
-		// ── 1. 意图分类（ChatModel 优先 → 关键词降级）──
-		// ChatModel 能理解上下文（如 Phase 2 中说"提交申请"=confirm，而非 new_reimbursement）
-		// 关键词降级作为可靠后备（ChatModel 不可用或返回低置信度时）
-		route := classifyIntentByLLM(ctx, m, msg)
-		if route == "" {
-			route = classifyByKeywords(msg)
-		}
-		m.logger.Debug("意图分类",
-			zap.String("sessionID", sessionID),
-			zap.String("意图", route),
-			zap.String("用户消息", msg))
-
-		// ── 2. 简单意图 → 直接返回对应 Agent ──
-		switch route {
-		case "query_progress":
-			return m.progressAgent, nil
-		case "query_budget":
-			return m.budgetAgent, nil
-		case "policy_question":
-			return m.policyAgent, nil
-		case "modify_reimbursement":
-			return m.modifyAgent, nil
-		case "general_chat":
-			return m.chatAgent, nil
-		// "new_reimbursement" → 继续，根据 ReimbursementState 选择 Phase Agent
-		}
-
-		// ── 3. 报销流程：根据 ReimbursementState 选择 Phase Agent ──
-		var rs ReimbursementState
-		_, _ = m.store.GetState(ctx, sessionID, infra.StateKeyReimbursement, &rs)
-
-		agent := m.selectPhaseAgent(&rs)
-		m.logger.Info("选择Phase Agent",
-			zap.String("sessionID", sessionID),
-			zap.String("当前阶段", rs.CurrentPhase),
-			zap.String("Agent", agent.Name(ctx)))
-		return agent, nil
-	}
-}
-
-// ============================================
-// selectPhaseAgent — 根据状态选择 Phase Agent
-// ============================================
-
-// selectPhaseAgent 根据 ReimbursementState 各字段决定返回哪个 Phase Agent
-// 这是流控的核心：通过不同的 Agent 实例实现工具集的物理隔离
-//
-// 状态流转：
-//
-//	Phase1 (信息收集) → Phase2 (校验确认) → Phase3 (执行提交) → ChatAgent (已提交)
-func (m *LoopManager) selectPhaseAgent(rs *ReimbursementState) adk.Agent {
-	switch {
-	case rs.ReimbursementNo != "":
-		if m.logger != nil {
-			m.logger.Debug("阶段路由：已提交报销单，使用通用对话Agent",
-				zap.String("报销单号", rs.ReimbursementNo))
-		}
-		return m.chatAgent
-	case rs.FinalConfirmed:
-		if m.logger != nil {
-			m.logger.Debug("阶段路由：用户已最终确认，进入Phase3执行提交",
-				zap.Int64("总金额(分)", rs.TotalAmount),
-				zap.Int("票据数", len(rs.Invoices)))
-		}
-		return m.phase3Agent
-	case rs.UserConfirmed:
-		if m.logger != nil {
-			m.logger.Debug("阶段路由：用户已确认票据，进入Phase2校验阶段",
-				zap.Int("票据数", len(rs.Invoices)))
-		}
-		return m.phase2Agent
-	default:
-		if m.logger != nil {
-			m.logger.Debug("阶段路由：默认进入Phase1信息收集阶段")
-		}
-		return m.phase1Agent
+		return m.reimburseAgent, nil
 	}
 }
 
@@ -441,113 +358,34 @@ func (m *LoopManager) getSessionLoop(sessionID string) *SessionLoop {
 	return m.loops[sessionID]
 }
 
-// ============================================
-// classifyIntentByLLM — ChatModel 意图分类（优先方案）
-// ============================================
-//
-// 使用 LLM 根据用户消息理解上下文语义：
-//   如 Phase 2 中用户说"提交申请"→ 应理解为 confirm_submit 而非 new_reimbursement
-//   关键词分类无法区分这种上下文差异，因此 ChatModel 优先
-//
-// 返回空字符串表示 LLM 分类失败，由关键词降级兜底
-func classifyIntentByLLM(ctx context.Context, m *LoopManager, message string) string {
-	type intentOutput struct {
-		Intent     string  `json:"intent"`
-		Confidence float64 `json:"confidence"`
-	}
+func (m *LoopManager) makeGenResume(sessionID string) func(
+	ctx context.Context,
+	loop *adk.TurnLoop[string, *schema.Message],
+	interruptedItems, unhandledItems, newItems []string,
+) (*adk.GenResumeResult[string, *schema.Message], error) {
 
-	model := m.chatModel
-	if model == nil {
-		m.logger.Debug("ChatModel未配置，跳过LLM意图分类")
-		return ""
-	}
+	return func(ctx context.Context, loop *adk.TurnLoop[string, *schema.Message],
+		interruptedItems, unhandledItems, newItems []string,
+	) (*adk.GenResumeResult[string, *schema.Message], error) {
 
-	// 加载当前报销状态，注入提示词（帮助 LLM 理解上下文）
-
-	prompt := BuildIntentClassifyPrompt(message)
-	resp, err := model.Generate(ctx, []*schema.Message{
-		schema.SystemMessage(`你是一个意图分类器。分析用户输入并返回JSON。
-可选意图: new_reimbursement, query_progress, query_budget, policy_question, modify_reimbursement, general_chat
-返回格式: {"intent":"...","confidence":0.95}
-注意：结合上下文判断！如果用户之前在上传票据阶段说"确认"/"提交"，意图应为 new_reimbursement（走报销流程），而非 general_chat。`),
-		schema.UserMessage(prompt),
-	})
-	if err != nil {
-		m.logger.Debug("LLM意图分类失败，降级到关键词",
-			zap.Error(err))
-		return ""
-	}
-
-	var intent intentOutput
-	if err := json.Unmarshal([]byte(resp.Content), &intent); err != nil {
-		m.logger.Debug("LLM意图分类JSON解析失败，降级到关键词",
-			zap.String("响应内容", resp.Content[:min(len(resp.Content), 100)]),
-			zap.Error(err))
-		return ""
-	}
-
-	if intent.Confidence < 0.7 {
-		m.logger.Debug("LLM意图分类置信度过低，降级到关键词",
-			zap.String("意图", intent.Intent),
-			zap.Float64("置信度", intent.Confidence))
-		return ""
-	}
-
-	m.logger.Debug("LLM意图分类成功",
-		zap.String("意图", intent.Intent),
-		zap.Float64("置信度", intent.Confidence))
-	return intent.Intent
-}
-// ============================================
-
-// classifyByKeywords 基于关键词对用户消息进行意图分类
-// 源自 graph/root.go 的降级分类逻辑，作为 LLM 分类不可用时的可靠后备
-//
-// 注意：检查顺序很重要——更具体的意图（进度/预算/政策/修改）必须先于通用"报销"，
-// 否则"我的报销进度到哪了"会被错误分类为 new_reimbursement
-func classifyByKeywords(content string) string {
-	content = truncateStr(content, 100)
-	if containsAnyStr(content, "进度", "到哪", "批了吗", "状态", "审批") {
-		return "query_progress"
-	}
-	if containsAnyStr(content, "预算", "还剩", "余额", "够不够") {
-		return "query_budget"
-	}
-	if containsAnyStr(content, "标准", "规定", "多少", "可以报吗", "政策") {
-		return "policy_question"
-	}
-	if containsAnyStr(content, "改", "修改", "重新提交", "驳回", "被退") {
-		return "modify_reimbursement"
-	}
-	if containsAnyStr(content, "报销", "提交", "发票", "申请报销") {
-		return "new_reimbursement"
-	}
-	return "general_chat"
-}
-
-// containsAnyStr 判断字符串 s 中是否包含 keywords 中的任意一个关键词
-func containsAnyStr(s string, keywords ...string) bool {
-	for _, kw := range keywords {
-		if len(s) >= len(kw) {
-			for i := 0; i <= len(s)-len(kw); i++ {
-				if s[i:i+len(kw)] == kw {
-					return true
-				}
+		var approval struct {
+			Approved bool   `json:"approved"`
+			Reason   string `json:"reason"`
+		}
+		for _, item := range newItems {
+			if err := json.Unmarshal([]byte(item), &approval); err == nil {
+				break
 			}
 		}
-	}
-	return false
-}
 
-// truncateStr 截断字符串到指定长度，超过则追加 "..."
-func truncateStr(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
+		return &adk.GenResumeResult[string, *schema.Message]{
+			ResumeParams: &adk.ResumeParams{
+				Targets: map[string]any{
+					sessionID: approval,
+				},
+			},
+			Consumed:  newItems,
+			Remaining: unhandledItems,
+		}, nil
 	}
-	return string(runes[:maxLen]) + "..."
 }
-
-// ============================================
-// 说明：此文件通过 Makefile/编辑器保存时自动格式化，手工对齐是可选的
-// ============================================

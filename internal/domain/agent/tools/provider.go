@@ -18,11 +18,8 @@ import (
 // 命名工具类型（Wire 依赖注入区分类键）
 // ============================================
 
-// OCRTool 票据识别工具类型——Wire 通过此命名类型区分 OCR 工具与其他 tool.InvokableTool 返回
+// OCRTool 票据识别工具类型
 type OCRTool struct{ tool.InvokableTool }
-
-// ComplianceTool 合规检查工具类型
-type ComplianceTool struct{ tool.InvokableTool }
 
 // BudgetTool 预算检查工具类型
 type BudgetTool struct{ tool.InvokableTool }
@@ -39,21 +36,12 @@ type ProgressTool struct{ tool.InvokableTool }
 // QueryTool 报销记录查询工具类型
 type QueryTool struct{ tool.InvokableTool }
 
-// ConfirmInvoiceTool 票据确认工具类型（Phase 1 结束确认）
-type ConfirmInvoiceTool struct{ tool.InvokableTool }
-
-// ConfirmSubmitTool 最终提交确认工具类型（Phase 2 结束确认）
-type ConfirmSubmitTool struct{ tool.InvokableTool }
-
-// ============================================
-// Wire ProviderSet
-// ============================================
-
 // ProviderSet 工具层的 Wire 依赖注入集合
 var ProviderSet = wire.NewSet(
 	NewToolSet,
 	NewOCRTool,
-	NewComplianceTool,
+	NewSearchPolicyTool,
+	NewComplianceAgentTool,
 	NewBudgetTool,
 	NewPDFTool,
 	NewEmailTool,
@@ -61,117 +49,45 @@ var ProviderSet = wire.NewSet(
 	NewQueryTool,
 	NewCreateReimbTool,
 	NewSubmitReimbTool,
-	NewConfirmInvoiceTool,
-	NewConfirmSubmitTool,
 )
 
-// ============================================
-// ToolSet 聚合结构
-// ============================================
-
-// ToolSet 聚合所有 Agent 可用工具，按报销三阶段分组提供
 type ToolSet struct {
-	OCR            tool.InvokableTool
-	Compliance     tool.InvokableTool
-	Budget         tool.InvokableTool
-	PDF            tool.InvokableTool
-	Email          tool.InvokableTool
-	Progress       tool.InvokableTool
-	QueryRecords   tool.InvokableTool
-	CreateReimb    tool.InvokableTool
-	SubmitReimb    tool.InvokableTool
-	ConfirmInvoice tool.InvokableTool
-	ConfirmSubmit  tool.InvokableTool
+	OCR          tool.InvokableTool
+	Compliance   tool.BaseTool
+	Budget       tool.InvokableTool
+	PDF          tool.InvokableTool
+	Email        tool.InvokableTool
+	Progress     tool.InvokableTool
+	QueryRecords tool.InvokableTool
+	CreateReimb  tool.InvokableTool
+	SubmitReimb  tool.InvokableTool
 }
 
-// NewToolSet 创建工具集聚合实例
 func NewToolSet(
 	ocr *OCRTool,
-	compliance *ComplianceTool,
+	compliance *ComplianceAgentTool,
 	budget *BudgetTool,
 	pdf *PDFTool,
 	email *EmailTool,
 	progress *ProgressTool,
 	query *QueryTool,
-	confirmInvoice *ConfirmInvoiceTool,
-	confirmSubmit *ConfirmSubmitTool,
 	createReimb *CreateReimbTool,
 	submitReimb *SubmitReimbTool,
 	store infra.SessionStore,
 	logger *log.Logger,
 ) *ToolSet {
-	logger.Debug("智能体工具集初始化完成（v3.0 SessionStore已注入）")
+	logger.Info("智能体工具集初始化完成")
 	return &ToolSet{
-		OCR:            ocr.InvokableTool,
-		Compliance:     compliance.InvokableTool,
-		Budget:         budget.InvokableTool,
-		PDF:            pdf.InvokableTool,
-		Email:          email.InvokableTool,
-		Progress:       progress.InvokableTool,
-		QueryRecords:   query.InvokableTool,
-		ConfirmInvoice: confirmInvoice.InvokableTool,
-		ConfirmSubmit:  confirmSubmit.InvokableTool,
-		CreateReimb:    createReimb.InvokableTool,
-		SubmitReimb:    submitReimb.InvokableTool,
+		OCR:         ocr.InvokableTool,
+		Compliance:  compliance.BaseTool,
+		Budget:      budget.InvokableTool,
+		PDF:         pdf.InvokableTool,
+		Email:       email.InvokableTool,
+		Progress:    progress.InvokableTool,
+		QueryRecords: query.InvokableTool,
+		CreateReimb: createReimb.InvokableTool,
+		SubmitReimb: submitReimb.InvokableTool,
 	}
-}
-
-// GetPhase1Tools 返回 Phase 1（信息收集）阶段可用的工具
-// Phase 1 Agent 可调用 OCR 自动识别票据 + 合规工具查询报销标准 + 确认票据
-func (ts *ToolSet) GetPhase1Tools() []tool.InvokableTool {
-	return []tool.InvokableTool{ts.OCR, ts.Compliance, ts.ConfirmInvoice}
-}
-
-// GetPhase2Tools 返回 Phase 2（校验确认）阶段可用的工具
-// Phase 2 Agent 可调用合规检查（校验模式）+ 预算检查 + 最终确认提交
-func (ts *ToolSet) GetPhase2Tools() []tool.InvokableTool {
-	return []tool.InvokableTool{ts.Compliance, ts.Budget, ts.ConfirmSubmit}
-}
-
-// GetPhase3Tools 返回 Phase 3（执行提交）阶段可用的工具
-// Phase 3 Agent 依次调用：创建报销单 → 提交审批 → 生成 PDF → 发送邮件 → 进度告知
-func (ts *ToolSet) GetPhase3Tools() []tool.InvokableTool {
-	return []tool.InvokableTool{ts.CreateReimb, ts.SubmitReimb, ts.PDF, ts.Email, ts.Progress}
-}
-
-// GetAllTools 返回全部工具（用于通用子流程如进度查询、预算查询）
-func (ts *ToolSet) GetAllTools() []tool.InvokableTool {
-	return []tool.InvokableTool{
-		ts.OCR, ts.Compliance, ts.Budget,
-		ts.PDF, ts.Email, ts.Progress, ts.QueryRecords,
-		ts.CreateReimb, ts.SubmitReimb,
-		ts.ConfirmInvoice, ts.ConfirmSubmit,
-	}
-}
-
-// ============================================
-// BaseTool 方法（用于 compose.AddToolsNode 的 ReAct 模式）
-// tool.InvokableTool 继承 tool.BaseTool，直接转型即可
-// ============================================
-
-// GetPhase1BaseTools 返回 Phase 1 的工具（[]tool.BaseTool）
-func (ts *ToolSet) GetPhase1BaseTools() []tool.BaseTool {
-	return []tool.BaseTool{ts.OCR, ts.Compliance, ts.ConfirmInvoice}
-}
-
-// GetPhase2BaseTools 返回 Phase 2 的工具（[]tool.BaseTool）
-func (ts *ToolSet) GetPhase2BaseTools() []tool.BaseTool {
-	return []tool.BaseTool{ts.Compliance, ts.Budget, ts.ConfirmSubmit}
-}
-
-// GetPhase3BaseTools 返回 Phase 3 的工具（[]tool.BaseTool）
-func (ts *ToolSet) GetPhase3BaseTools() []tool.BaseTool {
-	return []tool.BaseTool{ts.CreateReimb, ts.SubmitReimb, ts.PDF, ts.Email, ts.Progress}
-}
-
-// GetProgressBaseTools 返回进度查询相关工具
-func (ts *ToolSet) GetProgressBaseTools() []tool.BaseTool {
-	return []tool.BaseTool{ts.Progress, ts.QueryRecords}
-}
-
-// GetBudgetBaseTools 返回预算查询相关工具
-func (ts *ToolSet) GetBudgetBaseTools() []tool.BaseTool {
-	return []tool.BaseTool{ts.Budget}
 }
 
 

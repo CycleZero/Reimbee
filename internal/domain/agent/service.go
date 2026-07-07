@@ -2,6 +2,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/CycleZero/Reimbee/internal/common"
@@ -142,4 +143,36 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (s *AgentService) HandleApprove(c *gin.Context) {
+	sessionID := c.Query("session_id")
+	var req struct {
+		Approved bool   `json:"approved"`
+		Reason   string `json:"reason,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	sseWriter, err := NewGinSSEWriter(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "不支持流式响应"})
+		return
+	}
+
+	approvalBytes, _ := json.Marshal(map[string]any{
+		"approved": req.Approved,
+		"reason":   req.Reason,
+	})
+
+	doneCh := make(chan error, 1)
+	s.loopManager.PushMessage(sessionID, string(approvalBytes), sseWriter, doneCh)
+
+	if err := <-doneCh; err != nil {
+		s.logger.Error("审批恢复执行失败",
+			zap.String("sessionID", sessionID),
+			zap.Error(err))
+	}
 }

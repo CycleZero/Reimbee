@@ -39,6 +39,7 @@ func NewTestData() *infra.Data {
 		&model.PolicyDocument{},
 		&model.PolicyChunk{},
 		&model.SessionMessage{}, // Agent 会话消息持久化
+		&model.SessionMeta{},    // v4: 会话元数据
 	); err != nil {
 		panic("迁移测试数据库失败: " + err.Error())
 	}

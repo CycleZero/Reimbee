@@ -24,6 +24,7 @@ const (
 	EventTypeConfirmRequired  SSEEventType = "confirm_required" // 需要用户确认操作
 	EventTypeError            SSEEventType = "error"            // 错误事件
 	EventTypeDone             SSEEventType = "done"             // 流程完成
+	EventTypeInterrupted      SSEEventType = "interrupted"      // v4: Agent 中断等待确认
 )
 
 // ============================================
@@ -146,6 +147,17 @@ func NewDoneEvent() SSEEvent {
 	return SSEEvent{
 		Type: EventTypeDone,
 		Data: nil,
+	}
+}
+
+func NewInterruptedEvent(interruptID, action string, context any) SSEEvent {
+	return SSEEvent{
+		Type: EventTypeInterrupted,
+		Data: map[string]any{
+			"interrupt_id": interruptID,
+			"action":       action,
+			"context":      context,
+		},
 	}
 }
 

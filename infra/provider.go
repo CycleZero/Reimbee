@@ -28,7 +28,8 @@ var ProviderSet = wire.NewSet(
 	NewSMTPEmailSender,
 	wire.Bind(new(EmailSender), new(*SMTPEmailSender)),
 
-	// 会话持久化 —— MySQL 主存储 + Redis 缓存层
+	// 会话持久化 —— MySQL 主存储 + Redis 缓存层 + 元数据仓储
+	NewSessionMetaRepo,
 	NewMySQLSessionStore,
 	wire.Bind(new(SessionStore), new(*MySQLSessionStore)),
 	NewRedisSessionCache,

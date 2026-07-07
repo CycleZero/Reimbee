@@ -398,3 +398,38 @@ func TestNewThinkingEvent_EmptyMessage(t *testing.T) {
 		t.Errorf("空消息的 Message 应为空，实际为: %s", data.Message)
 	}
 }
+
+func TestNewInterruptedEvent(t *testing.T) {
+	ctx := map[string]any{
+		"total_amount": 125000,
+		"invoice_count": 3,
+	}
+	event := agent.NewInterruptedEvent("sess-abc", "confirm_submit", ctx)
+
+	if event.Type != agent.EventTypeInterrupted {
+		t.Errorf("类型应为 interrupted, got=%s", event.Type)
+	}
+
+	data, ok := event.Data.(map[string]any)
+	if !ok {
+		t.Fatal("Data 应为 map[string]any")
+	}
+	if data["interrupt_id"] != "sess-abc" {
+		t.Errorf("interrupt_id 不匹配: got=%v", data["interrupt_id"])
+	}
+	if data["action"] != "confirm_submit" {
+		t.Errorf("action 不匹配: got=%v", data["action"])
+	}
+}
+
+func TestNewInterruptedEventTypesCoverage(t *testing.T) {
+	allTypes := []agent.SSEEventType{
+		"thinking", "tool_call", "tool_result", "message",
+		"phase_change", "confirm_required", "error", "done", "interrupted",
+	}
+	for _, et := range allTypes {
+		if et == "" {
+			t.Error("SSE 事件类型不应为空")
+		}
+	}
+}

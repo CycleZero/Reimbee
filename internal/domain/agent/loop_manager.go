@@ -27,17 +27,10 @@ type LoopManager struct {
 	loops map[string]*SessionLoop
 	store infra.SessionStore // 消息 + 业务状态持久化
 
-	// 预创建的 8 个 Agent 实例（initAgents 填充）
-	phase1Agent   *adk.ChatModelAgent
-	phase2Agent   *adk.ChatModelAgent
-	phase3Agent   *adk.ChatModelAgent
-	chatAgent     *adk.ChatModelAgent
-	progressAgent *adk.ChatModelAgent
-	budgetAgent   *adk.ChatModelAgent
-	policyAgent   *adk.ChatModelAgent
-	modifyAgent   *adk.ChatModelAgent
-
-	chatModel model.ToolCallingChatModel // LLM 实例（用于 PrepareAgent 意图分类）
+	reimburseAgent   *adk.ChatModelAgent
+	complianceModel  model.ToolCallingChatModel
+	chatModel        model.ToolCallingChatModel
+	checkpointStore  CheckpointStore
 
 	logger *log.Logger
 	config *LoopConfig
@@ -45,11 +38,12 @@ type LoopManager struct {
 
 // LoopManagerDeps Wire 依赖注入用
 type LoopManagerDeps struct {
-	Store     infra.SessionStore
-	ChatModel model.ToolCallingChatModel
-	ToolSet   *tools.ToolSet
-	Logger    *log.Logger
-	Config    *LoopConfig
+	Store          infra.SessionStore
+	ChatModel      model.ToolCallingChatModel
+	ToolSet        *tools.ToolSet
+	CheckpointStore CheckpointStore
+	Logger         *log.Logger
+	Config         *LoopConfig
 }
 
 // ============================================
@@ -62,6 +56,7 @@ func NewLoopManager(
 	store infra.SessionStore,
 	chatModel model.ToolCallingChatModel,
 	toolSet *tools.ToolSet,
+	checkpointStore CheckpointStore,
 	logger *log.Logger,
 	config *LoopConfig,
 ) *LoopManager {
@@ -73,31 +68,31 @@ func NewLoopManager(
 	}
 
 	m := &LoopManager{
-		loops:     make(map[string]*SessionLoop),
-		store:     store,
-		logger:    logger,
-		config:    config,
-		chatModel: chatModel,
+		loops:           make(map[string]*SessionLoop),
+		store:           store,
+		logger:          logger,
+		config:          config,
+		chatModel:       chatModel,
+		checkpointStore: checkpointStore,
 	}
 
-	// 构建依赖结构体，传递给 initAgents
 	deps := LoopManagerDeps{
-		Store:     store,
-		ChatModel: chatModel,
-		ToolSet:   toolSet,
-		Logger:    logger,
-		Config:    config,
+		Store:          store,
+		ChatModel:      chatModel,
+		ToolSet:        toolSet,
+		CheckpointStore: checkpointStore,
+		Logger:         logger,
+		Config:         config,
 	}
 
 	// 初始化所有 Agent（定义于 phase_agents.go）
-	m.initAgents(context.Background(), deps)
+	m.initAgent(context.Background(), deps)
 
 	// 启动后台清理协程
 	go m.cleanupLoop()
 
 	m.logger.Info("LoopManager初始化完成",
-		zap.Int("Phase_Agent数", 3),
-		zap.Int("子流程Agent数", 5),
+		zap.Int("Agent数", 1),
 		zap.Int("活跃会话数", 0))
 
 	return m
