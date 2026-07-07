@@ -27,8 +27,12 @@ func NewMySQLSessionStore(data *Data, cache *RedisSessionCache) *MySQLSessionSto
 
 	// 自动迁移会话消息表
 	if err := store.db.AutoMigrate(&model.SessionMessage{}); err != nil {
-		// AutoMigrate 失败属于致命错误，应在启动阶段暴露
 		panic(fmt.Errorf("会话消息表自动迁移失败: %w", err))
+	}
+
+	// 自动迁移会话状态表（用于持久化 ReimbursementState）
+	if err := store.db.AutoMigrate(&SessionState{}); err != nil {
+		panic(fmt.Errorf("会话状态表自动迁移失败: %w", err))
 	}
 
 	return store

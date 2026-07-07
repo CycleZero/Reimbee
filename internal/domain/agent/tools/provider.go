@@ -52,6 +52,8 @@ var ProviderSet = wire.NewSet(
 	NewEmailTool,
 	NewProgressTool,
 	NewQueryTool,
+	NewCreateReimbTool,
+	NewSubmitReimbTool,
 )
 
 // ============================================
@@ -67,6 +69,8 @@ type ToolSet struct {
 	Email        tool.InvokableTool
 	Progress     tool.InvokableTool
 	QueryRecords tool.InvokableTool
+	CreateReimb  tool.InvokableTool
+	SubmitReimb  tool.InvokableTool
 }
 
 // NewToolSet 创建工具集聚合实例
@@ -78,6 +82,8 @@ func NewToolSet(
 	email *EmailTool,
 	progress *ProgressTool,
 	query *QueryTool,
+	createReimb *CreateReimbTool,
+	submitReimb *SubmitReimbTool,
 	logger *log.Logger,
 ) *ToolSet {
 	logger.Debug("智能体工具集初始化完成")
@@ -89,6 +95,8 @@ func NewToolSet(
 		Email:        email.InvokableTool,
 		Progress:     progress.InvokableTool,
 		QueryRecords: query.InvokableTool,
+		CreateReimb:  createReimb.InvokableTool,
+		SubmitReimb:  submitReimb.InvokableTool,
 	}
 }
 
@@ -105,9 +113,9 @@ func (ts *ToolSet) GetPhase2Tools() []tool.InvokableTool {
 }
 
 // GetPhase3Tools 返回 Phase 3（执行提交）阶段可用的工具
-// Phase 3 Agent 可调用 PDF 生成 + 邮件发送 + 进度查询（告知用户后续）
+// Phase 3 Agent 依次调用：创建报销单 → 提交审批 → 生成 PDF → 发送邮件 → 进度告知
 func (ts *ToolSet) GetPhase3Tools() []tool.InvokableTool {
-	return []tool.InvokableTool{ts.PDF, ts.Email, ts.Progress}
+	return []tool.InvokableTool{ts.CreateReimb, ts.SubmitReimb, ts.PDF, ts.Email, ts.Progress}
 }
 
 // GetAllTools 返回全部工具（用于通用子流程如进度查询、预算查询）
@@ -115,6 +123,7 @@ func (ts *ToolSet) GetAllTools() []tool.InvokableTool {
 	return []tool.InvokableTool{
 		ts.OCR, ts.Compliance, ts.Budget,
 		ts.PDF, ts.Email, ts.Progress, ts.QueryRecords,
+		ts.CreateReimb, ts.SubmitReimb,
 	}
 }
 
@@ -135,7 +144,7 @@ func (ts *ToolSet) GetPhase2BaseTools() []tool.BaseTool {
 
 // GetPhase3BaseTools 返回 Phase 3 的工具（[]tool.BaseTool）
 func (ts *ToolSet) GetPhase3BaseTools() []tool.BaseTool {
-	return []tool.BaseTool{ts.PDF, ts.Email, ts.Progress}
+	return []tool.BaseTool{ts.CreateReimb, ts.SubmitReimb, ts.PDF, ts.Email, ts.Progress}
 }
 
 // GetProgressBaseTools 返回进度查询相关工具

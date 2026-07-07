@@ -40,7 +40,7 @@ func NewMainApp(
 	e.Use(gin.Logger())
 	e.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		log.SugaredLogger().Errorf("发生 Panic: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器内部错误"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器内部错误(panic)"})
 	}))
 
 	// 注册自定义中间件（必须在路由注册前完成）

@@ -96,9 +96,15 @@ func NewReimbursementGraph(
 	deps.Logger.Debug("三阶段ReAct子图构建完成，开始组装父图")
 
 	// ── 第二阶段：创建父图（注入 ReimbursementState 共享状态）──
-	// 父图与 Guard/Branch 节点都通过 compose.ProcessState 访问此状态
+	// 首次请求时创建空白状态，后续请求从 context 恢复（Runner 层通过 SessionStore 持久化）
 	g := compose.NewGraph[[]*schema.Message, *schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *agent.ReimbursementState {
+			if saved, ok := ctx.Value(agent.StateContextKey{}).(*agent.ReimbursementState); ok && saved != nil {
+				deps.Logger.Debug("已恢复报销流程状态",
+					zap.String("当前阶段", saved.CurrentPhase),
+					zap.Int("票据数量", len(saved.Invoices)))
+				return saved
+			}
 			return &agent.ReimbursementState{CurrentPhase: "phase1_collect"}
 		}),
 	)

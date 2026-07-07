@@ -12,6 +12,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// StateContextKey 用于在 context 中传递 ReimbursementState
+type StateContextKey struct{}
+
 // ============================================
 // AgentRunner — Graph 执行引擎 + 会话管理
 // ============================================
@@ -62,14 +65,21 @@ func (r *AgentRunner) StreamChat(ctx context.Context, input AgentInput, sseWrite
 	_ = sseWriter.WriteEvent(NewThinkingEvent("正在理解您的需求..."))
 	_ = sseWriter.Flush()
 
-	// 2. 获取历史消息并注入到 Graph Input
+	// 2. 加载已保存的业务状态（跨请求恢复 ReimbursementState）
+	if newCtx, err := loadSessionState(ctx, r.sessionStore, input); err != nil {
+		r.logger.Warn("加载会话状态失败，使用空白状态", zap.Error(err))
+	} else {
+		ctx = newCtx
+	}
+
+	// 3. 获取历史消息
 	history, err := r.sessionStore.GetHistory(ctx, input.SessionID, r.config.MaxHistoryTurns*2)
 	if err != nil {
 		r.logger.Warn("获取对话历史失败，使用空历史", zap.Error(err))
 		history = nil
 	}
 
-	// 3. 持久化用户消息
+	// 4. 持久化用户消息
 	userMsg := schema.UserMessage(input.Message)
 	if err := r.sessionStore.SaveMessages(ctx, input.SessionID, []*schema.Message{userMsg}); err != nil {
 		r.logger.Warn("保存用户消息失败", zap.Error(err))
@@ -80,14 +90,14 @@ func (r *AgentRunner) StreamChat(ctx context.Context, input AgentInput, sseWrite
 		zap.String("sessionID", input.SessionID),
 	)
 
-	// 4. 尝试流式执行 Graph
+	// 5. 尝试流式执行 Graph
 	stream, err := r.rootGraph.Stream(ctx, input)
 	if err != nil {
 		r.logger.Warn("Graph流式执行失败，降级为Invoke", zap.Error(err))
 		return r.invokeFallback(ctx, input, sseWriter)
 	}
 
-	// 5. 流式读取 + SSE token-by-token 推送
+	// 6. 流式读取 + SSE token-by-token 推送
 	var fullContent string
 	for {
 		chunk, recvErr := stream.Recv()
@@ -108,7 +118,7 @@ func (r *AgentRunner) StreamChat(ctx context.Context, input AgentInput, sseWrite
 		}
 	}
 
-	// 6. 持久化 assistant 完整回复
+	// 7. 持久化 assistant 完整回复
 	if fullContent != "" {
 		assistantPersist := schema.AssistantMessage(fullContent, nil)
 		if err := r.sessionStore.SaveMessages(ctx, input.SessionID, []*schema.Message{assistantPersist}); err != nil {
@@ -116,7 +126,12 @@ func (r *AgentRunner) StreamChat(ctx context.Context, input AgentInput, sseWrite
 		}
 	}
 
-	// 7. 发送完成事件
+	// 8. 保存业务状态（跨请求保持 ReimbursementState）
+	if err := saveSessionState(ctx, r.sessionStore, input); err != nil {
+		r.logger.Warn("保存会话状态失败", zap.Error(err))
+	}
+
+	// 9. 发送完成事件
 	_ = sseWriter.WriteEvent(NewDoneEvent())
 	_ = sseWriter.Flush()
 
@@ -149,6 +164,37 @@ func (r *AgentRunner) invokeFallback(ctx context.Context, input AgentInput, sseW
 	_ = sseWriter.WriteEvent(NewDoneEvent())
 	_ = sseWriter.Flush()
 	return nil
+}
+
+// loadSessionState 从 SessionStore 加载业务状态并注入 context
+func loadSessionState(ctx context.Context, store infra.SessionStore, input AgentInput) (context.Context, error) {
+	var state ReimbursementState
+	found, err := store.GetState(ctx, input.SessionID, infra.StateKeyReimbursement, &state)
+	if err != nil {
+		return ctx, err
+	}
+	if !found {
+		return ctx, nil
+	}
+	log.GetLogger().Debug("已恢复报销流程状态",
+		zap.String("sessionID", input.SessionID),
+		zap.String("当前阶段", state.CurrentPhase),
+		zap.Int("票据数量", len(state.Invoices)))
+	return context.WithValue(ctx, StateContextKey{}, &state), nil
+}
+
+// saveSessionState 从 Graph 执行后的 context 中提取 ReimbursementState 并持久化
+// 使用 compose.ProcessState 读取 Graph 运行时状态
+func saveSessionState(ctx context.Context, store infra.SessionStore, input AgentInput) error {
+	return compose.ProcessState(ctx, func(ctx context.Context, rs *ReimbursementState) error {
+		if err := store.SaveState(ctx, input.SessionID, infra.StateKeyReimbursement, rs); err != nil {
+			return fmt.Errorf("保存报销状态失败: %w", err)
+		}
+		log.GetLogger().Debug("已保存报销流程状态",
+			zap.String("sessionID", input.SessionID),
+			zap.String("当前阶段", rs.CurrentPhase))
+		return nil
+	})
 }
 
 // ============================================

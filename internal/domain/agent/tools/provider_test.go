@@ -46,6 +46,8 @@ func newMockToolSet(t *testing.T) *tools.ToolSet {
 		&tools.EmailTool{InvokableTool: &mockInvokableTool{name: "send_email"}},
 		&tools.ProgressTool{InvokableTool: &mockInvokableTool{name: "query_progress"}},
 		&tools.QueryTool{InvokableTool: &mockInvokableTool{name: "query_records"}},
+		&tools.CreateReimbTool{InvokableTool: &mockInvokableTool{name: "create_reimbursement"}},
+		&tools.SubmitReimbTool{InvokableTool: &mockInvokableTool{name: "submit_reimbursement"}},
 		testLogger(t),
 	)
 }
@@ -117,14 +119,14 @@ func TestToolSet_GetPhase2Tools(t *testing.T) {
 // GetPhase3Tools 测试
 // ============================================
 
-// TestToolSet_GetPhase3Tools 验证 Phase 3（执行提交）返回 3 个工具：PDF + Email + Progress
+// TestToolSet_GetPhase3Tools 验证 Phase 3（执行提交）返回 5 个工具
 func TestToolSet_GetPhase3Tools(t *testing.T) {
 	ts := newMockToolSet(t)
 
 	got := ts.GetPhase3Tools()
 
-	if len(got) != 3 {
-		t.Errorf("GetPhase3Tools() 应返回 3 个工具，实际返回 %d 个", len(got))
+	if len(got) != 5 {
+		t.Errorf("GetPhase3Tools() 应返回 5 个工具，实际返回 %d 个", len(got))
 	}
 
 	names := make(map[string]bool)
@@ -157,8 +159,8 @@ func TestToolSet_GetAllTools(t *testing.T) {
 
 	got := ts.GetAllTools()
 
-	if len(got) != 7 {
-		t.Errorf("GetAllTools() 应返回 7 个工具，实际返回 %d 个", len(got))
+	if len(got) != 9 {
+		t.Errorf("GetAllTools() 应返回 9 个工具，实际返回 %d 个", len(got))
 	}
 
 	names := make(map[string]bool)

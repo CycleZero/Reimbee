@@ -37,44 +37,41 @@ const (
 // ReimbursementState 报销流程的全局状态，通过 Eino compose.WithGenLocalState 管理
 // 三个阶段共享同一份状态，Guard 节点据此判断能否进入下一阶段
 type ReimbursementState struct {
-	ReimbursementID     uint   // 报销单 DB 主键（Submit 后分配）
-	ReimbursementNo     string // 报销单号 REIMB-YYYY-NNNN
-	DepartmentID        uint   // 申请部门 ID
-	EmployeeID          string // 申请人工号
-	EmployeeName        string // 申请人姓名
-	CurrentPhase        string // 当前所处阶段（phase1_collect / phase2_validate / phase3_execute）
+	ReimbursementID     uint   `json:"reimbursement_id"`
+	ReimbursementNo     string `json:"reimbursement_no"`
+	DepartmentID        uint   `json:"department_id"`
+	EmployeeID          string `json:"employee_id"`
+	EmployeeName        string `json:"employee_name"`
+	CurrentPhase        string `json:"current_phase"`
 
-	// 票据处理状态（Phase 1 填充）
-	Invoices      []InvoiceState // 每张票据的处理状态
-	TotalAmount   int64          // 报销总金额（分）
-	UserConfirmed bool           // Phase 1 用户是否已确认票据信息
+	Invoices      []InvoiceState `json:"invoices"`
+	TotalAmount   int64          `json:"total_amount"`
+	UserConfirmed bool           `json:"user_confirmed"`
 
-	// 校验结果（Phase 2 填充）
-	ComplianceResult    *ComplianceCheckResult // 合规检查结果
-	BudgetResult        *BudgetCheckResult     // 预算检查结果
-	FinalConfirmed      bool                   // Phase 2 用户最终确认（不可逆）
-	NeedSpecialApproval bool                   // 是否需要特殊审批（预算不足时触发）
+	ComplianceResult    *ComplianceCheckResult `json:"compliance_result,omitempty"`
+	BudgetResult        *BudgetCheckResult     `json:"budget_result,omitempty"`
+	FinalConfirmed      bool                   `json:"final_confirmed"`
+	NeedSpecialApproval bool                   `json:"need_special_approval"`
 
-	// 防死循环计数器
-	Phase1Turns int // Phase 1 已执行轮次（超限强制退出）
-	Phase2Turns int // Phase 2 已执行轮次
-	Phase3Turns int // Phase 3 已执行轮次
+	Phase1Turns int `json:"phase1_turns"`
+	Phase2Turns int `json:"phase2_turns"`
+	Phase3Turns int `json:"phase3_turns"`
 }
 
 // InvoiceState 单张票据的处理状态（Phase 1 收集阶段追踪）
 type InvoiceState struct {
-	Index          int     // 序号（1-based）
-	ImagePath      string  // 已上传的票据图片路径
-	OCRRawAmount   int64   // OCR 识别的原始金额（分）
-	OCRRawCategory string  // OCR 推断的原始费用类别
-	OCRRawDate     string  // OCR 识别的原始开票日期 YYYY-MM-DD
-	OCRConfidence  float64 // OCR 识别置信度 0~1
-	Amount         int64   // 用户确认后的金额（分）——最终值
-	Category       string  // 用户确认后的费用类别
-	InvoiceDate    string  // 用户确认后的开票日期
-	IsModified     bool    // 用户是否修改了 OCR 结果（审计链标记）
-	ModifyReason   string  // 用户填写的修改原因
-	UserConfirmed  bool    // 用户是否已确认该票据信息
+	Index          int     `json:"index"`
+	ImagePath      string  `json:"image_path"`
+	OCRRawAmount   int64   `json:"ocr_raw_amount"`
+	OCRRawCategory string  `json:"ocr_raw_category"`
+	OCRRawDate     string  `json:"ocr_raw_date"`
+	OCRConfidence  float64 `json:"ocr_confidence"`
+	Amount         int64   `json:"amount"`
+	Category       string  `json:"category"`
+	InvoiceDate    string  `json:"invoice_date"`
+	IsModified     bool    `json:"is_modified"`
+	ModifyReason   string  `json:"modify_reason"`
+	UserConfirmed  bool    `json:"user_confirmed"`
 }
 
 // ============================================

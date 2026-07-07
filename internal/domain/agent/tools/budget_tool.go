@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/CycleZero/Reimbee/internal/domain/budget"
 	"github.com/CycleZero/Reimbee/log"
@@ -68,7 +69,7 @@ func NewBudgetTool(budgetBiz *budget.BudgetBiz, logger *log.Logger) *BudgetTool 
 // 公式：(已结算 + 已冻结) / 年度预算
 func calculateUsageRate(biz *budget.BudgetBiz, deptID uint) float64 {
 	// 通过获取看板数据来获取预算详情
-	budgets, err := biz.GetDashboard(2026) // 当前财年
+	budgets, err := biz.GetDashboard(time.Now().Year()) // 当前财年
 	if err != nil || len(budgets) == 0 {
 		return 0
 	}

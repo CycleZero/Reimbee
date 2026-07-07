@@ -2,6 +2,7 @@ package agent_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -52,11 +53,15 @@ type mockSessionStore struct {
 	saveErr error
 
 	clearErr error
+
+	states   map[string]any
+	stateErr error
 }
 
 func newMockSessionStore() *mockSessionStore {
 	return &mockSessionStore{
-		saved: make(map[string][]*schema.Message),
+		saved:  make(map[string][]*schema.Message),
+		states: make(map[string]any),
 	}
 }
 
@@ -77,6 +82,26 @@ func (m *mockSessionStore) GetHistory(ctx context.Context, sessionID string, lim
 
 func (m *mockSessionStore) Clear(ctx context.Context, sessionID string) error {
 	return m.clearErr
+}
+
+func (m *mockSessionStore) SaveState(ctx context.Context, sessionID string, key string, state any) error {
+	m.states[sessionID+":"+key] = state
+	return m.stateErr
+}
+
+func (m *mockSessionStore) GetState(ctx context.Context, sessionID string, key string, target any) (bool, error) {
+	v, ok := m.states[sessionID+":"+key]
+	if !ok {
+		return false, nil
+	}
+	data, _ := json.Marshal(v)
+	json.Unmarshal(data, target)
+	return true, m.stateErr
+}
+
+func (m *mockSessionStore) DeleteState(ctx context.Context, sessionID string, key string) error {
+	delete(m.states, sessionID+":"+key)
+	return nil
 }
 
 // mockCheckpointStore 实现 agent.CheckpointStore 接口

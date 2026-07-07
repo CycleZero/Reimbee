@@ -3,14 +3,13 @@ package budget
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/CycleZero/Reimbee/model"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
-
-const defaultFiscalYear = 2026
 
 // BudgetService 预算 HTTP 服务层
 type BudgetService struct {
@@ -34,7 +33,7 @@ func NewBudgetService(biz *BudgetBiz, logger *log.Logger) *BudgetService {
 // @Failure 500 {object} map[string]interface{} "服务器内部错误"
 // @Router /api/budgets/dashboard [get]
 func (s *BudgetService) Dashboard(c *gin.Context) {
-	year := defaultFiscalYear
+	year := time.Now().Year()
 	if y := c.Query("year"); y != "" {
 		if parsed, err := strconv.Atoi(y); err == nil {
 			year = parsed

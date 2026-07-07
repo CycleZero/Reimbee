@@ -60,11 +60,15 @@ func getPhaseInstruction(phase string) string {
 	case "phase3_execute":
 		return strings.Join([]string{
 			"## 执行提交阶段",
-			"1. 调用 generate_pdf 工具生成标准格式的报销单 PDF",
-			"2. PDF 生成成功后，调用 send_email 工具发送审批通知",
-			"3. 邮件发送成功：告知用户报销单已提交，展示报销单号和后续步骤",
-			"4. 邮件发送失败：告知用户 PDF 已生成但邮件发送失败，建议手动通知审批人",
-			"5. 告知用户审批进度查询方式",
+			"1. 首先调用 create_reimbursement 工具，传入员工信息（工号、姓名、部门ID）和报销事由，创建报销单草稿",
+			"2. 创建成功后，调用 submit_reimbursement 工具，传入报销单ID和总金额（分），提交审批流程",
+			"3. 提交成功后，调用 generate_pdf 工具生成标准格式的报销单 PDF",
+			"4. PDF 生成成功后，调用 send_email 工具发送审批通知邮件给审批人",
+			"5. 最后告知用户报销单号和后续步骤（审批人将处理，可随时查询进度）",
+			"",
+			"⚠️ 重要：必须严格按上述顺序调用工具，不可跳过或调换顺序",
+			"⚠️ 提交（submit_reimbursement）后不可撤销，请在此之前确保用户已确认",
+			"⚠️ 金额以分为单位传递给工具（如 500元 = 50000分）",
 		}, "\n")
 	default:
 		return "请帮助用户完成报销相关操作。"
