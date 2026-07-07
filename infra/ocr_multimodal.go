@@ -24,15 +24,35 @@ type MultimodalLLMRecognizer struct {
 }
 
 // NewMultimodalLLMRecognizer 创建多模态识别器实例
+// 配置键兼容两种前缀:
+//   - ocr.multimodal.* （标准键名）
+//   - ocr.qwen_vl.*    （千问 VL 专用，multimodal 为空时读取）
 func NewMultimodalLLMRecognizer(vc *viper.Viper) *MultimodalLLMRecognizer {
 	timeout := vc.GetDuration("ocr.multimodal.timeout")
 	if timeout == 0 {
+		timeout = vc.GetDuration("ocr.qwen_vl.timeout")
+	}
+	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
+
+	baseURL := vc.GetString("ocr.multimodal.base_url")
+	if baseURL == "" {
+		baseURL = vc.GetString("ocr.qwen_vl.base_url")
+	}
+	apiKey := vc.GetString("ocr.multimodal.api_key")
+	if apiKey == "" {
+		apiKey = vc.GetString("ocr.qwen_vl.api_key")
+	}
+	model := vc.GetString("ocr.multimodal.model")
+	if model == "" {
+		model = vc.GetString("ocr.qwen_vl.model")
+	}
+
 	return &MultimodalLLMRecognizer{
-		baseURL: vc.GetString("ocr.multimodal.base_url"),
-		apiKey:  vc.GetString("ocr.multimodal.api_key"),
-		model:   vc.GetString("ocr.multimodal.model"),
+		baseURL: baseURL,
+		apiKey:  apiKey,
+		model:   model,
 		timeout: timeout,
 		client:  &http.Client{Timeout: timeout},
 	}
