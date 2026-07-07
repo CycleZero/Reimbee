@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import { useChatStore } from '../stores/chatStore';
+import { useChatStore } from './stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import type {
   ThinkingData,
@@ -18,7 +18,7 @@ import type {
   ErrorData,
   SSEEvent,
 } from '@/types/sse';
-import type { ToolCallRecord, ChatStreamHandlers } from '../types';
+import type { ToolCallRecord, ChatStreamHandlers } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
