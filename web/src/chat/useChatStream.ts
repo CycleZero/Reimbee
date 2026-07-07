@@ -4,7 +4,7 @@
 // 事件驱动架构——通过 handlers Map 分发，新增事件类型无需改 Hook
 // ============================================
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { useChatStore } from './stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,132 +22,26 @@ import type { ToolCallRecord, ChatStreamHandlers } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
-/**
- * SSE 流式对话连接 Hook
- *
- * @param sessionId - 会话 ID
- * @param message - 待发送的用户消息（null 时不连接）
- * @param extraHandlers - 扩展事件处理器（用于外部注入自定义事件处理）
- */
+function getStore() {
+  return useChatStore.getState();
+}
+
 export function useChatStream(
   sessionId: string | null,
   message: string | null,
   extraHandlers?: Partial<ChatStreamHandlers>,
 ) {
   const ctrlRef = useRef<AbortController | null>(null);
-  const store = useChatStore();
-  const token = useAuthStore((s) => s.token);
+  const tokenRef = useRef(useAuthStore.getState().token);
 
-  // 解析 SSE 事件并分发到 store / extraHandlers
-  const handleEvent = useCallback(
-    (eventType: string, rawData: string) => {
-      if (!rawData) return;
-      const parsed: SSEEvent = JSON.parse(rawData);
-
-      switch (parsed.type) {
-        case 'thinking': {
-          const msg = (parsed.data as ThinkingData).message;
-          extraHandlers?.onThinking?.(msg);
-          store.setThinking(msg);
-          break;
-        }
-        case 'tool_call': {
-          const d = parsed.data as ToolCallData;
-          extraHandlers?.onToolCall?.(d.tool, d.input);
-          const sid = useChatStore.getState().currentStreamingMessageId;
-          if (sid) {
-            store.addToolCall(sid, {
-              id: `${d.tool}-${Date.now()}`,
-              toolName: d.tool,
-              status: 'running',
-              input: d.input,
-            } satisfies ToolCallRecord);
-          }
-          break;
-        }
-        case 'tool_result': {
-          const d = parsed.data as ToolResultData;
-          extraHandlers?.onToolResult?.(d.tool, d.output);
-          const sid = useChatStore.getState().currentStreamingMessageId;
-          if (sid) {
-            const msgs = useChatStore.getState().messages;
-            const msg = msgs.find((m) => m.id === sid);
-            const last = msg?.toolCalls
-              ?.filter((tc) => tc.toolName === d.tool && tc.status === 'running')
-              .pop();
-            if (last) {
-              store.updateToolCall(sid, last.id, {
-                status: 'success',
-                output: d.output,
-              });
-            }
-          }
-          break;
-        }
-        case 'message': {
-          const d = parsed.data as MessageData;
-          extraHandlers?.onMessage?.(d.content, d.delta);
-          if (d.delta) {
-            let mid = useChatStore.getState().currentStreamingMessageId;
-            if (!mid) mid = store.startStreamingMessage();
-            store.appendStreamContent(mid, d.content);
-          } else {
-            const mid = store.startStreamingMessage();
-            store.appendStreamContent(mid, d.content);
-            store.finishStreamingMessage(mid);
-          }
-          break;
-        }
-        case 'phase_change': {
-          const d = parsed.data as PhaseChangeData;
-          extraHandlers?.onPhaseChange?.(d.from, d.to, d.summary);
-          store.setPhase(
-            d.to as 'idle' | 'phase1_collect' | 'phase2_validate' | 'phase3_execute',
-          );
-          break;
-        }
-        case 'confirm_required': {
-          const d = parsed.data as ConfirmRequiredData;
-          extraHandlers?.onConfirmRequired?.(d.action, d.prompt, d.context);
-          store.setConfirmPrompt({
-            action: d.action,
-            prompt: d.prompt,
-            context: d.context,
-          });
-          break;
-        }
-        case 'error': {
-          const d = parsed.data as ErrorData;
-          extraHandlers?.onError?.(d.message, d.retry, d.code);
-          const mid = useChatStore.getState().currentStreamingMessageId;
-          if (mid) {
-            store.appendStreamContent(mid, `\n\n❌ ${d.message}`);
-            store.finishStreamingMessage(mid);
-          }
-          store.clearThinking();
-          if (!d.retry) {
-            ctrlRef.current?.abort();
-            store.setConnectionStatus('error');
-          }
-          break;
-        }
-        case 'done': {
-          extraHandlers?.onDone?.();
-          const mid = useChatStore.getState().currentStreamingMessageId;
-          if (mid) store.finishStreamingMessage(mid);
-          store.clearThinking();
-          store.setConnectionStatus('disconnected');
-          break;
-        }
-      }
-    },
-    [store, extraHandlers],
-  );
+  // 保持 token 引用最新（不触发重连）
+  useEffect(() => {
+    tokenRef.current = useAuthStore.getState().token;
+  });
 
   useEffect(() => {
-    if (!sessionId || !message || !token) return;
+    if (!sessionId || !message) return;
 
-    // 取消上一次连接
     ctrlRef.current?.abort();
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
@@ -156,45 +50,137 @@ export function useChatStream(
     url.searchParams.set('session_id', sessionId);
     url.searchParams.set('message', message);
 
-    store.setConnectionStatus('connecting');
+    getStore().setConnectionStatus('connecting');
 
     fetchEventSource(url.toString(), {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${tokenRef.current}` },
       signal: ctrl.signal,
+      openWhenHidden: true,
+
       onopen: async (response) => {
         if (response.ok) {
-          store.setConnectionStatus('connected');
+          getStore().setConnectionStatus('connected');
           return;
         }
-        // 401：token 过期
         if (response.status === 401) {
           useAuthStore.getState().logout();
           window.location.href = '/login';
         }
         throw new Error(`SSE 连接失败 (${response.status})`);
       },
-      onmessage: (event) => {
-        handleEvent(event.event, event.data);
+
+      onmessage(event) {
+        if (!event.data) return;
+        const parsed: SSEEvent = JSON.parse(event.data);
+        const s = getStore();
+
+        switch (parsed.type) {
+          case 'thinking':
+            extraHandlers?.onThinking?.((parsed.data as ThinkingData).message);
+            s.setThinking((parsed.data as ThinkingData).message);
+            break;
+
+          case 'tool_call': {
+            const d = parsed.data as ToolCallData;
+            extraHandlers?.onToolCall?.(d.tool, d.input);
+            if (s.currentStreamingMessageId) {
+              s.addToolCall(s.currentStreamingMessageId, {
+                id: `${d.tool}-${Date.now()}`,
+                toolName: d.tool,
+                status: 'running',
+                input: d.input,
+              } satisfies ToolCallRecord);
+            }
+            break;
+          }
+
+          case 'tool_result': {
+            const d = parsed.data as ToolResultData;
+            extraHandlers?.onToolResult?.(d.tool, d.output);
+            if (s.currentStreamingMessageId) {
+              const msg = s.messages.find((m) => m.id === s.currentStreamingMessageId);
+              const last = msg?.toolCalls
+                ?.filter((tc) => tc.toolName === d.tool && tc.status === 'running')
+                .pop();
+              if (last) {
+                s.updateToolCall(s.currentStreamingMessageId, last.id, {
+                  status: 'success',
+                  output: d.output,
+                });
+              }
+            }
+            break;
+          }
+
+          case 'message': {
+            const d = parsed.data as MessageData;
+            extraHandlers?.onMessage?.(d.content, d.delta);
+            if (d.delta) {
+              let mid = s.currentStreamingMessageId;
+              if (!mid) mid = s.startStreamingMessage();
+              s.appendStreamContent(mid, d.content);
+            } else {
+              const mid = s.startStreamingMessage();
+              s.appendStreamContent(mid, d.content);
+              s.finishStreamingMessage(mid);
+            }
+            break;
+          }
+
+          case 'phase_change': {
+            const d = parsed.data as PhaseChangeData;
+            extraHandlers?.onPhaseChange?.(d.from, d.to, d.summary);
+            s.setPhase(d.to as Parameters<typeof s.setPhase>[0]);
+            break;
+          }
+
+          case 'confirm_required': {
+            const d = parsed.data as ConfirmRequiredData;
+            extraHandlers?.onConfirmRequired?.(d.action, d.prompt, d.context);
+            s.setConfirmPrompt({ action: d.action, prompt: d.prompt, context: d.context });
+            break;
+          }
+
+          case 'error': {
+            const d = parsed.data as ErrorData;
+            extraHandlers?.onError?.(d.message, d.retry, d.code);
+            if (s.currentStreamingMessageId) {
+              s.appendStreamContent(s.currentStreamingMessageId, `\n\n❌ ${d.message}`);
+              s.finishStreamingMessage(s.currentStreamingMessageId);
+            }
+            s.clearThinking();
+            s.setConnectionStatus('error');
+            ctrl.abort();
+            break;
+          }
+
+          case 'done':
+            extraHandlers?.onDone?.();
+            if (s.currentStreamingMessageId) {
+              s.finishStreamingMessage(s.currentStreamingMessageId);
+            }
+            s.clearThinking();
+            s.setConnectionStatus('disconnected');
+            break;
+        }
       },
-      onclose: () => {
-        store.setConnectionStatus('disconnected');
+
+      onclose() {
+        getStore().setConnectionStatus('disconnected');
       },
-      onerror: (err) => {
-        store.setConnectionStatus('error');
-        // 不抛出则 fetchEventSource 自动重试（最长 5 次，每次退避翻倍）
-        // 如果 AbortController 已取消则不重试
-        if (ctrl.signal.aborted) throw err;
+
+      onerror(err) {
+        getStore().setConnectionStatus('error');
+        // 抛出以停止重试，单次对话失败不自动重连
+        throw err;
       },
     }).catch(() => {
-      // 连接被取消或网络错误，静默处理
-      store.clearThinking();
+      getStore().setConnectionStatus('error');
     });
 
     return () => {
       ctrl.abort();
     };
-  }, [sessionId, message, token, handleEvent, store]);
+  }, [sessionId, message]);
 }
