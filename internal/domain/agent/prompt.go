@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"strings"
 
+	"github.com/CycleZero/Reimbee/internal/common"
 	"github.com/CycleZero/Reimbee/model"
 	"github.com/CycleZero/blades"
 )
@@ -12,7 +13,7 @@ import (
 // BuildInstruction 返回 blades InstructionProvider：从 ctx 读角色，生成对应系统提示词
 func BuildInstruction() blades.InstructionProvider {
 	return func(ctx context.Context) (string, error) {
-		meta := GetAgentMeta(ctx)
+		meta := common.Meta(ctx)
 		role := ""
 		if meta != nil {
 			role = meta.Role

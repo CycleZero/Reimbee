@@ -134,8 +134,6 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	ctx = agenttools.InjectApprovalState(ctx, session.State())
 	// 将 sessionID 注入 context，供工具写 state
 	ctx = agenttools.WithSessionID(ctx, params.SessionID)
-	// 将角色元数据注入 context，供 Resolver + InstructionProvider 读取
-	ctx = WithAgentMeta(ctx, &AgentMeta{Role: params.Role})
 
 	writer.WriteEvent(NewThinkingEvent("正在处理..."))
 	writer.Flush()

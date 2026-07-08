@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +18,9 @@ type RequestMetadata struct {
 	RequestID  string
 }
 
-// GetRequestMetadata 从 context 中获取请求元数据
+type ctxKey struct{}
+
+// GetRequestMetadata 从 gin.Context 中获取请求元数据
 func GetRequestMetadata(c *gin.Context) *RequestMetadata {
 	res, ok := c.Value("request_metadata").(*RequestMetadata)
 	if !ok || res == nil {
@@ -26,7 +29,18 @@ func GetRequestMetadata(c *gin.Context) *RequestMetadata {
 	return res
 }
 
-// SetRequestMetadata 设置请求元数据到 context 中
+// SetRequestMetadata 设置请求元数据到 gin.Context 中
 func SetRequestMetadata(c *gin.Context, metadata *RequestMetadata) {
 	c.Set("request_metadata", metadata)
+}
+
+// WithMeta 将请求元数据注入 context.Context（供 blades Resolver/InstructionProvider 读取角色）
+func WithMeta(ctx context.Context, meta *RequestMetadata) context.Context {
+	return context.WithValue(ctx, ctxKey{}, meta)
+}
+
+// Meta 从 context.Context 中读取请求元数据
+func Meta(ctx context.Context) *RequestMetadata {
+	v, _ := ctx.Value(ctxKey{}).(*RequestMetadata)
+	return v
 }

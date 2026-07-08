@@ -29,6 +29,8 @@ func AddMetaData() gin.HandlerFunc {
 			RequestID:  generateRequestID(),
 		}
 		common.SetRequestMetadata(c, meta)
+		// 同步注入 context.Context，供 blades Resolver/InstructionProvider 读取
+		c.Request = c.Request.WithContext(common.WithMeta(c.Request.Context(), meta))
 		c.Next()
 	}
 }
