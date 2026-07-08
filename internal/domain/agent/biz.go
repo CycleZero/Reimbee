@@ -84,6 +84,7 @@ type RunParams struct {
 	EmployeeID   string
 	EmployeeName string
 	Role         string
+	Resume       bool // true=跳过 user msg 写入 session（仅 LLM 基于已有历史回复）
 }
 
 // ============================================
@@ -115,6 +116,7 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	stream := a.runner.RunStream(ctx,
 		blades.UserMessage(params.Message),
 		blades.WithSession(session),
+		blades.WithResume(params.Resume),
 	)
 
 	for msg, err := range stream {
@@ -235,7 +237,7 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 		return err
 	}
 
-	return a.Run(ctx, RunParams{SessionID: sessionID, Message: "继续"}, writer)
+	return a.Run(ctx, RunParams{SessionID: sessionID, Resume: true}, writer)
 }
 
 // ============================================
