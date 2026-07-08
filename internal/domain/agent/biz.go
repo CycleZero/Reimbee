@@ -42,13 +42,13 @@ func NewReimburseAgent(
 	toolList := collectTools(toolSet)
 
 	agent, err := blades.NewAgent("reimburse_agent",
-		blades.WithModel(model),
+		blades.WithModel(NewLoggingModelProvider(model, logger.Logger)),
 		blades.WithInstruction(buildSystemPrompt()),
 		blades.WithDescription("企业报销全流程智能助手"),
 		blades.WithTools(toolList...),
 		blades.WithMaxIterations(15),
 		blades.WithContext(true),
-		blades.WithMiddleware(),
+		blades.WithMiddleware(MessageLoggingMiddleware(logger.Logger)),
 	)
 	if err != nil {
 		panic("创建Agent失败: " + err.Error())
