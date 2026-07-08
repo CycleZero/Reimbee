@@ -252,6 +252,14 @@ func logMessage(seq int, msg *blades.Message, logger *zap.Logger) {
 	}
 
 	logger.Debug("Agent消息", fields...)
+	rmb, err := msg.MarshalJSON()
+	rm := string(rmb)
+	if err != nil {
+		logger.Debug("原始msg", zap.Error(err))
+	} else {
+		logger.Debug("原始msg", zap.String("原始消息json", rm))
+	}
+
 }
 
 var _ blades.ModelProvider = (*LoggingModelProvider)(nil)
