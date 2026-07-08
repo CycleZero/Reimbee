@@ -91,7 +91,13 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 		writer.Flush()
 		return err
 	}
-	session.InjectUser(params.UserID, params.EmployeeID, params.EmployeeName, params.Role)
+	if params.UserID != 0 {
+		session.InjectUser(params.UserID, params.EmployeeID, params.EmployeeName, params.Role)
+		// 首请求立即持久化用户身份，防止后续错误导致丢失
+		if err := a.repo.Save(ctx, session.Snapshot()); err != nil {
+			a.logger.Warn("保存用户身份失败", zap.Error(err))
+		}
+	}
 
 	// 将审批状态注入 context，供工具读取
 	ctx = agenttools.InjectApprovalState(ctx, session.State())

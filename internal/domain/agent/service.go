@@ -84,6 +84,20 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 	}
 }
 
+// HandleApprove 审批中断恢复
+// @Summary 审批中断恢复
+// @Description 对中断等待确认的操作进行审批（确认/拒绝），审批后 Agent 继续执行。
+// @Description 中断由工具在需要用户确认时触发（如提交报销单），前端弹出确认框。
+// @Description 用户确认后调用此接口，Agent 从断点恢复继续执行。
+// @Tags Agent对话
+// @Accept json
+// @Produce text/event-stream
+// @Param request body object{approved=bool,reason=string,session_id=string} true "审批请求：approved=是否确认 reason=理由 session_id=会话ID"
+// @Param Authorization header string true "Bearer JWT Token"
+// @Success 200 {string} string "SSE 事件流（恢复执行结果）"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器不支持流式响应"
+// @Router /api/chat/approve [post]
 func (s *AgentService) HandleApprove(c *gin.Context) {
 	var req struct {
 		SessionID string `json:"session_id"`
@@ -126,7 +140,7 @@ func (s *AgentService) ListSessions(c *gin.Context) {
 	cursor := c.Query("cursor")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	resp, err := s.agent.ListSessions(c.Request.Context(), meta.UserID, cursor, limit)
+	resp, err := s.agent.ListSessions(c, meta.UserID, cursor, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return

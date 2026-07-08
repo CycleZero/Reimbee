@@ -24,6 +24,8 @@ definitions:
         type: string
       created_at:
         type: string
+      reasoning:
+        type: string
       role:
         type: string
       seq:
@@ -719,6 +721,53 @@ paths:
       summary: 获取预算看板
       tags:
       - 预算管理
+  /api/chat/approve:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        对中断等待确认的操作进行审批（确认/拒绝），审批后 Agent 继续执行。
+        中断由工具在需要用户确认时触发（如提交报销单），前端弹出确认框。
+        用户确认后调用此接口，Agent 从断点恢复继续执行。
+      parameters:
+      - description: 审批请求：approved=是否确认 reason=理由 session_id=会话ID
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            approved:
+              type: boolean
+            reason:
+              type: string
+            session_id:
+              type: string
+          type: object
+      - description: Bearer JWT Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE 事件流（恢复执行结果）
+          schema:
+            type: string
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器不支持流式响应
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 审批中断恢复
+      tags:
+      - Agent对话
   /api/chat/sessions:
     get:
       consumes:

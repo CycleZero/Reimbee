@@ -414,6 +414,72 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/chat/approve": {
+            "post": {
+                "description": "对中断等待确认的操作进行审批（确认/拒绝），审批后 Agent 继续执行。\n中断由工具在需要用户确认时触发（如提交报销单），前端弹出确认框。\n用户确认后调用此接口，Agent 从断点恢复继续执行。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Agent对话"
+                ],
+                "summary": "审批中断恢复",
+                "parameters": [
+                    {
+                        "description": "审批请求：approved=是否确认 reason=理由 session_id=会话ID",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "approved": {
+                                    "type": "boolean"
+                                },
+                                "reason": {
+                                    "type": "string"
+                                },
+                                "session_id": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE 事件流（恢复执行结果）",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "服务器不支持流式响应",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/chat/sessions": {
             "get": {
                 "description": "游标分页查询当前用户的会话历史，按更新时间倒序",
@@ -1594,6 +1660,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "reasoning": {
                     "type": "string"
                 },
                 "role": {
