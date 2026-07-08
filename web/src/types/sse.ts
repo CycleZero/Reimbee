@@ -30,13 +30,13 @@ export interface MessageData {
 }
 
 export interface ToolCallData {
-  tool: string;
-  input: unknown;
+  name: string;
+  input: string;
 }
 
 export interface ToolResultData {
-  tool: string;
-  output: unknown;
+  name: string;
+  output: string;
 }
 
 export interface InterruptedData {

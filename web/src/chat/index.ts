@@ -1,5 +1,5 @@
 // ============================================
-// Chat 模块公共导出
+// Chat 模块公共导出 (v5)
 // ============================================
 
 // 布局
@@ -28,8 +28,8 @@ export { useChatStream } from './useChatStream';
 export type {
   ChatMessage,
   ToolCallRecord,
-  ConfirmPrompt,
-  ReimbPhase,
+  MessageCard,
+  MessageInterrupt,
   SessionItem,
   ConnectionStatus,
   MessageRole,
@@ -38,11 +38,13 @@ export type {
   MessageRendererComponent,
   ToolRendererComponent,
   ChatStreamHandlers,
+  ApprovePayload,
+  InterruptStatus,
+  CardType,
 } from './types';
 
 // 组件（按需导入）
 export { MessageList } from './components/MessageList';
 export { MessageRenderer } from './components/MessageRenderer';
 export { ChatInput } from './components/ChatInput';
-export { ThinkingIndicator } from './components/ThinkingIndicator';
-export { PhaseIndicator } from './components/PhaseIndicator';
+export { SessionList } from './components/SessionList';

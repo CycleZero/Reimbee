@@ -1,7 +1,17 @@
 // ============================================
-// SSE 流式对话连接 Hook
-// v4.1: 类型从 SSE event: 字段读取，data 直接是载荷 JSON
-// v4.2: 支持 approve 模式 — POST /api/chat/approve 恢复中断执行
+// SSE 流式对话连接 Hook (v5 纯卡片模式)
+//
+// SSE 事件 → 卡片映射：
+//   thinking  → 创建/更新 thinking 卡片
+//   reasoning → 追加推理内容到 thinking 卡片
+//   tool_call → 为每个工具创建独立卡片
+//   tool_result→ 更新对应工具卡片状态
+//   message   → 创建/追加 message 卡片
+//   interrupted→ 创建 interrupt 卡片
+//   error     → 追加错误文本
+//   done      → 完成并缓存
+//
+// 类型切换时自动弹新卡片（reasoning→tool→message 各有独立卡片）
 // ============================================
 
 import { useEffect, useRef } from 'react';
@@ -17,11 +27,11 @@ import type {
   InterruptedData,
   ErrorData,
 } from '@/types/sse';
-import type { ToolCallRecord, MessageCard, ChatStreamHandlers, ApprovePayload } from './types';
+import type { ApprovePayload, ChatStreamHandlers } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
-function getStore() {
+function store() {
   return useChatStore.getState();
 }
 
@@ -38,7 +48,6 @@ export function useChatStream(
 ) {
   const ctrlRef = useRef<AbortController | null>(null);
   const tokenRef = useRef(useAuthStore.getState().token);
-  const currentCardTypeRef = useRef<MessageCard['type'] | null>(null);
 
   useEffect(() => {
     tokenRef.current = useAuthStore.getState().token;
@@ -54,12 +63,12 @@ export function useChatStream(
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
 
-    getStore().setConnectionStatus('connecting');
+    store().setConnectionStatus('connecting');
 
     const sharedHandlers = {
       onopen: async (response: Response) => {
         if (response.ok) {
-          getStore().setConnectionStatus('connected');
+          store().setConnectionStatus('connected');
           return;
         }
         if (response.status === 401) {
@@ -72,254 +81,152 @@ export function useChatStream(
       onmessage(evt: { event: string; data: string }) {
         if (!evt.data) return;
         const payload = JSON.parse(evt.data);
-        const s = getStore();
+        const s = store();
 
         // 延迟创建流式消息（首个需要卡片的 SSE 事件触发）
-        function ensureStreamingMessage(): void {
-          if (!getStore().currentStreamingMessageId) {
-            getStore().startStreamingMessage();
+        const ensureStreaming = (): void => {
+          if (!store().currentStreamingMessageId) {
+            store().startStreamingMessage();
           }
-        }
+        };
 
-        // 确保最后一个卡片是目标类型，不是则推入新卡片
-        function ensureCard(cardType: MessageCard['type']): void {
-          ensureStreamingMessage();
-          getStore().updateStreamingCards((cards) => {
-            const last = cards[cards.length - 1];
-            if (last?.type === cardType) return cards;
-            return [...cards, { type: cardType }];
-          });
-          currentCardTypeRef.current = cardType;
-        }
-
-        // delta=true: 追加内容到末尾卡片；delta=false: 替换末尾匹配类型卡片内容
-        function appendCardContent(cardType: MessageCard['type'], text: string, delta: boolean): void {
-          getStore().updateStreamingCards((cards) => {
-            const updated = [...cards];
-            const last = updated[updated.length - 1];
-            if (delta) {
-              if (last) {
-                updated[updated.length - 1] = { ...last, content: (last.content ?? '') + text };
-              }
-            } else {
-              // delta=false: 向前搜索最后一张匹配类型的卡片替换（而非只看末尾）
-              let lastMatchIdx = -1;
-              for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].type === cardType) {
-                  lastMatchIdx = i;
-                  break;
-                }
-              }
-              if (lastMatchIdx >= 0) {
-                updated[lastMatchIdx] = { ...updated[lastMatchIdx], content: text };
-              } else {
-                updated.push({ type: cardType, content: text });
-              }
-            }
-            return updated;
-          });
-        }
-
-        // 向当前推理卡片追加工具调用，或创建独立的 tool_calls 卡片
-        function addToolCallToCard(tool: string, input: unknown): void {
-          const callRecord: ToolCallRecord = {
-            id: `${tool}-${Date.now()}`,
-            toolName: tool,
-            status: 'running',
-            input,
-          };
-          getStore().updateStreamingCards((cards) => {
-            const updated = [...cards];
-            const last = updated[updated.length - 1];
-            if (last && last.type === 'reasoning') {
-              updated[updated.length - 1] = {
-                ...last,
-                toolCalls: [...(last.toolCalls ?? []), callRecord],
-              };
-            } else if (last?.type === 'tool_calls') {
-              updated[updated.length - 1] = {
-                ...last,
-                toolCalls: [...(last.toolCalls ?? []), callRecord],
-              };
-            } else {
-              updated.push({ type: 'tool_calls', toolCalls: [callRecord] });
-              currentCardTypeRef.current = 'tool_calls';
-            }
-            return updated;
-          });
-        }
-
-        // 在所有卡片中查找匹配工具调用并更新状态
-        function updateToolCallInCards(tool: string, output: unknown): void {
-          getStore().updateStreamingCards((cards) =>
-            cards.map((card) => {
-              if (!card.toolCalls) return card;
-              return {
-                ...card,
-                toolCalls: card.toolCalls.map((tc) =>
-                  tc.toolName === tool && tc.status === 'running'
-                    ? { ...tc, status: 'success' as const, output }
-                    : tc,
-                ),
-              };
-            }),
-          );
-        }
+        // 获取最后一张卡片的类型（用于判断是否需要弹新卡片）
+        const lastCardType = (): string | undefined => {
+          const mid = store().currentStreamingMessageId;
+          if (!mid) return undefined;
+          const msg = store().messages.find((m) => m.id === mid);
+          return msg?.cards?.[msg.cards.length - 1]?.type;
+        };
 
         switch (evt.event) {
+
+          // ============================================
+          // thinking — 创建 thinking 卡片，显示 "正在处理..."
+          // ============================================
           case 'thinking': {
             const d = payload as ThinkingData;
             extraHandlers?.onThinking?.(d.text);
-            s.setThinking(d.text);
+            ensureStreaming();
+            // 如果最后一张不是 thinking，弹新卡片；否则更新文字
+            if (lastCardType() !== 'thinking') {
+              s.appendCard({ type: 'thinking', thinkingText: d.text });
+            } else {
+              s.updateLastCard((card) => ({ ...card, thinkingText: d.text }));
+            }
             break;
           }
 
+          // ============================================
+          // reasoning — 仅处理 delta=true 分片，完整消息忽略
+          // ============================================
           case 'reasoning': {
             const d = payload as ReasoningData;
-            extraHandlers?.onReasoning?.(d.text, d.delta);
-            // 旧行为：更新 store 推理状态
-            if (d.delta) {
-              s.appendReasoning(d.text);
+            if (!d.delta) break; // 完整消息直接忽略（内容已通过分片送达）
+            extraHandlers?.onReasoning?.(d.text, true);
+            ensureStreaming();
+            if (lastCardType() !== 'thinking') {
+              s.appendCard({
+                type: 'thinking',
+                content: d.text,
+                thinkingText: '思考中...',
+              });
             } else {
-              s.setReasoning(d.text);
-            }
-            // 旧行为：更新消息的 reasoning 字段
-            if (s.currentStreamingMessageId) {
-              useChatStore.setState((prev) => ({
-                messages: prev.messages.map((m) =>
-                  m.id === prev.currentStreamingMessageId
-                    ? { ...m, reasoning: (m.reasoning ?? '') + (d.delta ? d.text : '') }
-                    : m,
-                ),
+              s.updateLastCard((card) => ({
+                ...card,
+                content: (card.content ?? '') + d.text,
               }));
             }
-            // 新行为：卡片流式
-            if (d.delta) {
-              if (currentCardTypeRef.current !== 'reasoning') {
-                ensureCard('reasoning');
-              }
-              appendCardContent('reasoning', d.text, true);
-            } else {
-              appendCardContent('reasoning', d.text, false);
-            }
             break;
           }
 
+          // ============================================
+          // tool_call — 每个工具独立一张卡片，默认折叠
+          // ============================================
           case 'tool_call': {
             const d = payload as ToolCallData;
-            // 过滤空工具名
-            if (!d.tool) break;
-            extraHandlers?.onToolCall?.(d.tool, d.input);
-            // 旧行为：追加工具调用到消息
-            if (s.currentStreamingMessageId) {
-              s.addToolCall(s.currentStreamingMessageId, {
-                id: `${d.tool}-${Date.now()}`,
-                toolName: d.tool,
-                status: 'running',
-                input: d.input,
-              } satisfies ToolCallRecord);
-            }
-            // 新行为：卡片流式
-            ensureStreamingMessage();
-            addToolCallToCard(d.tool, d.input);
+            if (!d.name) break;
+            extraHandlers?.onToolCall?.(d.name, d.input);
+            ensureStreaming();
+            s.appendCard({
+              type: 'tool',
+              toolName: d.name,
+              status: 'running',
+              input: d.input,
+            });
             break;
           }
 
+          // ============================================
+          // tool_result — 更新最后一张匹配的工具卡片
+          // ============================================
           case 'tool_result': {
             const d = payload as ToolResultData;
-            extraHandlers?.onToolResult?.(d.tool, d.output);
-            // 旧行为：更新工具调用状态
-            if (s.currentStreamingMessageId) {
-              const msg = s.messages.find((m) => m.id === s.currentStreamingMessageId);
-              const last = msg?.toolCalls
-                ?.filter((tc) => tc.toolName === d.tool && tc.status === 'running')
-                .pop();
-              if (last) {
-                s.updateToolCall(s.currentStreamingMessageId, last.id, {
-                  status: 'success',
-                  output: d.output,
-                });
-              }
-            }
-            // 新行为：更新卡片中工具调用状态
-            updateToolCallInCards(d.tool, d.output);
+            extraHandlers?.onToolResult?.(d.name, d.output);
+            const mid = store().currentStreamingMessageId;
+            if (!mid) break;
+            useChatStore.setState((prev) => ({
+              messages: prev.messages.map((m) => {
+                if (m.id !== mid) return m;
+                const cards = [...m.cards];
+                for (let i = cards.length - 1; i >= 0; i--) {
+                  if (
+                    cards[i].type === 'tool' &&
+                    cards[i].toolName === d.name &&
+                    cards[i].status === 'running'
+                  ) {
+                    cards[i] = {
+                      ...cards[i],
+                      status: 'success',
+                      output: d.output,
+                    };
+                    break;
+                  }
+                }
+                return { ...m, cards };
+              }),
+            }));
             break;
           }
 
+          // ============================================
+          // message — 仅处理 delta=true 分片，完整消息忽略
+          // ============================================
           case 'message': {
             const d = payload as MessageData;
-            extraHandlers?.onMessage?.(d.text, d.delta);
-            // 旧行为：追加/替换消息内容
-            if (d.delta) {
-              let mid = s.currentStreamingMessageId;
-              if (!mid) mid = s.startStreamingMessage();
-              s.appendStreamContent(mid, d.text);
+            if (!d.delta) break; // 完整消息直接忽略（内容已通过分片送达）
+            extraHandlers?.onMessage?.(d.text, true);
+            ensureStreaming();
+            if (lastCardType() !== 'message') {
+              s.appendCard({ type: 'message', content: d.text });
             } else {
-              if (s.currentStreamingMessageId) {
-                useChatStore.setState((prev) => ({
-                  messages: prev.messages.map((m) =>
-                    m.id === prev.currentStreamingMessageId
-                      ? { ...m, content: d.text, isStreaming: false }
-                      : m,
-                  ),
-                  currentStreamingMessageId: null,
-                }));
-              } else {
-                const mid = s.startStreamingMessage();
-                s.appendStreamContent(mid, d.text);
-                s.finishStreamingMessage(mid);
-              }
-            }
-            // 新行为：卡片流式
-            if (d.delta) {
-              if (currentCardTypeRef.current !== 'message') {
-                ensureCard('message');
-              }
-              appendCardContent('message', d.text, true);
-            } else {
-              appendCardContent('message', d.text, false);
+              s.updateLastCard((card) => ({
+                ...card,
+                content: (card.content ?? '') + d.text,
+              }));
             }
             break;
           }
 
+          // ============================================
+          // interrupted — 中断卡片，确认/取消按钮
+          // ============================================
           case 'interrupted': {
             const d = payload as InterruptedData;
             extraHandlers?.onInterrupted?.(d.tool_name, d.reason);
-            // 推入中断卡片
-            getStore().updateStreamingCards((cards) => [
-              ...cards,
-              {
-                type: 'interrupt' as const,
-                interrupt: {
-                  toolName: d.tool_name,
-                  reason: d.reason,
-                  status: 'pending' as const,
-                },
+            ensureStreaming();
+            s.appendCard({
+              type: 'interrupt',
+              interrupt: {
+                toolName: d.tool_name,
+                reason: d.reason,
+                status: 'pending',
               },
-            ]);
-            currentCardTypeRef.current = null;
+            });
+            // 完成当前流式消息
             if (s.currentStreamingMessageId) {
               s.finishStreamingMessage(s.currentStreamingMessageId);
             }
-            // 旧行为：将中断挂到最近一条 assistant 消息上
-            useChatStore.setState((prev) => {
-              const lastAssistant = [...prev.messages].reverse().find((m) => m.role === 'assistant');
-              if (!lastAssistant) return {};
-              return {
-                messages: prev.messages.map((m) =>
-                  m.id === lastAssistant.id
-                    ? {
-                        ...m,
-                        interrupt: {
-                          toolName: d.tool_name,
-                          reason: d.reason,
-                          status: 'pending' as const,
-                        },
-                      }
-                    : m,
-                ),
-              };
-            });
+            // 缓存
             const sid = s.currentSessionId;
             if (sid && s.messages.length > 0) {
               useChatStore.setState((prev) => {
@@ -333,33 +240,42 @@ export function useChatStream(
                 };
               });
             }
-            s.clearThinking();
-            s.clearReasoning();
             s.setConnectionStatus('disconnected');
             break;
           }
 
+          // ============================================
+          // error — 错误提示
+          // ============================================
           case 'error': {
             const d = payload as ErrorData;
             extraHandlers?.onError?.(d.message, d.retry, d.code);
+            ensureStreaming();
+            // 追加错误信息到当前最后一张 message 卡片，或创建新的 message 卡片
+            if (lastCardType() === 'message') {
+              s.updateLastCard((card) => ({
+                ...card,
+                content: (card.content ?? '') + `\n\n> ⚠️ ${d.message}`,
+              }));
+            } else {
+              s.appendCard({ type: 'message', content: `⚠️ ${d.message}` });
+            }
             if (s.currentStreamingMessageId) {
-              s.appendStreamContent(s.currentStreamingMessageId, `\n\n❌ ${d.message}`);
               s.finishStreamingMessage(s.currentStreamingMessageId);
             }
-            currentCardTypeRef.current = null;
-            s.clearThinking();
-            s.clearReasoning();
             s.setConnectionStatus('error');
             ctrl.abort();
             break;
           }
 
+          // ============================================
+          // done — 完成本轮
+          // ============================================
           case 'done': {
             extraHandlers?.onDone?.();
             if (s.currentStreamingMessageId) {
               s.finishStreamingMessage(s.currentStreamingMessageId);
             }
-            currentCardTypeRef.current = null;
             const sid = s.currentSessionId;
             if (sid && s.messages.length > 0) {
               useChatStore.setState((prev) => {
@@ -373,8 +289,6 @@ export function useChatStream(
                 };
               });
             }
-            s.clearThinking();
-            s.clearReasoning();
             s.setConnectionStatus('disconnected');
             break;
           }
@@ -382,18 +296,17 @@ export function useChatStream(
       },
 
       onclose() {
-        getStore().setConnectionStatus('disconnected');
+        store().setConnectionStatus('disconnected');
       },
 
       onerror(err: unknown) {
-        getStore().setConnectionStatus('error');
+        store().setConnectionStatus('error');
         throw err;
       },
     };
 
     if (isApprove) {
-      const url = `${BASE_URL}/api/chat/approve`;
-      fetchEventSource(url, {
+      fetchEventSource(`${BASE_URL}/api/chat/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -404,7 +317,7 @@ export function useChatStream(
         openWhenHidden: true,
         ...sharedHandlers,
       }).catch(() => {
-        getStore().setConnectionStatus('error');
+        store().setConnectionStatus('error');
       });
     } else {
       const url = new URL('/api/chat/stream', BASE_URL);
@@ -418,7 +331,7 @@ export function useChatStream(
         openWhenHidden: true,
         ...sharedHandlers,
       }).catch(() => {
-        getStore().setConnectionStatus('error');
+        store().setConnectionStatus('error');
       });
     }
 

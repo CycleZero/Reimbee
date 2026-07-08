@@ -1,6 +1,7 @@
 // ============================================
 // Chat 模块类型定义
-// 消息、工具调用、会话、注册表等核心类型
+// v5: 纯卡片模式 — cards[] 是消息的唯一视觉表现
+//     旧字段 (content/toolCalls/reasoning/interrupt) 仅用于历史加载兼容
 // ============================================
 
 import type { ComponentType } from 'react';
@@ -15,57 +16,64 @@ export interface ToolCallRecord {
   status: 'running' | 'success' | 'error';
   input?: unknown;
   output?: unknown;
-  errorMessage?: string;
 }
 
 /** 中断状态 */
 export type InterruptStatus = 'pending' | 'approved' | 'rejected';
 
-/** 消息附带的中断数据（inline widget 使用） */
+/** 消息附带的中断数据 */
 export interface MessageInterrupt {
   toolName: string;
   reason: string;
   status: InterruptStatus;
 }
 
-/** 卡片类型 — 对应 SSE 事件分组 */
-export type CardType = 'reasoning' | 'message' | 'tool_calls' | 'interrupt';
+/** 卡片类型 — 对应 SSE 事件组 */
+export type CardType = 'thinking' | 'tool' | 'message' | 'interrupt';
 
-/** 消息内的可视化卡片 — 每个卡片对应一连串同类型 SSE 事件 */
+/**
+ * 消息卡片 — 流式渲染的视觉单元
+ *
+ * SSE 事件 → 卡片映射：
+ *   thinking + reasoning → type='thinking' (带可折叠推理内容)
+ *   tool_call + tool_result → type='tool' (每个工具一张卡片)
+ *   message → type='message' (Markdown 正文)
+ *   interrupted → type='interrupt' (确认/取消栏)
+ */
 export interface MessageCard {
   type: CardType;
-  /** reasoning / message 类型卡片的文本内容 */
+  /** thinking/message 卡片文本内容 */
   content?: string;
-  /** tool_calls 类型卡片的工具调用列表 */
+  /** thinking 卡片的关联工具调用 */
   toolCalls?: ToolCallRecord[];
-  /** interrupt 类型卡片的中断数据 */
+  /** tool 卡片：工具名（单工具模式，每个 tool_call 独立卡片） */
+  toolName?: string;
+  /** tool 卡片：执行状态 */
+  status?: 'running' | 'success' | 'error';
+  /** tool 卡片：输入参数 */
+  input?: unknown;
+  /** tool 卡片：输出结果 */
+  output?: unknown;
+  /** interrupt 卡片：中断数据 */
   interrupt?: MessageInterrupt;
+  /** thinking 卡片：状态文字（如 "正在处理..."） */
+  thinkingText?: string;
 }
 
 /** 聊天消息 */
 export interface ChatMessage {
   id: string;
   role: MessageRole;
+  /** 用于历史消息加载时的纯文本内容，渲染以 cards 为准 */
   content: string;
   timestamp: number;
   isStreaming?: boolean;
+  /** 卡片列表 — 流式渲染的唯一视觉来源 */
+  cards: MessageCard[];
+  // ---- 以下字段仅用于历史消息加载兼容，渲染不使用 ----
   toolCalls?: ToolCallRecord[];
-  /** 本消息对应的推理过程（模型思考链），可为空 */
   reasoning?: string;
-  /** 本消息触发的中断（需要用户确认时设置） */
   interrupt?: MessageInterrupt;
-  /** 卡片列表 — 流式渲染时按顺序展示的视觉卡片，可选（回退到旧布局） */
-  cards?: MessageCard[];
-}
-
-/** 报销流程阶段 */
-export type ReimbPhase = 'idle' | 'phase1_collect' | 'phase2_validate' | 'phase3_execute';
-
-/** 确认提示 */
-export interface ConfirmPrompt {
-  action: string;
-  prompt: string;
-  context?: unknown;
 }
 
 /** 会话列表项 */
@@ -73,16 +81,9 @@ export interface SessionItem {
   id: string;
   title: string;
   messageCount: number;
-  status: string; // active / completed / expired
-  createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
-}
-
-/** 中断提示（v4.1 Interrupt 机制） */
-export interface InterruptPrompt {
-  interruptId: string;
-  action: string;
-  context: unknown;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** approve 请求体 */
@@ -99,24 +100,19 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 // 注册表组件类型
 // ============================================
 
-/** 消息渲染器组件 Props */
 export interface MessageRendererProps {
   message: ChatMessage;
 }
 
-/** 工具渲染器组件 Props */
 export interface ToolRendererProps {
   call: ToolCallRecord;
 }
 
-/** 消息渲染器组件类型 */
 export type MessageRendererComponent = ComponentType<MessageRendererProps>;
-
-/** 工具渲染器组件类型 */
 export type ToolRendererComponent = ComponentType<ToolRendererProps>;
 
 // ============================================
-// SSE 事件处理器类型（用于 useChatStream 扩展）
+// SSE 事件处理器类型
 // ============================================
 
 export interface ChatStreamHandlers {
