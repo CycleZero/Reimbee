@@ -6,15 +6,15 @@ import (
 
 	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
 	"github.com/CycleZero/Reimbee/log"
-	"github.com/cloudwego/eino/components/tool/utils"
+	"github.com/CycleZero/blades/tools"
 	"go.uber.org/zap"
 )
 
 // QueryInput query_reimbursements 工具的输入参数
 type QueryInput struct {
-	EmployeeID string `json:"employee_id" jsonschema_description:"员工工号（可选，为空时查全员）"`
-	Page       int    `json:"page" jsonschema:"default=1" jsonschema_description:"页码，从1开始"`
-	PageSize   int    `json:"page_size" jsonschema:"default=5" jsonschema_description:"每页数量，默认5条"`
+	EmployeeID string `json:"employee_id"` // 员工工号（可选，为空时查全员）
+	Page       int    `json:"page"`        // 页码，从1开始
+	PageSize   int    `json:"page_size"`   // 每页数量，默认5条
 }
 
 // QueryOutput query_reimbursements 工具的输出结果
@@ -31,9 +31,12 @@ type ReimbursementSummary struct {
 	CreatedAt   string `json:"created_at"`   // 创建时间
 }
 
+// QueryTool Wire 命名类型（Blades tools.Tool）
+type QueryTool struct{ tools.Tool }
+
 // NewQueryTool 创建报销记录查询工具，封装 reimbursement.ReimbursementBiz
 func NewQueryTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *QueryTool {
-	t, err := utils.InferTool[QueryInput, QueryOutput](
+	t, err := tools.NewFunc[QueryInput, QueryOutput](
 		"query_reimbursements",
 		"查询用户的报销记录列表，支持分页。可用于查看历史报销单、检查重复提交等场景。返回报销单号、状态、金额和创建时间等摘要信息",
 		func(ctx context.Context, input QueryInput) (QueryOutput, error) {

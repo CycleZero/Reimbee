@@ -7,24 +7,27 @@ import (
 	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
 	"github.com/CycleZero/Reimbee/log"
-	"github.com/cloudwego/eino/components/tool/utils"
+	"github.com/CycleZero/blades/tools"
 	"go.uber.org/zap"
 )
 
 // PDFInput generate_pdf 工具的输入参数
 type PDFInput struct {
-	ReimbursementID uint `json:"reimbursement_id" jsonschema:"required" jsonschema_description:"报销单ID"`
+	ReimbursementID uint `json:"reimbursement_id"` // 报销单ID
 }
 
 // PDFOutput generate_pdf 工具的输出结果
 type PDFOutput struct {
-	PDFPath         string `json:"pdf_path"`         // 生成的 PDF 文件路径
-	ReimbursementNo string `json:"reimbursement_no"` // 报销单号
+	PDFPath         string `json:"pdf_path"`          // 生成的 PDF 文件路径
+	ReimbursementNo string `json:"reimbursement_no"`  // 报销单号
 }
+
+// PDFTool Wire 命名类型（Blades tools.Tool）
+type PDFTool struct{ tools.Tool }
 
 // NewPDFTool 创建 PDF 生成工具，封装 infra.PDFGenerator
 func NewPDFTool(pdfGen infra.PDFGenerator, reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *PDFTool {
-	t, err := utils.InferTool[PDFInput, PDFOutput](
+	t, err := tools.NewFunc[PDFInput, PDFOutput](
 		"generate_pdf",
 		"生成标准格式的报销单 PDF 文件。包含报销单号、申请人、票据明细、合规检查结果、审批人签名栏。PDF 生成后会保存到文件存储中并返回访问路径",
 		func(ctx context.Context, input PDFInput) (PDFOutput, error) {

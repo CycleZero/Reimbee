@@ -1,25 +1,18 @@
+// Package agent LLM 模型工厂
 package agent
 
 import (
-	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"github.com/CycleZero/Reimbee/log"
-	openaimodel "github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/components/model"
+	"github.com/CycleZero/blades"
+	"github.com/CycleZero/blades/contrib/openai"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
-// ============================================
-// ChatModel 配置驱动工厂
-// ============================================
-
-// NewChatModel 从 Viper 配置创建 OpenAI 兼容的 ChatModel 实例
-// 复用 openai.base_url 和 openai.api_key，支持任意 OpenAI 兼容 API（如 deepseek、doubao）
-func NewChatModel(vc *viper.Viper, logger *log.Logger) (model.ToolCallingChatModel, error) {
+// NewModel 从 Viper 配置创建 blades.ModelProvider
+func NewModel(vc *viper.Viper, logger *log.Logger) (blades.ModelProvider, error) {
 	apiKey := vc.GetString("openai.api_key")
 	baseURL := vc.GetString("openai.base_url")
 	chatModel := vc.GetString("openai.model")
@@ -27,54 +20,34 @@ func NewChatModel(vc *viper.Viper, logger *log.Logger) (model.ToolCallingChatMod
 		chatModel = "gpt-4o"
 	}
 
-	if apiKey == "" {
-		logger.Warn("OpenAI API Key 未配置，ChatModel 将无法正常工作")
-	}
+	temperature := vc.GetFloat64("openai.temperature")
+	maxTokens := vc.GetInt64("openai.max_tokens")
 
-	temperature := float32(vc.GetFloat64("openai.temperature"))
-	maxTokens := vc.GetInt("openai.max_tokens")
-
-	logger.Debug("正在创建ChatModel实例",
+	logger.Info("创建LLM模型实例",
 		zap.String("模型", chatModel),
 		zap.String("baseURL", baseURL),
-		zap.Float32("temperature", temperature),
-		zap.Int("maxTokens", maxTokens))
+		zap.Float64("temperature", temperature))
 
-	config := &openaimodel.ChatModelConfig{
-		APIKey:  apiKey,
-		BaseURL: baseURL,
-		Model:   chatModel,
-		Timeout: 30 * time.Second,
-		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+	cfg := openai.Config{
+		APIKey:         apiKey,
+		BaseURL:        baseURL,
+		Temperature:    temperature,
+		MaxOutputTokens: maxTokens,
 	}
 
-	// 设置温度（如配置了）
-	if temperature > 0 {
-		config.Temperature = &temperature
+	model := openai.NewModel(chatModel, cfg)
+	if model == nil {
+		return nil, fmt.Errorf("创建LLM模型失败")
 	}
 
-	// 设置最大 token 数（如配置了）
-	if maxTokens > 0 {
-		config.MaxTokens = &maxTokens
-	}
-
-	cm, err := openaimodel.NewChatModel(context.Background(), config)
-	if err != nil {
-		logger.Error("创建ChatModel失败", zap.Error(err))
-		return nil, fmt.Errorf("创建ChatModel失败: %w", err)
-	}
-
-	logger.Info("ChatModel实例创建成功", zap.String("模型", chatModel))
-	return cm, nil
+	return model, nil
 }
 
-// MustNewChatModel 创建 ChatModel，失败时 panic（匹配 Wire 模式）
-func MustNewChatModel(vc *viper.Viper, logger *log.Logger) model.ToolCallingChatModel {
-	cm, err := NewChatModel(vc, logger)
+// MustNewModel 创建 blades.ModelProvider（Wire 兼容，失败 panic）
+func MustNewModel(vc *viper.Viper, logger *log.Logger) blades.ModelProvider {
+	model, err := NewModel(vc, logger)
 	if err != nil {
-		panic("创建ChatModel失败: " + err.Error())
+		panic("创建LLM模型失败: " + err.Error())
 	}
-	return cm
+	return model
 }

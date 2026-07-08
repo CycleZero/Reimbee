@@ -7,26 +7,29 @@ import (
 
 	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/log"
-	"github.com/cloudwego/eino/components/tool/utils"
+	"github.com/CycleZero/blades/tools"
 	"go.uber.org/zap"
 )
 
 // EmailInput send_email 工具的输入参数
 type EmailInput struct {
-	ReimbursementID uint   `json:"reimbursement_id" jsonschema:"required" jsonschema_description:"报销单ID"`
-	PDFPath         string `json:"pdf_path" jsonschema:"required" jsonschema_description:"PDF 文件路径（由 generate_pdf 工具返回）"`
+	ReimbursementID uint   `json:"reimbursement_id"` // 报销单ID
+	PDFPath         string `json:"pdf_path"`          // PDF 文件路径（由 generate_pdf 工具返回）
 }
 
 // EmailOutput send_email 工具的输出结果
 type EmailOutput struct {
-	Success   bool   `json:"success"`            // 是否发送成功
+	Success   bool   `json:"success"`             // 是否发送成功
 	MessageID string `json:"message_id,omitempty"` // 邮件消息 ID（发送成功时）
-	Error     string `json:"error,omitempty"`     // 错误信息（发送失败时）
+	Error     string `json:"error,omitempty"`      // 错误信息（发送失败时）
 }
+
+// EmailTool Wire 命名类型（Blades tools.Tool）
+type EmailTool struct{ tools.Tool }
 
 // NewEmailTool 创建邮件发送工具，封装 infra.EmailSender
 func NewEmailTool(emailSender infra.EmailSender, logger *log.Logger) *EmailTool {
-	t, err := utils.InferTool[EmailInput, EmailOutput](
+	t, err := tools.NewFunc[EmailInput, EmailOutput](
 		"send_email",
 		"将生成的报销单 PDF 通过邮件发送给审批人。收件人自动从审批链中提取。发送失败时不阻塞流程——Agent 会告知用户稍后手动通知审批人",
 		func(ctx context.Context, input EmailInput) (EmailOutput, error) {

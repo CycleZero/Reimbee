@@ -10,17 +10,16 @@ import (
 
 	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
 	"github.com/CycleZero/Reimbee/log"
-	"github.com/cloudwego/eino/components/tool"
-	"github.com/cloudwego/eino/components/tool/utils"
+	"github.com/CycleZero/blades/tools"
 	"go.uber.org/zap"
 )
 
 // CreateReimbInput 创建报销单工具的输入参数
 type CreateReimbInput struct {
-	EmployeeID   string `json:"employee_id" jsonschema:"required" jsonschema_description:"申请人工号"`
-	EmployeeName string `json:"employee_name" jsonschema:"required" jsonschema_description:"申请人姓名"`
-	DepartmentID uint   `json:"department_id" jsonschema:"required" jsonschema_description:"申请部门ID"`
-	SubmitNote   string `json:"submit_note" jsonschema_description:"报销事由简述"`
+	EmployeeID   string `json:"employee_id"`   // 申请人工号
+	EmployeeName string `json:"employee_name"` // 申请人姓名
+	DepartmentID uint   `json:"department_id"` // 申请部门ID
+	SubmitNote   string `json:"submit_note"`   // 报销事由简述
 }
 
 // CreateReimbOutput 创建报销单工具的输出结果
@@ -30,11 +29,12 @@ type CreateReimbOutput struct {
 	Status          string `json:"status"`
 }
 
-// CreateReimbTool Wire 命名类型
-type CreateReimbTool struct{ tool.InvokableTool }
+// CreateReimbTool Wire 命名类型（Blades tools.Tool）
+type CreateReimbTool struct{ tools.Tool }
 
+// NewCreateReimbTool 创建报销单工具，封装 reimbursement.ReimbursementBiz
 func NewCreateReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *CreateReimbTool {
-	t, err := utils.InferTool[CreateReimbInput, CreateReimbOutput](
+	t, err := tools.NewFunc[CreateReimbInput, CreateReimbOutput](
 		"create_reimbursement",
 		"在系统中创建报销单草稿（状态=draft）。返回报销单ID和单号，后续工具（submit_reimbursement、generate_pdf、send_email）需要此ID。每个报销流程只需调用一次。",
 		func(ctx context.Context, input CreateReimbInput) (CreateReimbOutput, error) {
