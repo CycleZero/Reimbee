@@ -3,8 +3,6 @@
 // ReimburseAgent 基于 Blades Runner 封装报销对话流程：
 //
 //	Run() — 创建/加载 Session → Runner.RunStream() → 直接写 SSE 事件
-//
-// TODO: 审批中断恢复（待中断机制设计完成后实现）
 package agent
 
 import (
@@ -25,13 +23,13 @@ import (
 
 // ReimburseAgent 报销 Agent 核心业务逻辑
 type ReimburseAgent struct {
-	agent      blades.Agent
-	runner     *blades.Runner
-	repo       *infra.SessionRepo
-	tools      map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
-	resolver   *Resolver                    // 角色动态工具解析
-	config     *Config
-	logger     *log.Logger
+	agent    blades.Agent
+	runner   *blades.Runner
+	repo     *infra.SessionRepo
+	tools    map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
+	resolver *Resolver                    // 角色动态工具解析
+	config   *Config
+	logger   *log.Logger
 }
 
 // NewReimburseAgent 创建报销 Agent 实例（Wire 兼容，失败 panic）
