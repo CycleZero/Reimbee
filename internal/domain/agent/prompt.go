@@ -10,21 +10,13 @@ import (
 	"github.com/CycleZero/blades"
 )
 
-// BuildInstruction 返回 blades InstructionProvider：从 ctx 读角色，生成对应系统提示词
 func BuildInstruction() blades.InstructionProvider {
 	return func(ctx context.Context) (string, error) {
-		meta := common.Meta(ctx)
-		role := ""
-		if meta != nil {
-			role = meta.Role
-		}
-
-		switch role {
-		case model.RoleApprover, model.RoleAdmin:
+		meta := common.GetRequestMetadata(ctx)
+		if meta != nil && (meta.Role == model.RoleApprover || meta.Role == model.RoleAdmin) {
 			return approverPrompt, nil
-		default:
-			return employeePrompt, nil
 		}
+		return employeePrompt, nil
 	}
 }
 

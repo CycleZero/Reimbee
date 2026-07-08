@@ -121,9 +121,6 @@ func JwtAuthMiddleWire(jwtSecret string) func(optional bool) gin.HandlerFunc {
 					meta.EmployeeID = eid
 					meta.Role = role
 				}
-				// 同步注入 context.Context
-				c.Request = c.Request.WithContext(common.WithMeta(c.Request.Context(),
-					&common.RequestMetadata{UserID: uid, EmployeeID: eid, Role: role}))
 
 				log.SugaredLogger().Debugw("JWT认证成功，claims已更新到RequestMetadata",
 					"路径", c.Request.URL.Path,
