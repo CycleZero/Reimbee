@@ -125,6 +125,7 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 
 	// SSE 对话接口（Agent 流式响应）
 	apiRequireAuth.GET("/chat/stream", hub.AgentService.HandleChat)
+	apiRequireAuth.POST("/chat/approve", hub.AgentService.HandleApprove)
 
 	// 会话历史查询
 	apiRequireAuth.GET("/chat/sessions", hub.AgentService.ListSessions)
