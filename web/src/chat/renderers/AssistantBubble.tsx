@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Avatar, Tag, Button, Input } from 'antd';
-import { RobotOutlined, ToolOutlined, BulbOutlined, BulbFilled, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { Tag, Button, Input } from 'antd';
+import { ToolOutlined, BulbOutlined, BulbFilled, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { TOOL_LABELS } from '@/utils/constants';
 import { useChatStore } from '../stores/chatStore';
-import type { MessageRendererProps, ToolCallRecord, MessageInterrupt } from '../types';
+import type { MessageRendererProps, ToolCallRecord, MessageInterrupt, MessageCard } from '../types';
 
 const markdownStyle: React.CSSProperties = {
   lineHeight: 1.7,
@@ -20,6 +20,261 @@ function formatToolOutput(call: ToolCallRecord): string {
   } catch {
     return String(call.output);
   }
+}
+
+/** 推理卡片 — 默认折叠，展开后显示思考过程 + 关联工具调用 */
+function ReasoningCard({ card, isStreaming, isLast }: {
+  card: MessageCard;
+  isStreaming: boolean;
+  isLast: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const tools = card.toolCalls ?? [];
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <Button
+        type="text"
+        size="small"
+        icon={expanded ? <BulbFilled style={{ color: '#faad14' }} /> : <BulbOutlined />}
+        onClick={() => setExpanded((v) => !v)}
+        style={{ padding: '0 4px', fontSize: 12, color: '#888' }}
+      >
+        {expanded ? '收起思考过程' : '思考过程'}
+        {tools.length > 0 && (
+          <Tag
+            icon={<ToolOutlined />}
+            color="default"
+            style={{ marginLeft: 6, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}
+          >
+            {tools.length}
+          </Tag>
+        )}
+        {isStreaming && isLast && (
+          <span
+            className="cursor-blink"
+            style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#1677ff', marginLeft: 4 }}
+          />
+        )}
+      </Button>
+
+      {expanded && (
+        <div
+          style={{
+            marginTop: 6,
+            padding: '10px 14px',
+            background: '#fafafa',
+            borderRadius: 8,
+            border: '1px solid #f0f0f0',
+            fontSize: 13,
+            lineHeight: 1.7,
+            color: '#666',
+            maxHeight: 400,
+            overflow: 'auto',
+          }}
+        >
+          {(card.content?.length ?? 0) > 0 && (
+            <div style={{ marginBottom: tools.length > 0 ? 12 : 0 }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {card.content!}
+              </ReactMarkdown>
+            </div>
+          )}
+
+          {tools.length > 0 && (
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 8, color: '#555', fontSize: 12 }}>
+                🛠 工具调用明细
+              </div>
+              {tools.map((tc, idx) => (
+                <div
+                  key={tc.id}
+                  style={{
+                    marginBottom: idx < tools.length - 1 ? 8 : 0,
+                    padding: '8px 10px',
+                    background: '#fff',
+                    borderRadius: 6,
+                    border: '1px solid #f0f0f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Tag
+                      color={tc.status === 'running' ? 'processing' : tc.status === 'error' ? 'error' : 'success'}
+                      style={{ fontSize: 10, lineHeight: '16px', margin: 0 }}
+                    >
+                      {tc.status === 'running' ? '执行中' : tc.status === 'error' ? '失败' : '完成'}
+                    </Tag>
+                    <span style={{ fontWeight: 500, fontSize: 12 }}>
+                      {TOOL_LABELS[tc.toolName] ?? tc.toolName}
+                    </span>
+                  </div>
+                  {tc.status !== 'running' && tc.output != null && (
+                    <pre
+                      style={{
+                        margin: 0,
+                        padding: '6px 8px',
+                        background: '#f5f5f5',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        lineHeight: 1.4,
+                        overflow: 'auto',
+                        maxHeight: 200,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {formatToolOutput(tc)}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 消息卡片 — 始终可见，Markdown 渲染 */
+function MessageCardView({ card, isStreaming, isLast }: {
+  card: MessageCard;
+  isStreaming: boolean;
+  isLast: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: '#F5F5F5',
+        borderRadius: 12,
+        padding: '10px 14px',
+        marginBottom: 4,
+      }}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p style={markdownStyle}>{children}</p>,
+          code: ({ className, children, ...props }) => {
+            const isInline = !className;
+            const content = children as React.ReactNode;
+            return isInline ? (
+              <code style={{ background: '#e8e8e8', padding: '2px 6px', borderRadius: 4, fontSize: '0.9em' }} {...props}>
+                {content}
+              </code>
+            ) : (
+              <pre style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 12, borderRadius: 8, overflow: 'auto', fontSize: '0.85em' }}>
+                <code className={className} {...props}>{content}</code>
+              </pre>
+            );
+          },
+        }}
+      >
+        {card.content || (isStreaming && isLast ? '' : '...')}
+      </ReactMarkdown>
+      {isStreaming && isLast && <span className="cursor-blink" />}
+    </div>
+  );
+}
+
+/** 工具调用卡片 — 默认折叠，展开后显示每条工具调用状态 */
+function ToolCallsCard({ card, isStreaming, isLast }: {
+  card: MessageCard;
+  isStreaming: boolean;
+  isLast: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const tools = card.toolCalls ?? [];
+  const hasRunning = tools.some((tc) => tc.status === 'running');
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <Button
+        type="text"
+        size="small"
+        icon={<ToolOutlined />}
+        onClick={() => setExpanded((v) => !v)}
+        style={{ padding: '0 4px', fontSize: 12, color: '#888' }}
+      >
+        {expanded ? '收起工具调用' : '工具调用'}
+        <Tag
+          color="default"
+          style={{ marginLeft: 6, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}
+        >
+          {tools.length}
+        </Tag>
+        {isStreaming && isLast && hasRunning && (
+          <span
+            className="cursor-blink"
+            style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#1677ff', marginLeft: 4 }}
+          />
+        )}
+      </Button>
+
+      {expanded && (
+        <div
+          style={{
+            marginTop: 6,
+            padding: '10px 14px',
+            background: '#fafafa',
+            borderRadius: 8,
+            border: '1px solid #f0f0f0',
+            fontSize: 13,
+            lineHeight: 1.7,
+            color: '#666',
+            maxHeight: 400,
+            overflow: 'auto',
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 8, color: '#555', fontSize: 12 }}>
+            🛠 工具调用明细
+          </div>
+          {tools.map((tc, idx) => (
+            <div
+              key={tc.id}
+              style={{
+                marginBottom: idx < tools.length - 1 ? 8 : 0,
+                padding: '8px 10px',
+                background: '#fff',
+                borderRadius: 6,
+                border: '1px solid #f0f0f0',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Tag
+                  color={tc.status === 'running' ? 'processing' : tc.status === 'error' ? 'error' : 'success'}
+                  style={{ fontSize: 10, lineHeight: '16px', margin: 0 }}
+                >
+                  {tc.status === 'running' ? '执行中' : tc.status === 'error' ? '失败' : '完成'}
+                </Tag>
+                <span style={{ fontWeight: 500, fontSize: 12 }}>
+                  {TOOL_LABELS[tc.toolName] ?? tc.toolName}
+                </span>
+              </div>
+              {tc.status !== 'running' && tc.output != null && (
+                <pre
+                  style={{
+                    margin: 0,
+                    padding: '6px 8px',
+                    background: '#f5f5f5',
+                    borderRadius: 4,
+                    fontSize: 11,
+                    lineHeight: 1.4,
+                    overflow: 'auto',
+                    maxHeight: 200,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {formatToolOutput(tc)}
+                </pre>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Inline 中断确认栏 */
@@ -43,7 +298,6 @@ function InterruptBar({ interrupt, messageId }: { interrupt: MessageInterrupt; m
   };
 
   if (!isPending) {
-    // 已确认/已拒绝 — 灰色收起状态
     return (
       <div
         style={{
@@ -72,7 +326,6 @@ function InterruptBar({ interrupt, messageId }: { interrupt: MessageInterrupt; m
     );
   }
 
-  // pending — 黄色醒目展开
   const toolLabel = TOOL_LABELS[interrupt.toolName] ?? interrupt.toolName;
 
   return (
@@ -131,12 +384,66 @@ export function AssistantBubble({ message }: MessageRendererProps) {
   const hasReasoning = (message.reasoning?.length ?? 0) > 0 || toolCount > 0;
   const [reasoningOpen, setReasoningOpen] = useState(false);
 
+  const cards = message.cards;
+
+  // 卡片模式：按顺序渲染每张卡片
+  if (cards && cards.length > 0) {
+    return (
+      <div style={{ display: 'flex', gap: 12, flexDirection: 'row', padding: '8px 16px' }}>
+        <div style={{ maxWidth: '75%' }}>
+          {cards.map((card, idx) => {
+            const isLast = idx === cards.length - 1;
+            switch (card.type) {
+              case 'reasoning':
+                return (
+                  <ReasoningCard
+                    key={`reasoning-${idx}`}
+                    card={card}
+                    isStreaming={message.isStreaming ?? false}
+                    isLast={isLast}
+                  />
+                );
+              case 'message':
+                return (
+                  <MessageCardView
+                    key={`message-${idx}`}
+                    card={card}
+                    isStreaming={message.isStreaming ?? false}
+                    isLast={isLast}
+                  />
+                );
+              case 'tool_calls':
+                return (
+                  <ToolCallsCard
+                    key={`tools-${idx}`}
+                    card={card}
+                    isStreaming={message.isStreaming ?? false}
+                    isLast={isLast}
+                  />
+                );
+              case 'interrupt':
+                return (
+                  <InterruptBar
+                    key={`interrupt-${idx}`}
+                    interrupt={card.interrupt!}
+                    messageId={message.id}
+                  />
+                );
+            }
+          })}
+
+          {/* 旧中断字段兜底：卡片循环完成后如有 message.interrupt 仍渲染 */}
+          {message.interrupt && !cards.some((c) => c.type === 'interrupt') && (
+            <InterruptBar interrupt={message.interrupt} messageId={message.id} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 回退模式：旧的三段布局（无卡片时的兼容渲染）
   return (
     <div style={{ display: 'flex', gap: 12, flexDirection: 'row', padding: '8px 16px' }}>
-      <Avatar
-        icon={<RobotOutlined />}
-        style={{ backgroundColor: '#52C41A', flexShrink: 0 }}
-      />
       <div style={{ maxWidth: '75%' }}>
         {/* Section 1: 思考过程 — 可折叠 */}
         {hasReasoning && (

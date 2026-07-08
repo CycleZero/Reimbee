@@ -107,18 +107,6 @@ func (b *DepartmentBiz) GetByName(name string) (*model.Department, error) {
 	return dept, nil
 }
 
-// SearchByName 模糊搜索部门（按名称，支持部分匹配如输入"计算机"可匹配"计算机科学与技术学院"）
-func (b *DepartmentBiz) SearchByName(name string) ([]*model.Department, error) {
-	b.logger.Debug("模糊搜索部门", zap.String("关键词", name))
-	depts, err := b.repo.SearchByName(name)
-	if err != nil {
-		b.logger.Error("模糊搜索部门失败", zap.String("关键词", name), zap.Error(err))
-		return nil, fmt.Errorf("搜索部门失败: %w", err)
-	}
-	b.logger.Info("模糊搜索部门成功", zap.String("关键词", name), zap.Int("匹配数", len(depts)))
-	return depts, nil
-}
-
 // List 分页查询部门列表
 func (b *DepartmentBiz) List(page, pageSize int) ([]*model.Department, int64, error) {
 	// 记录分页参数，便于追踪性能（大页码可能导致慢查询）

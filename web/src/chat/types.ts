@@ -28,6 +28,20 @@ export interface MessageInterrupt {
   status: InterruptStatus;
 }
 
+/** 卡片类型 — 对应 SSE 事件分组 */
+export type CardType = 'reasoning' | 'message' | 'tool_calls' | 'interrupt';
+
+/** 消息内的可视化卡片 — 每个卡片对应一连串同类型 SSE 事件 */
+export interface MessageCard {
+  type: CardType;
+  /** reasoning / message 类型卡片的文本内容 */
+  content?: string;
+  /** tool_calls 类型卡片的工具调用列表 */
+  toolCalls?: ToolCallRecord[];
+  /** interrupt 类型卡片的中断数据 */
+  interrupt?: MessageInterrupt;
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
   id: string;
@@ -40,6 +54,8 @@ export interface ChatMessage {
   reasoning?: string;
   /** 本消息触发的中断（需要用户确认时设置） */
   interrupt?: MessageInterrupt;
+  /** 卡片列表 — 流式渲染时按顺序展示的视觉卡片，可选（回退到旧布局） */
+  cards?: MessageCard[];
 }
 
 /** 报销流程阶段 */

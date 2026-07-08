@@ -9,7 +9,8 @@ import { PictureOutlined, DeleteOutlined } from '@ant-design/icons';
 import { uploadInvoice } from '@/api';
 
 const { Text } = Typography;
-const MAX_SIZE = 10 * 1024 * 1024; // 后端限制 10MB
+const MAX_SIZE = 10 * 1024 * 1024;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
 interface UploadedFile {
   path: string;
@@ -49,7 +50,7 @@ export function UploadButton({ value, onChange, disabled }: Props) {
       const result = await uploadInvoice(file);
       onChange({
         path: result.file_path,
-        url: result.url,
+        url: result.url.startsWith('http') ? result.url : `${BASE_URL}${result.url}`,
         name: result.file_name,
       });
       message.success('票据上传成功');

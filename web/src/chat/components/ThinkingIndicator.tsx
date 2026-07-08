@@ -1,5 +1,4 @@
-import { Avatar, Typography } from 'antd';
-import { RobotOutlined } from '@ant-design/icons';
+import { Typography } from 'antd';
 import { useChatStore } from '../stores/chatStore';
 
 export function ThinkingIndicator() {
@@ -18,10 +17,6 @@ export function ThinkingIndicator() {
         padding: '8px 16px',
       }}
     >
-      <Avatar
-        icon={<RobotOutlined />}
-        style={{ backgroundColor: '#52C41A', flexShrink: 0 }}
-      />
       <div
         style={{
           background: '#F5F5F5',

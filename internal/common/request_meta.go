@@ -3,8 +3,6 @@ package common
 import (
 	"context"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 type RequestMetadata struct {
@@ -18,19 +16,13 @@ type RequestMetadata struct {
 	RequestID    string
 }
 
-const (
-	metaCtxKey = "request_metadata"
-)
+type metaCtxKey struct{}
 
 func GetRequestMetadata(ctx context.Context) *RequestMetadata {
-	v, _ := ctx.Value(metaCtxKey).(*RequestMetadata)
+	v, _ := ctx.Value(metaCtxKey{}).(*RequestMetadata)
 	return v
 }
 
 func SetRequestMetadata(ctx context.Context, meta *RequestMetadata) context.Context {
-	return context.WithValue(ctx, metaCtxKey, meta)
-}
-
-func SetGinRequestMetadata(c *gin.Context, meta *RequestMetadata) {
-	c.Set(metaCtxKey, meta)
+	return context.WithValue(ctx, metaCtxKey{}, meta)
 }

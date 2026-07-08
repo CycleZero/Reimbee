@@ -10,6 +10,7 @@ import { listSessions as apiListSessions, deleteSession as apiDeleteSession, get
 import type {
   ChatMessage,
   ToolCallRecord,
+  MessageCard,
   ReimbPhase,
   ConfirmPrompt,
   InterruptPrompt,
@@ -58,6 +59,9 @@ interface ChatState {
   sessionCache: Record<string, { messages: ChatMessage[] }>;
   cacheOrder: string[];
 
+  // ---- 消息加载状态 ----
+  isLoadingMessages: boolean;
+
   // ---- Actions ----
   // 消息
   addUserMessage: (content: string) => void;
@@ -92,6 +96,9 @@ interface ChatState {
 
   // approve 信号
   triggerApprove: (payload: ApprovePayload) => void;
+
+  // 卡片流式渲染
+  updateStreamingCards: (updater: (cards: MessageCard[]) => MessageCard[]) => void;
 
   // 会话
   initSession: (sessionId?: string) => string;
@@ -142,6 +149,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   // ---- 本地缓存 ----
   sessionCache: {},
   cacheOrder: [],
+
+  // ---- 消息加载状态 ----
+  isLoadingMessages: false,
 
   // ============================================
   // 消息 Actions
@@ -258,6 +268,22 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     })),
 
   // ============================================
+  // 卡片流式渲染 Actions
+  // ============================================
+
+  updateStreamingCards: (updater) => {
+    const s = get();
+    if (!s.currentStreamingMessageId) return;
+    useChatStore.setState((prev) => ({
+      messages: prev.messages.map((m) =>
+        m.id === prev.currentStreamingMessageId
+          ? { ...m, cards: updater(m.cards ?? []) }
+          : m,
+      ),
+    }));
+  },
+
+  // ============================================
   // 会话 Actions
   // ============================================
 
@@ -347,6 +373,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       cachedMessages = sessionCache[sessionId].messages;
     }
 
+    if (cachedMessages.length === 0) {
+      set({ isLoadingMessages: true });
+    }
+
     set((s) => {
       const exists = s.sessions.some((x) => x.id === sessionId);
       const touched = [sessionId, ...s.cacheOrder.filter((id) => id !== sessionId)].slice(0, 5);
@@ -393,13 +423,14 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         cached && cached.messages.length > 0 ? cached.messages : remoteMsgs;
       set({
         messages: finalMsgs,
+        isLoadingMessages: false,
         sessionCache: {
           ...currentState.sessionCache,
           [sessionId]: { messages: finalMsgs },
         },
       });
     } catch {
-      // 远程失败，保持缓存数据
+      set({ isLoadingMessages: false });
     }
   },
 
