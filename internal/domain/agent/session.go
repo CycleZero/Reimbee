@@ -50,8 +50,15 @@ func (s *Session) SetState(key string, value any) {
 }
 
 func (s *Session) Append(ctx context.Context, msg *blades.Message) error {
-	// 中断消息不落库——LLM 无感，下次恢复可自然复现 tool_call
 	if _, ok := msg.Actions["await_approval"]; ok {
+		// 中断消息：克隆并剥离中断信号后正常落库，保持 reasoning+text+tool_call 结构完整
+		clone := msg.Clone()
+		delete(clone.Actions, "await_approval")
+		delete(clone.Actions, "loop_exit")
+		s.messages.Append(clone)
+		s.metaMu.Lock()
+		s.meta.MessageCount = s.messages.Len()
+		s.metaMu.Unlock()
 		return nil
 	}
 	s.messages.Append(msg)
