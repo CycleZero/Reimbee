@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/CycleZero/Reimbee/internal/common"
 	"github.com/CycleZero/Reimbee/log"
 
 	"github.com/gin-gonic/gin"
@@ -92,32 +93,40 @@ func JwtAuthMiddleWire(jwtSecret string) func(optional bool) gin.HandlerFunc {
 			//   employee_id: string
 			//   role:        string（"employee" / "approver" / "admin"）
 			if claims, ok := token.Claims.(jwt.MapClaims); ok {
-				extracted := make(map[string]any)
+				var uid uint
+				var eid, role string
 
 				if userID, ok := claims["user_id"]; ok {
-					if uid, ok := userID.(float64); ok {
-						c.Set("user_id", uint(uid))
-						extracted["user_id"] = uint(uid)
+					if v, ok := userID.(float64); ok {
+						uid = uint(v)
+						c.Set("user_id", uid)
 					}
 				}
 				if empID, ok := claims["employee_id"]; ok {
-					if eid, ok := empID.(string); ok {
+					if v, ok := empID.(string); ok {
+						eid = v
 						c.Set("employee_id", eid)
-						extracted["employee_id"] = eid
 					}
 				}
-				if role, ok := claims["role"]; ok {
-					if r, ok := role.(string); ok {
-						c.Set("role", r)
-						extracted["role"] = r
+				if r, ok := claims["role"]; ok {
+					if v, ok := r.(string); ok {
+						role = v
+						c.Set("role", role)
 					}
 				}
 
-				log.SugaredLogger().Debugw("JWT认证成功，claims已注入context",
+				// 更新 AddMetaData 创建的 RequestMetadata
+				if meta := common.GetRequestMetadata(c); meta != nil {
+					meta.UserID = uid
+					meta.EmployeeID = eid
+					meta.Role = role
+				}
+
+				log.SugaredLogger().Debugw("JWT认证成功，claims已更新到RequestMetadata",
 					"路径", c.Request.URL.Path,
-					"user_id", extracted["user_id"],
-					"employee_id", extracted["employee_id"],
-					"role", extracted["role"])
+					"user_id", uid,
+					"employee_id", eid,
+					"role", role)
 			} else {
 				log.SugaredLogger().Warnw("JWT claims类型不匹配，无法提取用户信息",
 					"路径", c.Request.URL.Path)
