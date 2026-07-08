@@ -227,7 +227,7 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 		return err
 	}
 
-	// 重放被中断的工具：直接调用 → 结果存入 session → LLM 无感
+	// 读取中断工具信息
 	pending, ok := session.State()["pending_tool"].(map[string]any)
 	if !ok || pending["name"] == nil {
 		writer.WriteEvent(NewErrorEvent("没有待审批的操作"))
@@ -238,6 +238,15 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 	toolName, _ := pending["name"].(string)
 	toolInput, _ := pending["input"].(string)
 
+	// 先写入审批状态（工具重放前注入，Interruptable 检测到 Approved 才会真正执行）
+	session.SetState("approval", &agenttools.ApprovalState{
+		Approved: approved,
+		Reason:   reason,
+		Consumed: false,
+	})
+	ctx = agenttools.InjectApprovalState(ctx, session.State())
+
+	// 重放被中断的工具：直接调用 → 结果存入 session → LLM 无感
 	if t, ok := a.tools[toolName]; ok {
 		result, err := t.Handle(ctx, toolInput)
 		if err != nil {
@@ -257,13 +266,6 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 		}
 		session.Append(ctx, toolMsg)
 	}
-
-	// 写入审批状态
-	session.SetState("approval", &agenttools.ApprovalState{
-		Approved: approved,
-		Reason:   reason,
-		Consumed: false,
-	})
 
 	if err := a.repo.Save(ctx, session.Snapshot()); err != nil {
 		return err
