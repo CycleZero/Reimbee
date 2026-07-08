@@ -373,6 +373,13 @@ func (r *SessionRepo) saveMeta(ctx context.Context, m *SessionMeta) error {
 	if rec.Status == "" {
 		rec.Status = model.SessionStatusActive
 	}
+
+	// 基于 SessionID 做 upsert（非自增 ID），避免后续更新被唯一索引冲突
+	var existing model.SessionMeta
+	err := r.db.WithContext(ctx).Where("session_id = ?", rec.SessionID).First(&existing).Error
+	if err == nil {
+		rec.ID = existing.ID
+	}
 	return r.db.WithContext(ctx).Save(&rec).Error
 }
 
