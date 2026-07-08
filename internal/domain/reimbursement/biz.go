@@ -408,3 +408,29 @@ func (b *ReimbursementBiz) ListPending() ([]*model.Reimbursement, error) {
 	b.logger.Debug("查询待审批报销单成功", zap.Int("数量", len(rms)))
 	return rms, nil
 }
+
+// ListPendingByApprover 按审批人姓名查询其待审批的报销单
+// 通过审批记录表过滤，只返回该审批人负责的待审批报销单
+func (b *ReimbursementBiz) ListPendingByApprover(approverName string) ([]*model.Reimbursement, error) {
+	b.logger.Debug("按审批人查询待审批报销单", zap.String("审批人", approverName))
+
+	records, err := b.approvalBiz.ListPendingByApprover(approverName)
+	if err != nil {
+		b.logger.Error("查询审批人待审批记录失败", zap.String("审批人", approverName), zap.Error(err))
+		return nil, fmt.Errorf("查询待审批报销单失败: %w", err)
+	}
+	if len(records) == 0 {
+		return nil, nil
+	}
+	ids := make([]uint, 0, len(records))
+	for _, r := range records {
+		ids = append(ids, r.ReimbursementID)
+	}
+	rms, err := b.repo.ListByIDs(ids)
+	if err != nil {
+		b.logger.Error("查询报销单失败", zap.Error(err))
+		return nil, fmt.Errorf("查询待审批报销单失败: %w", err)
+	}
+	b.logger.Info("按审批人查询待审批报销单成功", zap.String("审批人", approverName), zap.Int("数量", len(rms)))
+	return rms, nil
+}

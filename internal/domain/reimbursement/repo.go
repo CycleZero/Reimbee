@@ -74,6 +74,18 @@ func (r *ReimbursementRepo) ListByStatus(status string) ([]*model.Reimbursement,
 	return rms, err
 }
 
+// ListByIDs 根据报销单ID列表批量查询
+func (r *ReimbursementRepo) ListByIDs(ids []uint) ([]*model.Reimbursement, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var rms []*model.Reimbursement
+	err := r.db.Where("id IN ?", ids).
+		Preload("Department").Preload("Invoices").Preload("Approvals").
+		Order("id ASC").Find(&rms).Error
+	return rms, err
+}
+
 // Update 更新报销单
 func (r *ReimbursementRepo) Update(rm *model.Reimbursement) error {
 	return r.db.Save(rm).Error

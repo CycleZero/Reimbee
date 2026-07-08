@@ -94,7 +94,7 @@ func JwtAuthMiddleWire(jwtSecret string) func(optional bool) gin.HandlerFunc {
 			//   role:        string（"employee" / "approver" / "admin"）
 			if claims, ok := token.Claims.(jwt.MapClaims); ok {
 				var uid uint
-				var eid, role string
+				var eid, name, role string
 
 				if userID, ok := claims["user_id"]; ok {
 					if v, ok := userID.(float64); ok {
@@ -108,6 +108,11 @@ func JwtAuthMiddleWire(jwtSecret string) func(optional bool) gin.HandlerFunc {
 						c.Set("employee_id", eid)
 					}
 				}
+				if n, ok := claims["name"]; ok {
+					if v, ok := n.(string); ok {
+						name = v
+					}
+				}
 				if r, ok := claims["role"]; ok {
 					if v, ok := r.(string); ok {
 						role = v
@@ -119,6 +124,7 @@ func JwtAuthMiddleWire(jwtSecret string) func(optional bool) gin.HandlerFunc {
 				if meta := common.GetRequestMetadata(c); meta != nil {
 					meta.UserID = uid
 					meta.EmployeeID = eid
+					meta.EmployeeName = name
 					meta.Role = role
 				}
 

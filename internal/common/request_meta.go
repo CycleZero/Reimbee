@@ -6,13 +6,14 @@ import (
 )
 
 type RequestMetadata struct {
-	UserID     uint   `json:"user_id"`
-	EmployeeID string `json:"employee_id"`
-	Role       string `json:"role"`
-	Request    *http.Request
-	ClientIP   string
-	UserAgent  string
-	RequestID  string
+	UserID       uint   `json:"user_id"`
+	EmployeeID   string `json:"employee_id"`
+	EmployeeName string `json:"employee_name"`
+	Role         string `json:"role"`
+	Request      *http.Request
+	ClientIP     string
+	UserAgent    string
+	RequestID    string
 }
 
 type metaCtxKey struct{}

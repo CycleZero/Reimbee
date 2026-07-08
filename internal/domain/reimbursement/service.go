@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CycleZero/Reimbee/infra"
+	"github.com/CycleZero/Reimbee/internal/common"
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/CycleZero/Reimbee/model"
@@ -43,7 +44,13 @@ func NewReimbursementService(biz *ReimbursementBiz, approvalBiz *approval.Approv
 func (s *ReimbursementService) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	// 数据隔离：默认按当前登录用户的工号过滤
 	employeeID := c.Query("employee_id")
+	if employeeID == "" {
+		if meta := common.GetRequestMetadata(c); meta != nil {
+			employeeID = meta.EmployeeID
+		}
+	}
 
 	rms, total, err := s.biz.List(page, pageSize, employeeID)
 	if err != nil {
@@ -69,7 +76,18 @@ func (s *ReimbursementService) List(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{} "服务器内部错误"
 // @Router /api/reimbursements/pending [get]
 func (s *ReimbursementService) ListPending(c *gin.Context) {
-	rms, err := s.biz.ListPending()
+	// 按当前审批人姓名过滤待审批报销单
+	approverName := ""
+	if meta := common.GetRequestMetadata(c); meta != nil {
+		approverName = meta.EmployeeName
+	}
+	var rms []*model.Reimbursement
+	var err error
+	if approverName != "" {
+		rms, err = s.biz.ListPendingByApprover(approverName)
+	} else {
+		rms, err = s.biz.ListPending()
+	}
 	if err != nil {
 		s.logger.Error("获取待审批报销单失败", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取待审批报销单失败"})
