@@ -1,7 +1,6 @@
 // ============================================
 // SSE 流式对话连接 Hook
-// 使用 @microsoft/fetch-event-source 支持自定义 Headers（Authorization）
-// 事件驱动架构——通过 handlers Map 分发，新增事件类型无需改 Hook
+// v4.1: 类型从 SSE event: 字段读取，data 直接是载荷 JSON
 // ============================================
 
 import { useEffect, useRef } from 'react';
@@ -10,13 +9,12 @@ import { useChatStore } from './stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import type {
   ThinkingData,
+  ReasoningData,
   ToolCallData,
   ToolResultData,
   MessageData,
-  PhaseChangeData,
-  ConfirmRequiredData,
+  InterruptedData,
   ErrorData,
-  SSEEvent,
 } from '@/types/sse';
 import type { ToolCallRecord, ChatStreamHandlers } from './types';
 
@@ -34,7 +32,6 @@ export function useChatStream(
   const ctrlRef = useRef<AbortController | null>(null);
   const tokenRef = useRef(useAuthStore.getState().token);
 
-  // 保持 token 引用最新（不触发重连）
   useEffect(() => {
     tokenRef.current = useAuthStore.getState().token;
   });
@@ -70,19 +67,41 @@ export function useChatStream(
         throw new Error(`SSE 连接失败 (${response.status})`);
       },
 
-      onmessage(event) {
-        if (!event.data) return;
-        const parsed: SSEEvent = JSON.parse(event.data);
+      onmessage(evt) {
+        if (!evt.data) return;
+        const payload = JSON.parse(evt.data);
         const s = getStore();
 
-        switch (parsed.type) {
-          case 'thinking':
-            extraHandlers?.onThinking?.((parsed.data as ThinkingData).message);
-            s.setThinking((parsed.data as ThinkingData).message);
+        switch (evt.event) {
+          case 'thinking': {
+            const d = payload as ThinkingData;
+            extraHandlers?.onThinking?.(d.text);
+            s.setThinking(d.text);
             break;
+          }
+
+          case 'reasoning': {
+            const d = payload as ReasoningData;
+            extraHandlers?.onReasoning?.(d.text, d.delta);
+            if (d.delta) {
+              s.appendReasoning(d.text);
+            } else {
+              s.setReasoning(d.text);
+            }
+            if (s.currentStreamingMessageId) {
+              useChatStore.setState((prev) => ({
+                messages: prev.messages.map((m) =>
+                  m.id === prev.currentStreamingMessageId
+                    ? { ...m, reasoning: (m.reasoning ?? '') + (d.delta ? d.text : '') }
+                    : m,
+                ),
+              }));
+            }
+            break;
+          }
 
           case 'tool_call': {
-            const d = parsed.data as ToolCallData;
+            const d = payload as ToolCallData;
             extraHandlers?.onToolCall?.(d.tool, d.input);
             if (s.currentStreamingMessageId) {
               s.addToolCall(s.currentStreamingMessageId, {
@@ -96,7 +115,7 @@ export function useChatStream(
           }
 
           case 'tool_result': {
-            const d = parsed.data as ToolResultData;
+            const d = payload as ToolResultData;
             extraHandlers?.onToolResult?.(d.tool, d.output);
             if (s.currentStreamingMessageId) {
               const msg = s.messages.find((m) => m.id === s.currentStreamingMessageId);
@@ -114,55 +133,80 @@ export function useChatStream(
           }
 
           case 'message': {
-            const d = parsed.data as MessageData;
-            extraHandlers?.onMessage?.(d.content, d.delta);
+            const d = payload as MessageData;
+            extraHandlers?.onMessage?.(d.text, d.delta);
             if (d.delta) {
               let mid = s.currentStreamingMessageId;
               if (!mid) mid = s.startStreamingMessage();
-              s.appendStreamContent(mid, d.content);
+              s.appendStreamContent(mid, d.text);
             } else {
-              const mid = s.startStreamingMessage();
-              s.appendStreamContent(mid, d.content);
-              s.finishStreamingMessage(mid);
+              // 完整消息：替换流式内容（校验流式结果），或创建新消息
+              if (s.currentStreamingMessageId) {
+                useChatStore.setState((prev) => ({
+                  messages: prev.messages.map((m) =>
+                    m.id === prev.currentStreamingMessageId
+                      ? { ...m, content: d.text, isStreaming: false }
+                      : m,
+                  ),
+                  currentStreamingMessageId: null,
+                }));
+              } else {
+                const mid = s.startStreamingMessage();
+                s.appendStreamContent(mid, d.text);
+                s.finishStreamingMessage(mid);
+              }
             }
             break;
           }
 
-          case 'phase_change': {
-            const d = parsed.data as PhaseChangeData;
-            extraHandlers?.onPhaseChange?.(d.from, d.to, d.summary);
-            s.setPhase(d.to as Parameters<typeof s.setPhase>[0]);
-            break;
-          }
-
-          case 'confirm_required': {
-            const d = parsed.data as ConfirmRequiredData;
-            extraHandlers?.onConfirmRequired?.(d.action, d.prompt, d.context);
-            s.setConfirmPrompt({ action: d.action, prompt: d.prompt, context: d.context });
+          case 'interrupted': {
+            const d = payload as InterruptedData;
+            extraHandlers?.onInterrupted?.(d.interrupt_id, d.action, d.context);
+            s.setInterruptPrompt({
+              interruptId: d.interrupt_id,
+              action: d.action,
+              context: d.context,
+            });
             break;
           }
 
           case 'error': {
-            const d = parsed.data as ErrorData;
+            const d = payload as ErrorData;
             extraHandlers?.onError?.(d.message, d.retry, d.code);
             if (s.currentStreamingMessageId) {
               s.appendStreamContent(s.currentStreamingMessageId, `\n\n❌ ${d.message}`);
               s.finishStreamingMessage(s.currentStreamingMessageId);
             }
             s.clearThinking();
+            s.clearReasoning();
             s.setConnectionStatus('error');
             ctrl.abort();
             break;
           }
 
-          case 'done':
+          case 'done': {
             extraHandlers?.onDone?.();
             if (s.currentStreamingMessageId) {
               s.finishStreamingMessage(s.currentStreamingMessageId);
             }
+            const sid = s.currentSessionId;
+            if (sid && s.messages.length > 0) {
+              useChatStore.setState((prev) => {
+                const touched = [sid, ...prev.cacheOrder.filter((id) => id !== sid)].slice(0, 5);
+                return {
+                  sessionCache: {
+                    ...prev.sessionCache,
+                    [sid]: { messages: prev.messages },
+                  },
+                  cacheOrder: touched,
+                };
+              });
+            }
             s.clearThinking();
+            s.clearReasoning();
             s.setConnectionStatus('disconnected');
             break;
+          }
         }
       },
 
@@ -172,7 +216,6 @@ export function useChatStream(
 
       onerror(err) {
         getStore().setConnectionStatus('error');
-        // 抛出以停止重试，单次对话失败不自动重连
         throw err;
       },
     }).catch(() => {

@@ -1,24 +1,32 @@
 // ============================================
-// SSE 事件类型 —— 与后端 internal/domain/agent/sse.go 严格对齐
+// SSE 事件类型 — v4.1 扁平化格式
+//
+// SSE 线格式: event: <type>\ndata: <json-payload>\n\n
+// 类型由 SSE 的 event: 字段携带，data 直接是载荷 JSON，不再有 {type, data} 包装
 // ============================================
 
 export type SSEEventType =
   | 'thinking'
+  | 'reasoning'
+  | 'message'
   | 'tool_call'
   | 'tool_result'
-  | 'message'
-  | 'phase_change'
-  | 'confirm_required'
+  | 'interrupted'
   | 'error'
   | 'done';
 
-export interface SSEEvent {
-  type: SSEEventType;
-  data: unknown;
+export interface ThinkingData {
+  text: string;
 }
 
-export interface ThinkingData {
-  message: string;
+export interface ReasoningData {
+  text: string;
+  delta: boolean;
+}
+
+export interface MessageData {
+  text: string;
+  delta: boolean;
 }
 
 export interface ToolCallData {
@@ -31,19 +39,8 @@ export interface ToolResultData {
   output: unknown;
 }
 
-export interface MessageData {
-  content: string;
-  delta: boolean;
-}
-
-export interface PhaseChangeData {
-  from: string;
-  to: string;
-  summary: string;
-}
-
-export interface ConfirmRequiredData {
-  prompt: string;
+export interface InterruptedData {
+  interrupt_id: string;
   action: string;
   context: unknown;
 }

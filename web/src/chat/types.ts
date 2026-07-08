@@ -26,6 +26,8 @@ export interface ChatMessage {
   timestamp: number;
   isStreaming?: boolean;
   toolCalls?: ToolCallRecord[];
+  /** 本消息对应的推理过程（模型思考链），可为空 */
+  reasoning?: string;
 }
 
 /** 报销流程阶段 */
@@ -42,7 +44,17 @@ export interface ConfirmPrompt {
 export interface SessionItem {
   id: string;
   title: string;
-  updatedAt: number;
+  messageCount: number;
+  status: string; // active / completed / expired
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
+}
+
+/** 中断提示（v4.1 Interrupt 机制） */
+export interface InterruptPrompt {
+  interruptId: string;
+  action: string;
+  context: unknown;
 }
 
 /** 连接状态 */
@@ -73,12 +85,12 @@ export type ToolRendererComponent = ComponentType<ToolRendererProps>;
 // ============================================
 
 export interface ChatStreamHandlers {
-  onThinking?: (message: string) => void;
+  onThinking?: (text: string) => void;
+  onReasoning?: (text: string, delta: boolean) => void;
   onToolCall?: (tool: string, input: unknown) => void;
   onToolResult?: (tool: string, output: unknown) => void;
-  onMessage?: (content: string, delta: boolean) => void;
-  onPhaseChange?: (from: string, to: string, summary: string) => void;
-  onConfirmRequired?: (action: string, prompt: string, context: unknown) => void;
+  onMessage?: (text: string, delta: boolean) => void;
+  onInterrupted?: (interruptId: string, action: string, context: unknown) => void;
   onError?: (message: string, retry: boolean, code: string) => void;
   onDone?: () => void;
 }

@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
 import { ChatLayout } from '@/chat/ChatLayout';
 import { PhaseIndicator } from '@/chat/components/PhaseIndicator';
 import { UploadButton } from '@/chat/components/UploadButton';
+import { SessionList } from '@/chat/components/SessionList';
 import { useChatStore } from '@/chat/stores/chatStore';
 import { useChatStream } from '@/chat/useChatStream';
 
@@ -15,6 +16,7 @@ interface UploadedFile {
 
 export default function Chat() {
   const navigate = useNavigate();
+  const { sessionId: urlSessionId } = useParams<{ sessionId: string }>();
   const { message: antMsg } = App.useApp();
 
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -23,6 +25,16 @@ export default function Chat() {
 
   const sessionId = store.currentSessionId;
   const connectionStatus = store.connectionStatus;
+
+  // 页面挂载时同步 URL 中的 sessionId
+  useEffect(() => {
+    if (urlSessionId) {
+      if (urlSessionId !== store.currentSessionId) {
+        store.switchSession(urlSessionId);
+      }
+    }
+    store.loadSessions();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // SSE 连接
   useChatStream(sessionId, pendingMessage);
@@ -56,19 +68,25 @@ export default function Chat() {
   const isDisabled = connectionStatus === 'connecting' || connectionStatus === 'connected';
 
   return (
-    <div style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
-      <ChatLayout
-        header={<PhaseIndicator />}
-        inputPrefix={
-          <UploadButton
-            value={uploadedFile}
-            onChange={setUploadedFile}
-            disabled={isDisabled}
-          />
-        }
-        onSend={handleSend}
-        disabled={isDisabled}
-      />
+    <div style={{ height: 'calc(100vh - 120px)', display: 'flex' }}>
+      {/* 左侧会话列表 */}
+      <SessionList />
+
+      {/* 右侧聊天区域 */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <ChatLayout
+          header={<PhaseIndicator />}
+          inputPrefix={
+            <UploadButton
+              value={uploadedFile}
+              onChange={setUploadedFile}
+              disabled={isDisabled}
+            />
+          }
+          onSend={handleSend}
+          disabled={isDisabled}
+        />
+      </div>
     </div>
   );
 }
