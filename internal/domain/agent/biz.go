@@ -325,6 +325,15 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.SubmitReimb != nil {
 		list = append(list, ts.SubmitReimb)
 	}
+	if ts.CancelReimb != nil {
+		list = append(list, ts.CancelReimb)
+	}
+	if ts.DeptQuery != nil {
+		list = append(list, ts.DeptQuery)
+	}
+	if ts.ReimbDetail != nil {
+		list = append(list, ts.ReimbDetail)
+	}
 	if ts.OCR != nil {
 		list = append(list, ts.OCR)
 	}
