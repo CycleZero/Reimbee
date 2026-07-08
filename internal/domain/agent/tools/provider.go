@@ -10,23 +10,27 @@ var ProviderSet = wire.NewSet(
 	NewOCRTool,
 	NewBudgetTool,
 	NewSearchPolicyTool,
+	NewComplianceAgentTool,
 	NewPDFTool,
 	NewEmailTool,
 	NewProgressTool,
 	NewQueryTool,
 	NewCreateReimbTool,
+	NewSubmitReimbTool,
 	NewTestInterruptTool,
 )
 
 type ToolSet struct {
 	OCR           *OCRTool
-	Budget        *BudgetTool
-	PDF           *PDFTool
-	Email         *EmailTool
-	Progress      *ProgressTool
-	QueryRecords  *QueryTool
-	SearchPolicy  *SearchPolicyTool
-	CreateReimb   *CreateReimbTool
+	Budget         *BudgetTool
+	PDF            *PDFTool
+	Email          *EmailTool
+	Progress       *ProgressTool
+	QueryRecords   *QueryTool
+	SearchPolicy   *SearchPolicyTool
+	Compliance     *ComplianceAgentTool
+	CreateReimb    *CreateReimbTool
+	SubmitReimb   *SubmitReimbTool
 	TestInterrupt *TestInterruptTool
 }
 
@@ -38,11 +42,13 @@ func NewToolSet(
 	progress *ProgressTool,
 	query *QueryTool,
 	searchPolicy *SearchPolicyTool,
+	compliance *ComplianceAgentTool,
 	createReimb *CreateReimbTool,
+	submitReimb *SubmitReimbTool,
 	testInterrupt *TestInterruptTool,
 	logger *log.Logger,
 ) *ToolSet {
-	logger.Info("智能体工具集初始化完成（Blades，9个工具已启用）")
+	logger.Info("智能体工具集初始化完成（Blades，11个工具已启用）")
 	return &ToolSet{
 		OCR:           ocr,
 		Budget:        budget,
@@ -51,7 +57,9 @@ func NewToolSet(
 		Progress:      progress,
 		QueryRecords:  query,
 		SearchPolicy:  searchPolicy,
+		Compliance:    compliance,
 		CreateReimb:   createReimb,
+		SubmitReimb:   submitReimb,
 		TestInterrupt: testInterrupt,
 	}
 }

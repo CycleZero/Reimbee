@@ -157,7 +157,7 @@ func NewLogger(
 	//}
 
 	core := zapcore.NewTee(cores...)
-	return &Logger{zap.New(core)}, nil
+	return &Logger{zap.New(core, zap.WithCaller(isDev))}, nil
 }
 
 type CustomEncoder struct {

@@ -316,8 +316,14 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.SearchPolicy != nil {
 		list = append(list, ts.SearchPolicy)
 	}
+	if ts.Compliance != nil {
+		list = append(list, ts.Compliance)
+	}
 	if ts.CreateReimb != nil {
 		list = append(list, ts.CreateReimb)
+	}
+	if ts.SubmitReimb != nil {
+		list = append(list, ts.SubmitReimb)
 	}
 	if ts.OCR != nil {
 		list = append(list, ts.OCR)
