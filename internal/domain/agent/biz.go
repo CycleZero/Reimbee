@@ -25,13 +25,13 @@ import (
 
 // ReimburseAgent 报销 Agent 核心业务逻辑
 type ReimburseAgent struct {
-	agent      blades.Agent
-	runner     *blades.Runner
-	repo       *infra.SessionRepo
-	tools      map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
-	resolver   *Resolver                    // 角色动态工具解析
-	config     *Config
-	logger     *log.Logger
+	agent    blades.Agent
+	runner   *blades.Runner
+	repo     *infra.SessionRepo
+	tools    map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
+	resolver *Resolver                    // 角色动态工具解析
+	config   *Config
+	logger   *log.Logger
 }
 
 // NewReimburseAgent 创建报销 Agent 实例（Wire 兼容，失败 panic）
@@ -199,7 +199,9 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 					if tp.Completed {
 						writer.WriteEvent(NewToolResultEvent(tp.Name, tp.Response))
 					} else {
-						writer.WriteEvent(NewToolCallEvent(tp.Name, tp.Request))
+						if tp.Name != "" {
+							writer.WriteEvent(NewToolCallEvent(tp.Name, tp.Request))
+						}
 					}
 					writer.Flush()
 				}
