@@ -174,7 +174,6 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 		case blades.RoleTool:
 			// 检测中断信号
 			if reason, ok := msg.Actions["await_approval"]; ok {
-				// 保存中断工具信息，供 HandleApprove 直接重放
 				var toolName string
 				for _, part := range msg.Parts {
 					if tp, ok := any(part).(blades.ToolPart); ok {
@@ -185,6 +184,13 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 						})
 					}
 				}
+
+				// agent.handle 的 session.Append 在 yield 之后才执行，
+				// 此时必须手动落库：克隆消息、剥离中断信号、存入 session
+				clone := msg.Clone()
+				delete(clone.Actions, "await_approval")
+				delete(clone.Actions, "loop_exit")
+				session.Append(ctx, clone)
 
 				writer.WriteEvent(NewInterruptedEvent(toolName, reason.(string)))
 				writer.Flush()
