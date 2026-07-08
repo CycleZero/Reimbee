@@ -118,7 +118,7 @@ func (s *AgentService) HandleApprove(c *gin.Context) {
 	s.logger.Info("审批恢复", zap.String("sessionID", req.SessionID),
 		zap.Bool("approved", req.Approved))
 
-	if err := s.agent.HandleApprove(c.Request.Context(), req.SessionID, req.Approved, req.Reason, writer); err != nil {
+	if err := s.agent.HandleApprove(c, req.SessionID, req.Approved, req.Reason, writer); err != nil {
 		s.logger.Error("审批恢复失败", zap.Error(err))
 	}
 }

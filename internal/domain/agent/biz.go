@@ -27,6 +27,7 @@ type ReimburseAgent struct {
 	agent  blades.Agent
 	runner *blades.Runner
 	repo   *infra.SessionRepo
+	tools  map[string]blades_tools.Tool // 工具名→实例，用于中断恢复时直接重放
 	config *Config
 	logger *log.Logger
 }
@@ -56,10 +57,16 @@ func NewReimburseAgent(
 
 	logger.Info("ReimburseAgent初始化完成", zap.Int("工具数", len(toolList)))
 
+	toolMap := make(map[string]blades_tools.Tool, len(toolList))
+	for _, t := range toolList {
+		toolMap[t.Name()] = t
+	}
+
 	return &ReimburseAgent{
 		agent:  agent,
 		runner: blades.NewRunner(agent),
 		repo:   repo,
+		tools:  toolMap,
 		config: config,
 		logger: logger,
 	}
@@ -138,7 +145,19 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 		case blades.RoleTool:
 			// 检测中断信号
 			if reason, ok := msg.Actions["await_approval"]; ok {
-				writer.WriteEvent(NewInterruptedEvent("interruptable", reason.(string)))
+				// 保存中断工具信息，供 HandleApprove 直接重放
+				var toolName string
+				for _, part := range msg.Parts {
+					if tp, ok := any(part).(blades.ToolPart); ok {
+						toolName = tp.Name
+						session.SetState("pending_tool", map[string]any{
+							"name":  tp.Name,
+							"input": tp.Request,
+						})
+					}
+				}
+
+				writer.WriteEvent(NewInterruptedEvent(toolName, reason.(string)))
 				writer.Flush()
 				if err := a.repo.Save(ctx, session.Snapshot()); err != nil {
 					a.logger.Warn("保存中断状态失败", zap.Error(err))
@@ -179,7 +198,33 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 		return err
 	}
 
-	// 写入审批状态（Consumed=false，等待工具消费）
+	// 重放被中断的工具：直接调用 → 结果存入 session → LLM 无感
+	if pending, ok := session.State()["pending_tool"].(map[string]any); ok {
+		toolName, _ := pending["name"].(string)
+		toolInput, _ := pending["input"].(string)
+
+		if t, ok := a.tools[toolName]; ok {
+			result, err := t.Handle(ctx, toolInput)
+			if err != nil {
+				a.logger.Warn("重放工具失败", zap.String("tool", toolName), zap.Error(err))
+			}
+			// 将工具结果作为 completed 消息存入 session（LLM 在后续 History 里能看到）
+			toolMsg := &blades.Message{
+				Role: blades.RoleTool,
+				Parts: []blades.Part{
+					blades.ToolPart{
+						Name:      toolName,
+						Request:   toolInput,
+						Response:  result,
+						Completed: true,
+					},
+				},
+			}
+			session.Append(ctx, toolMsg)
+		}
+	}
+
+	// 写入审批状态
 	session.SetState("approval", &agenttools.ApprovalState{
 		Approved: approved,
 		Reason:   reason,
