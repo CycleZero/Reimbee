@@ -29,7 +29,7 @@ func AddMetaData() gin.HandlerFunc {
 			RequestID:  generateRequestID(),
 		}
 		// 存入 request context（gin.Value 会 fallthrough 到 c.Request.Context）
-		common.SetRequestMetadata(c, meta)
+		common.SetGinRequestMetadata(c, meta)
 		c.Next()
 	}
 }
