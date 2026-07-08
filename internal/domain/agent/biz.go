@@ -223,6 +223,7 @@ func (a *ReimburseAgent) GetHistory(ctx context.Context, sessionID string) (*Get
 	items := make([]MessageItem, 0, len(msgs))
 	for _, msg := range msgs {
 		item := MessageItem{Role: string(msg.Role)}
+		item.Reasoning = msg.Reasoning()
 		for _, part := range msg.Parts {
 			if tp, ok := any(part).(blades.TextPart); ok {
 				item.Content += tp.Text

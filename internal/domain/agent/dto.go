@@ -30,6 +30,7 @@ type MessageItem struct {
 	Seq       uint   `json:"seq"`
 	Role      string `json:"role"`
 	Content   string `json:"content"`
+	Reasoning string `json:"reasoning,omitempty"`
 	ToolName  string `json:"tool_name,omitempty"`
 	CreatedAt string `json:"created_at"`
 }

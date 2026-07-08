@@ -23,7 +23,7 @@ type SessionMessage struct {
 	ToolOutput  *string `gorm:"type:text;comment:ToolPart.Response(工具返回结果)"`
 
 	// blades.Message 完整JSON — LLM 上下文唯一来源
-	BladesJSON *string `gorm:"type:json;comment:blades.Message完整JSON(含Parts/Actions/Metadata/TokenUsage)"`
+	BladesJSON *string `gorm:"type:mediumtext;comment:blades.Message完整JSON(含Parts/Actions/Metadata/TokenUsage)"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime;comment:创建时间"`
 }
