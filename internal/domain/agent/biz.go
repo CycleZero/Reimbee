@@ -138,7 +138,7 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 		case blades.RoleTool:
 			// 检测中断信号
 			if reason, ok := msg.Actions["await_approval"]; ok {
-				writer.WriteEvent(NewInterruptedEvent(reason.(string)))
+				writer.WriteEvent(NewInterruptedEvent("interruptable", reason.(string)))
 				writer.Flush()
 				if err := a.repo.Save(ctx, session.Snapshot()); err != nil {
 					a.logger.Warn("保存中断状态失败", zap.Error(err))

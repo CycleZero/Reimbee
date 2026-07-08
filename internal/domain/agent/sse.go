@@ -53,7 +53,8 @@ type errorData struct {
 }
 
 type interruptedData struct {
-	Reason string `json:"reason"`
+	ToolName string `json:"tool_name"`
+	Reason   string `json:"reason"`
 }
 
 func NewThinkingEvent(text string) SSEEvent {
@@ -84,8 +85,8 @@ func NewErrorEvent(err string) SSEEvent {
 	return SSEEvent{Type: EventError, Data: errorData{Error: err}}
 }
 
-func NewInterruptedEvent(reason string) SSEEvent {
-	return SSEEvent{Type: EventInterrupted, Data: interruptedData{Reason: reason}}
+func NewInterruptedEvent(toolName string, reason string) SSEEvent {
+	return SSEEvent{Type: EventInterrupted, Data: interruptedData{Reason: reason, ToolName: toolName}}
 }
 
 type GinSSEWriter struct {
