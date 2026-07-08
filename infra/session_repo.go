@@ -347,6 +347,28 @@ func (r *SessionRepo) Delete(ctx context.Context, sessionID string) error {
 	return nil
 }
 
+// SaveState 持久化业务状态（实现 StateStore 接口）
+func (r *SessionRepo) SaveState(ctx context.Context, sessionID string, key string, state any) error {
+	return r.saveState(ctx, sessionID, key, state)
+}
+
+// GetState 读取业务状态（实现 StateStore 接口）
+func (r *SessionRepo) GetState(ctx context.Context, sessionID string, key string, target any) (bool, error) {
+	states, err := r.loadStates(ctx, sessionID)
+	if err != nil {
+		return false, err
+	}
+	raw, ok := states[key]
+	if !ok {
+		return false, nil
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return false, err
+	}
+	return true, json.Unmarshal(data, target)
+}
+
 // DeleteState 删除指定业务状态
 func (r *SessionRepo) DeleteState(ctx context.Context, sessionID string, key string) error {
 	return r.db.WithContext(ctx).

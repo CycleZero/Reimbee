@@ -30,6 +30,7 @@ var ProviderSet = wire.NewSet(
 
 	// 会话持久化 —— SessionRepo（三表 CRUD） + Redis 缓存
 	NewSessionRepo,
+	wire.Bind(new(StateStore), new(*SessionRepo)),
 	NewRedisSessionCache,
 
 	// 嵌入模型 —— 配置驱动工厂

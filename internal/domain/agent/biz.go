@@ -110,6 +110,8 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 
 	// 将审批状态注入 context，供工具读取
 	ctx = agenttools.InjectApprovalState(ctx, session.State())
+	// 将 sessionID 注入 context，供工具写 state
+	ctx = agenttools.WithSessionID(ctx, params.SessionID)
 
 	writer.WriteEvent(NewThinkingEvent("正在处理..."))
 	writer.Flush()
@@ -316,6 +318,12 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	}
 	if ts.CreateReimb != nil {
 		list = append(list, ts.CreateReimb)
+	}
+	if ts.OCR != nil {
+		list = append(list, ts.OCR)
+	}
+	if ts.Budget != nil {
+		list = append(list, ts.Budget)
 	}
 	if ts.TestInterrupt != nil {
 		list = append(list, ts.TestInterrupt)
