@@ -248,25 +248,41 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 	})
 	ctx = agenttools.InjectApprovalState(ctx, session.State())
 
-	// 重放被中断的工具：直接调用 → 结果存入 session → LLM 无感
+	// 重放被中断的工具：尝试更新旧 tool_msg 的 Response，找不到则追加新消息
 	if t, ok := a.tools[toolName]; ok {
 		result, err := t.Handle(ctx, toolInput)
 		if err != nil {
 			a.logger.Warn("重放工具失败", zap.String("tool", toolName), zap.Error(err))
 		}
-		// 将工具结果作为 completed 消息存入 session（LLM 在后续 History 里能看到）
-		toolMsg := &blades.Message{
-			Role: blades.RoleTool,
-			Parts: []blades.Part{
-				blades.ToolPart{
-					Name:      toolName,
-					Request:   toolInput,
-					Response:  result,
-					Completed: true,
-				},
-			},
+		msgs, _ := session.History(ctx)
+		updated := false
+		for _, msg := range msgs {
+			if msg.Role == blades.RoleTool {
+				for i, part := range msg.Parts {
+					if tp, ok := any(part).(blades.ToolPart); ok && tp.Name == toolName && tp.Completed {
+						tp.Response = result
+						msg.Parts[i] = tp
+						updated = true
+						if err := a.repo.UpdateMessageBladesJSON(ctx, sessionID, toolName, msg); err != nil {
+							a.logger.Warn("更新tool消息BladesJSON失败", zap.Error(err))
+						}
+					}
+				}
+			}
 		}
-		session.Append(ctx, toolMsg)
+		if !updated {
+			// 旧消息被 Append 跳过（await_approval），追加新 tool result
+			toolMsg := &blades.Message{
+				Role: blades.RoleTool,
+				Parts: []blades.Part{
+					blades.ToolPart{
+						Name: toolName, Request: toolInput,
+						Response: result, Completed: true,
+					},
+				},
+			}
+			session.Append(ctx, toolMsg)
+		}
 	}
 
 	if err := a.repo.Save(ctx, session.Snapshot()); err != nil {

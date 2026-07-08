@@ -596,3 +596,15 @@ func extractBladesToolOutput(msg *blades.Message) *string {
 	}
 	return nil
 }
+
+// UpdateMessageBladesJSON 更新指定消息的 BladesJSON（用于修改已持久化的消息后重新落库）
+func (r *SessionRepo) UpdateMessageBladesJSON(ctx context.Context, sessionID, toolName string, msg *blades.Message) error {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("序列化消息失败: %w", err)
+	}
+	s := string(data)
+	return r.db.WithContext(ctx).Model(&model.SessionMessage{}).
+		Where("session_id = ? AND tool_name = ?", sessionID, toolName).
+		Update("blades_json", s).Error
+}
