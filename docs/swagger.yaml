@@ -1,4 +1,56 @@
 definitions:
+  agent.GetMessagesResponse:
+    properties:
+      has_more:
+        type: boolean
+      messages:
+        items:
+          $ref: '#/definitions/agent.MessageItem'
+        type: array
+      next_cursor:
+        description: 下一页游标，0 表示无更多
+        type: integer
+    type: object
+  agent.ListSessionsResponse:
+    properties:
+      has_more:
+        type: boolean
+      next_cursor:
+        description: 下一页游标，空表示无更多
+        type: string
+      sessions:
+        items:
+          $ref: '#/definitions/agent.SessionItem'
+        type: array
+    type: object
+  agent.MessageItem:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      role:
+        type: string
+      seq:
+        type: integer
+      tool_name:
+        type: string
+    type: object
+  agent.SessionItem:
+    properties:
+      created_at:
+        type: string
+      message_count:
+        type: integer
+      session_id:
+        type: string
+      status:
+        type: string
+      summary:
+        type: string
+      updated_at:
+        type: string
+    type: object
   approval.ApprovalRecordResponse:
     properties:
       action:
@@ -672,13 +724,100 @@ paths:
       summary: 获取预算看板
       tags:
       - 预算管理
+  /api/chat/sessions:
+    get:
+      consumes:
+      - application/json
+      description: 游标分页查询当前用户的会话历史，按更新时间倒序
+      parameters:
+      - description: 游标（上一页最后一条的 updated_at，首次传空）
+        in: query
+        name: cursor
+        type: string
+      - description: 每页数量，默认20，最大50
+        in: query
+        name: limit
+        type: integer
+      - description: Bearer JWT Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 会话列表
+          schema:
+            $ref: '#/definitions/agent.ListSessionsResponse'
+        "500":
+          description: 查询失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取会话列表
+      tags:
+      - Agent对话
+  /api/chat/sessions/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: 游标分页加载指定会话的消息记录，按 seq 正序
+      parameters:
+      - description: 会话ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 游标（上次拉取的最后一条消息 seq，首次传0）
+        in: query
+        name: cursor
+        type: integer
+      - description: 每页数量，默认20，最大100
+        in: query
+        name: limit
+        type: integer
+      - description: Bearer JWT Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 消息列表
+          schema:
+            $ref: '#/definitions/agent.GetMessagesResponse'
+        "500":
+          description: 查询失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取会话消息历史
+      tags:
+      - Agent对话
   /api/chat/stream:
     get:
       consumes:
       - application/json
-      description: 通过 SSE（Server-Sent Events）与报销智能助手进行实时多轮对话交互。
+      description: |-
+        通过 Server-Sent Events 与报销智能助手进行实时对话。
+        支持多轮对话上下文，自动识别票据、合规审核、预算检查、提交报销。
+
+        SSE 事件类型：
+        - thinking:    LLM 思考中
+        - reasoning:   LLM 推理过程（DeepSeek-R1 等模型）
+        - message:     LLM 文本输出（delta=true 为流式增量，false 为完整消息）
+        - tool_call:   工具调用开始（工具名 + 输入参数）
+        - tool_result: 工具调用结果（工具名 + 输出）
+        - interrupted: 等待审批确认
+        - error:       错误
+        - done:        本轮对话完成
+
+        同一 sessionID 的多次请求共享对话上下文和报销流程状态。
       parameters:
-      - description: 会话ID（UUID v7），同一会话多次请求复用此 ID
+      - description: 会话ID（UUID），同一会话多次请求复用此ID
         in: query
         name: session_id
         required: true
@@ -688,7 +827,7 @@ paths:
         name: message
         required: true
         type: string
-      - description: Bearer JWT Token（由 /api/auth/login 签发）
+      - description: Bearer JWT Token
         in: header
         name: Authorization
         required: true
@@ -711,12 +850,7 @@ paths:
             additionalProperties: true
             type: object
         "500":
-          description: 服务器不支持流式响应（http.Flusher 不可用）
-          schema:
-            additionalProperties: true
-            type: object
-        "503":
-          description: 服务繁忙（TurnLoop 已停止，无法接收新消息）
+          description: 服务器不支持流式响应
           schema:
             additionalProperties: true
             type: object

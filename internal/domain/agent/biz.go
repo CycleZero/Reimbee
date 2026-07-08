@@ -230,5 +230,8 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.CreateReimb != nil {
 		list = append(list, ts.CreateReimb)
 	}
+	if ts.TestInterrupt != nil {
+		list = append(list, ts.TestInterrupt)
+	}
 	return list
 }

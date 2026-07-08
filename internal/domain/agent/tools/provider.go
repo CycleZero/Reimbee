@@ -25,6 +25,7 @@ var ProviderSet = wire.NewSet(
 	NewProgressTool,
 	NewQueryTool,
 	NewCreateReimbTool,
+	NewTestInterruptTool,
 )
 
 // ============================================
@@ -40,6 +41,7 @@ type ToolSet struct {
 	QueryRecords *QueryTool
 	SearchPolicy *SearchPolicyTool
 	CreateReimb  *CreateReimbTool
+	TestInterrupt *TestInterruptTool
 }
 
 // NewToolSet 创建工具集，聚合所有已启用的工具实例
@@ -50,9 +52,10 @@ func NewToolSet(
 	query *QueryTool,
 	searchPolicy *SearchPolicyTool,
 	createReimb *CreateReimbTool,
+	testInterrupt *TestInterruptTool,
 	logger *log.Logger,
 ) *ToolSet {
-	logger.Info("智能体工具集初始化完成（Blades，6个工具已启用）")
+	logger.Info("智能体工具集初始化完成（Blades，7个工具已启用）")
 	return &ToolSet{
 		PDF:          pdf,
 		Email:        email,
@@ -60,5 +63,6 @@ func NewToolSet(
 		QueryRecords: query,
 		SearchPolicy: searchPolicy,
 		CreateReimb:  createReimb,
+		TestInterrupt: testInterrupt,
 	}
 }

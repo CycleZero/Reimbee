@@ -403,9 +403,118 @@
                 }
             }
         },
+        "/api/chat/sessions": {
+            "get": {
+                "description": "游标分页查询当前用户的会话历史，按更新时间倒序",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agent对话"
+                ],
+                "summary": "获取会话列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "游标（上一页最后一条的 updated_at，首次传空）",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认20，最大50",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "会话列表",
+                        "schema": {
+                            "$ref": "#/definitions/agent.ListSessionsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "查询失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/chat/sessions/{id}/messages": {
+            "get": {
+                "description": "游标分页加载指定会话的消息记录，按 seq 正序",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agent对话"
+                ],
+                "summary": "获取会话消息历史",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "游标（上次拉取的最后一条消息 seq，首次传0）",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认20，最大100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "消息列表",
+                        "schema": {
+                            "$ref": "#/definitions/agent.GetMessagesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "查询失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/chat/stream": {
             "get": {
-                "description": "通过 SSE（Server-Sent Events）与报销智能助手进行实时多轮对话交互。",
+                "description": "通过 Server-Sent Events 与报销智能助手进行实时对话。\n支持多轮对话上下文，自动识别票据、合规审核、预算检查、提交报销。\n\nSSE 事件类型：\n- thinking:    LLM 思考中\n- reasoning:   LLM 推理过程（DeepSeek-R1 等模型）\n- message:     LLM 文本输出（delta=true 为流式增量，false 为完整消息）\n- tool_call:   工具调用开始（工具名 + 输入参数）\n- tool_result: 工具调用结果（工具名 + 输出）\n- interrupted: 等待审批确认\n- error:       错误\n- done:        本轮对话完成\n\n同一 sessionID 的多次请求共享对话上下文和报销流程状态。",
                 "consumes": [
                     "application/json"
                 ],
@@ -419,7 +528,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "会话ID（UUID v7），同一会话多次请求复用此 ID",
+                        "description": "会话ID（UUID），同一会话多次请求复用此ID",
                         "name": "session_id",
                         "in": "query",
                         "required": true
@@ -433,7 +542,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Bearer JWT Token（由 /api/auth/login 签发）",
+                        "description": "Bearer JWT Token",
                         "name": "Authorization",
                         "in": "header",
                         "required": true
@@ -461,14 +570,7 @@
                         }
                     },
                     "500": {
-                        "description": "服务器不支持流式响应（http.Flusher 不可用）",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "503": {
-                        "description": "服务繁忙（TurnLoop 已停止，无法接收新消息）",
+                        "description": "服务器不支持流式响应",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1457,6 +1559,85 @@
         }
     },
     "definitions": {
+        "agent.GetMessagesResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/agent.MessageItem"
+                    }
+                },
+                "next_cursor": {
+                    "description": "下一页游标，0 表示无更多",
+                    "type": "integer"
+                }
+            }
+        },
+        "agent.ListSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "next_cursor": {
+                    "description": "下一页游标，空表示无更多",
+                    "type": "string"
+                },
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/agent.SessionItem"
+                    }
+                }
+            }
+        },
+        "agent.MessageItem": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "seq": {
+                    "type": "integer"
+                },
+                "tool_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "agent.SessionItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "message_count": {
+                    "type": "integer"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "approval.ApprovalRecordResponse": {
             "type": "object",
             "properties": {
