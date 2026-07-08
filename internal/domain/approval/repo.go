@@ -42,6 +42,13 @@ func (r *ApprovalRepo) ListByReimbursement(reimbursementID uint) ([]*model.Appro
 	return records, err
 }
 
+// ListPendingByApprover 根据审批人姓名查询所有待审批记录，按创建时间倒序排列
+func (r *ApprovalRepo) ListPendingByApprover(approverName string) ([]*model.ApprovalRecord, error) {
+	var records []*model.ApprovalRecord
+	err := r.db.Where("approver_name = ? AND action = ?", approverName, "pending").Order("created_at DESC").Find(&records).Error
+	return records, err
+}
+
 // Update 更新审批记录
 func (r *ApprovalRepo) Update(a *model.ApprovalRecord) error {
 	return r.db.Save(a).Error

@@ -9,6 +9,11 @@ import (
 	"github.com/CycleZero/Reimbee/model"
 )
 
+var (
+	ErrDeptHasEmployees = errors.New("该部门下仍有员工，无法删除")
+	ErrDeptHasBudget    = errors.New("该部门下仍有预算记录，无法删除")
+)
+
 // DepartmentRepo 部门数据访问层
 type DepartmentRepo struct {
 	db *gorm.DB
@@ -65,11 +70,11 @@ func (r *DepartmentRepo) Delete(id uint) error {
 	var count int64
 	r.db.Model(&model.Employee{}).Where("department_id = ?", id).Count(&count)
 	if count > 0 {
-		return errors.New("该部门下仍有员工，无法删除")
+		return ErrDeptHasEmployees
 	}
 	r.db.Model(&model.DepartmentBudget{}).Where("department_id = ?", id).Count(&count)
 	if count > 0 {
-		return errors.New("该部门下仍有预算记录，无法删除")
+		return ErrDeptHasBudget
 	}
 	return r.db.Delete(&model.Department{}, id).Error
 }

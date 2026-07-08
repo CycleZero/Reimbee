@@ -324,3 +324,15 @@ func (b *ApprovalBiz) GetProgress(reimbursementID uint) ([]*model.ApprovalRecord
 		zap.Int("审批记录数", len(records)))
 	return records, nil
 }
+
+// ListPendingByApprover 根据审批人姓名查询其所有待审批记录
+func (b *ApprovalBiz) ListPendingByApprover(approverName string) ([]*model.ApprovalRecord, error) {
+	b.logger.Debug("查询审批人待审批列表", zap.String("审批人", approverName))
+	records, err := b.repo.ListPendingByApprover(approverName)
+	if err != nil {
+		b.logger.Error("查询待审批列表失败", zap.String("审批人", approverName), zap.Error(err))
+		return nil, fmt.Errorf("查询待审批列表失败: %w", err)
+	}
+	b.logger.Info("查询审批人待审批列表成功", zap.String("审批人", approverName), zap.Int("数量", len(records)))
+	return records, nil
+}

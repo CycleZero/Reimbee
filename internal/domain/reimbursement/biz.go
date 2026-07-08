@@ -270,8 +270,8 @@ func (b *ReimbursementBiz) Approve(id uint) (*model.Reimbursement, error) {
 
 // Reject 驳回报销单（强制驳回，解冻预算）
 // 驳回后预算自动释放，报销单状态回到 Rejected，申请人可修改后重新提交
-func (b *ReimbursementBiz) Reject(id uint) (*model.Reimbursement, error) {
-	b.logger.Debug("驳回报销单", zap.Uint("报销单ID", id))
+func (b *ReimbursementBiz) Reject(id uint, reason string) (*model.Reimbursement, error) {
+	b.logger.Debug("驳回报销单", zap.Uint("报销单ID", id), zap.String("驳回原因", reason))
 
 	// 获取报销单 —— 需要校验当前状态并获取部门ID、金额用于解冻预算
 	rm, err := b.repo.GetByID(id)
@@ -307,7 +307,39 @@ func (b *ReimbursementBiz) Reject(id uint) (*model.Reimbursement, error) {
 		return nil, fmt.Errorf("驳回操作失败: %w", err)
 	}
 
-	b.logger.Info("报销单已驳回", zap.String("报销单号", rm.ReimbursementNo))
+	b.logger.Info("报销单已驳回", zap.String("报销单号", rm.ReimbursementNo), zap.String("驳回原因", reason))
+	return rm, nil
+}
+
+// Cancel 取消报销单草稿（仅 draft 状态可取消）
+// 取消后状态变为 cancelled，不可恢复；不涉及预算操作（草稿阶段预算尚未冻结）
+func (b *ReimbursementBiz) Cancel(id uint) (*model.Reimbursement, error) {
+	b.logger.Debug("取消报销单草稿", zap.Uint("报销单ID", id))
+
+	// 获取报销单 —— 需要校验当前状态
+	rm, err := b.repo.GetByID(id)
+	if err != nil {
+		b.logger.Warn("报销单不存在，无法取消", zap.Uint("报销单ID", id))
+		return nil, fmt.Errorf("报销单不存在")
+	}
+	b.logger.Debug("报销单已查询到", zap.Uint("报销单ID", id), zap.String("当前状态", rm.Status), zap.String("报销单号", rm.ReimbursementNo))
+
+	// 状态守卫：只有草稿状态的报销单可以取消
+	if rm.Status != StatusDraft {
+		b.logger.Warn("报销单状态不允许取消", zap.Uint("报销单ID", id), zap.String("当前状态", rm.Status))
+		return nil, fmt.Errorf("当前状态为'%s'，只有草稿状态的报销单可以取消", rm.Status)
+	}
+	b.logger.Debug("报销单状态校验通过", zap.Uint("报销单ID", id))
+
+	// 更新状态为已取消 —— 草稿阶段无预算操作，仅变更状态
+	rm.Status = model.ReimbStatusCancelled
+	b.logger.Debug("更新报销单状态为已取消", zap.Uint("报销单ID", id))
+	if err := b.repo.Update(rm); err != nil {
+		b.logger.Error("更新报销单状态失败", zap.Uint("报销单ID", id), zap.Error(err))
+		return nil, fmt.Errorf("取消报销单失败: %w", err)
+	}
+
+	b.logger.Info("报销单已取消", zap.String("报销单号", rm.ReimbursementNo))
 	return rm, nil
 }
 

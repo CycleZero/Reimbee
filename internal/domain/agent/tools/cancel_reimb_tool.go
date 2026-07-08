@@ -23,20 +23,13 @@ type CancelReimbTool struct{ tools.Tool }
 func NewCancelReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *CancelReimbTool {
 	base, err := tools.NewFunc[CancelReimbInput, CancelReimbOutput](
 		"cancel_reimbursement",
-		"取消报销单草稿（仅 draft 状态可取消）。取消后不可恢复，需用户显式确认。",
+		"取消报销单草稿（仅 draft 状态可取消）。取消后不可恢复。",
 		func(ctx context.Context, input CancelReimbInput) (CancelReimbOutput, error) {
-			rm, err := reimbursementBiz.GetByID(input.ReimbursementID)
+			cancelled, err := reimbursementBiz.Cancel(input.ReimbursementID)
 			if err != nil {
-				return CancelReimbOutput{}, fmt.Errorf("查询报销单失败: %w", err)
-			}
-			if rm.Status != "draft" {
-				return CancelReimbOutput{}, fmt.Errorf("只有草稿状态的报销单可以取消，当前状态: %s", rm.Status)
-			}
-			// 软删除：设为已驳回
-			if _, err := reimbursementBiz.Reject(input.ReimbursementID); err != nil {
 				return CancelReimbOutput{}, fmt.Errorf("取消报销单失败: %w", err)
 			}
-			logger.Info("报销单已取消", zap.Uint("ID", input.ReimbursementID), zap.String("单号", rm.ReimbursementNo))
+			logger.Info("报销单已取消", zap.Uint("ID", input.ReimbursementID), zap.String("单号", cancelled.ReimbursementNo))
 			return CancelReimbOutput{Status: "cancelled"}, nil
 		},
 	)

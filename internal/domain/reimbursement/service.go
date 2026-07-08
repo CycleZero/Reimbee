@@ -357,7 +357,7 @@ func (s *ReimbursementService) Reject(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&req) // 驳回原因可选
 
-	rm, err := s.biz.Reject(uint(id))
+	rm, err := s.biz.Reject(uint(id), req.Reason)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return

@@ -5,6 +5,7 @@ import (
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
 	"github.com/CycleZero/Reimbee/internal/domain/auth"
 	"github.com/CycleZero/Reimbee/internal/domain/budget"
+	"github.com/CycleZero/Reimbee/internal/domain/compliance"
 	"github.com/CycleZero/Reimbee/internal/domain/department"
 	"github.com/CycleZero/Reimbee/internal/domain/employee"
 	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
@@ -19,6 +20,7 @@ type ServiceHub struct {
 	BudgetService        *budget.BudgetService
 	ApprovalService      *approval.ApprovalService
 	ReimbursementService *reimbursement.ReimbursementService
+	ComplianceService    *compliance.ComplianceService
 }
 
 func NewServiceHub(
@@ -29,6 +31,7 @@ func NewServiceHub(
 	bgt *budget.BudgetService,
 	app *approval.ApprovalService,
 	reim *reimbursement.ReimbursementService,
+	comp *compliance.ComplianceService,
 ) *ServiceHub {
 	return &ServiceHub{
 		AuthService:          authSvc,
@@ -38,5 +41,6 @@ func NewServiceHub(
 		BudgetService:        bgt,
 		ApprovalService:      app,
 		ReimbursementService: reim,
+		ComplianceService:    comp,
 	}
 }

@@ -26,7 +26,7 @@ func NewRejectTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log
 		"reject_reimbursement",
 		"驳回报销单，需填写驳回理由。",
 		func(ctx context.Context, input RejectInput) (RejectOutput, error) {
-			rm, err := reimbursementBiz.Reject(input.ReimbursementID)
+			rm, err := reimbursementBiz.Reject(input.ReimbursementID, input.Reason)
 			if err != nil {
 				return RejectOutput{}, fmt.Errorf("驳回失败: %w", err)
 			}

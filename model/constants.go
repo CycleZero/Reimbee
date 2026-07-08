@@ -23,6 +23,7 @@ const (
 	ReimbStatusReviewing = "reviewing" // 审批中
 	ReimbStatusApproved  = "approved"  // 已通过
 	ReimbStatusRejected  = "rejected"  // 已驳回
+	ReimbStatusCancelled = "cancelled" // 已取消
 )
 
 // ============================================

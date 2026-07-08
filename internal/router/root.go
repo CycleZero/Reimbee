@@ -67,6 +67,9 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 			budget.POST("", hub.BudgetService.Create)
 			budget.PUT("/:id", hub.BudgetService.Update)
 		}
+
+		// 合规政策管理（管理员索引政策文档）
+		admin.POST("/policies/ingest", hub.ComplianceService.IndexDocument)
 	}
 
 	// ==========================================
@@ -121,6 +124,9 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 
 		// 票据上传（Agent Phase 1 信息收集的前置步骤）
 		apiRequireAuth.POST("/reimbursements/upload", hub.ReimbursementService.UploadInvoice)
+
+		// 合规检查（所有已认证用户可调用）
+		apiRequireAuth.POST("/policies/check", hub.ComplianceService.CheckCompliance)
 	}
 
 	// SSE 对话接口（Agent 流式响应）

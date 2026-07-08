@@ -512,7 +512,7 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 		}
 
 		// 驳回
-		rejected, err := biz.Reject(submitted.ID)
+		rejected, err := biz.Reject(submitted.ID, "测试驳回")
 		if err != nil {
 			t.Fatalf("Reject 失败: %v", err)
 		}
@@ -533,7 +533,7 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		_, err := biz.Reject(99999)
+		_, err := biz.Reject(99999, "测试")
 		if err == nil {
 			t.Errorf("期望报销单不存在时返回错误，但成功了")
 		}
@@ -547,7 +547,7 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 		dept := testutil.SeedDepartment(data, "技术部")
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-DRFT", "EMP001", "张三", dept.ID, StatusDraft, 10000)
 
-		_, err := biz.Reject(rm.ID)
+		_, err := biz.Reject(rm.ID, "测试")
 		if err == nil {
 			t.Errorf("期望草稿状态驳回失败，但成功了")
 		}
@@ -561,7 +561,7 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 		dept := testutil.SeedDepartment(data, "技术部")
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-APRV", "EMP001", "张三", dept.ID, StatusApproved, 10000)
 
-		_, err := biz.Reject(rm.ID)
+		_, err := biz.Reject(rm.ID, "测试")
 		if err == nil {
 			t.Errorf("期望已通过状态驳回失败，但成功了")
 		}
@@ -575,7 +575,7 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 		dept := testutil.SeedDepartment(data, "技术部")
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-DUPRJ", "EMP001", "张三", dept.ID, StatusRejected, 10000)
 
-		_, err := biz.Reject(rm.ID)
+		_, err := biz.Reject(rm.ID, "测试")
 		if err == nil {
 			t.Errorf("期望已驳回状态不可重复驳回，但成功了")
 		}

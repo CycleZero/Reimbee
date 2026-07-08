@@ -189,8 +189,7 @@ func (b *DepartmentBiz) Delete(id uint) error {
 	b.logger.Debug("准备调用仓储层删除部门", zap.Uint("部门ID", id))
 	if err := b.repo.Delete(id); err != nil {
 		// 业务约束拒绝 —— 部门下仍有员工或预算记录时，阻止删除
-		if errors.Is(err, errors.New("该部门下仍有员工，无法删除")) ||
-			errors.Is(err, errors.New("该部门下仍有预算记录，无法删除")) {
+		if errors.Is(err, ErrDeptHasEmployees) || errors.Is(err, ErrDeptHasBudget) {
 			// 业务约束属于正常流程拒绝，使用 Warn 级别
 			b.logger.Warn("部门删除被拒绝", zap.Uint("部门ID", id), zap.Error(err))
 			return err
