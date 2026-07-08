@@ -93,6 +93,9 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	}
 	session.InjectUser(params.UserID, params.EmployeeID, params.EmployeeName, params.Role)
 
+	// 将审批状态注入 context，供工具读取
+	ctx = agenttools.InjectApprovalState(ctx, session.State())
+
 	writer.WriteEvent(NewThinkingEvent("正在处理..."))
 	writer.Flush()
 
@@ -110,15 +113,12 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 
 		switch msg.Role {
 		case blades.RoleAssistant:
-			// 先发送思考内容（reasoning 在 text 前面）
 			for _, part := range msg.Parts {
 				if rp, ok := any(part).(blades.ReasoningPart); ok && rp.Text != "" {
-					isDelta := msg.Status != blades.StatusCompleted
-					writer.WriteEvent(NewReasoningEvent(rp.Text, isDelta))
+					writer.WriteEvent(NewReasoningEvent(rp.Text, msg.Status != blades.StatusCompleted))
 					writer.Flush()
 				}
 			}
-			// 再发送正文
 			if msg.Status == blades.StatusInProgress || msg.Status == blades.StatusIncomplete {
 				if text := msg.Text(); text != "" {
 					writer.WriteEvent(NewMessageEvent(text, true))
@@ -130,6 +130,16 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 			}
 
 		case blades.RoleTool:
+			// 检测中断信号
+			if reason, ok := msg.Actions["await_approval"]; ok {
+				writer.WriteEvent(NewInterruptedEvent(reason.(string)))
+				writer.Flush()
+				if err := a.repo.Save(ctx, session.Snapshot()); err != nil {
+					a.logger.Warn("保存中断状态失败", zap.Error(err))
+				}
+				return nil
+			}
+
 			for _, part := range msg.Parts {
 				if tp, ok := any(part).(blades.ToolPart); ok {
 					if tp.Completed {
@@ -151,6 +161,30 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	}
 
 	return nil
+}
+
+// ============================================
+// HandleApprove — 审批恢复
+// ============================================
+
+func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, approved bool, reason string, writer *GinSSEWriter) error {
+	session, err := GetOrCreate(ctx, sessionID, a.repo)
+	if err != nil {
+		return err
+	}
+
+	// 写入审批状态（Consumed=false，等待工具消费）
+	session.SetState("approval", &agenttools.ApprovalState{
+		Approved: approved,
+		Reason:   reason,
+		Consumed: false,
+	})
+
+	if err := a.repo.Save(ctx, session.Snapshot()); err != nil {
+		return err
+	}
+
+	return a.Run(ctx, RunParams{SessionID: sessionID, Message: "继续"}, writer)
 }
 
 // ============================================

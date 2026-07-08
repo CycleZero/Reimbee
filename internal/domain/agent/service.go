@@ -84,6 +84,31 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 	}
 }
 
+func (s *AgentService) HandleApprove(c *gin.Context) {
+	var req struct {
+		SessionID string `json:"session_id"`
+		Approved  bool   `json:"approved"`
+		Reason    string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	writer, err := NewGinSSEWriter(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器不支持流式响应"})
+		return
+	}
+
+	s.logger.Info("审批恢复", zap.String("sessionID", req.SessionID),
+		zap.Bool("approved", req.Approved))
+
+	if err := s.agent.HandleApprove(c.Request.Context(), req.SessionID, req.Approved, req.Reason, writer); err != nil {
+		s.logger.Error("审批恢复失败", zap.Error(err))
+	}
+}
+
 // ListSessions 游标分页查询当前用户的会话列表
 // @Summary 获取会话列表
 // @Description 游标分页查询当前用户的会话历史，按更新时间倒序

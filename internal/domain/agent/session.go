@@ -50,6 +50,10 @@ func (s *Session) SetState(key string, value any) {
 }
 
 func (s *Session) Append(ctx context.Context, msg *blades.Message) error {
+	// 中断消息不落库——LLM 无感，下次恢复可自然复现 tool_call
+	if _, ok := msg.Actions["await_approval"]; ok {
+		return nil
+	}
 	s.messages.Append(msg)
 	s.metaMu.Lock()
 	s.meta.MessageCount = s.messages.Len()

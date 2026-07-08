@@ -43,7 +43,7 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 	// ==========================================
 	// 管理员专属路由
 	// ==========================================
-	admin := api.Group("", middleware.RequireAdmin())
+	admin := api.Group("", middleware.AuthMiddleWire(false), middleware.RequireAdmin())
 	{
 		// 部门管理（CUD）
 		dept := admin.Group("/departments")
@@ -72,7 +72,7 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 	// ==========================================
 	// 审批人 + 管理员路由
 	// ==========================================
-	approver := api.Group("", middleware.RequireApprover())
+	approver := api.Group("", middleware.AuthMiddleWire(false), middleware.RequireApprover())
 	{
 		// 审批操作
 		approver.POST("/approvals/:id/approve", hub.ApprovalService.Approve)
@@ -93,38 +93,40 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 	// ==========================================
 	// 通用路由（所有已认证用户可访问）
 	// ==========================================
+
+	apiRequireAuth := api.Group("/", middleware.AuthMiddleWire(false))
 	{
 		// 部门查询
 		api.GET("/departments", hub.DepartmentService.List)
 		api.GET("/departments/:id", hub.DepartmentService.GetByID)
 
 		// 审批人列表
-		api.GET("/employees/approvers", hub.EmployeeService.ListApprovers)
+		apiRequireAuth.GET("/employees/approvers", hub.EmployeeService.ListApprovers)
 
 		// 预算看板
-		api.GET("/budgets/dashboard", hub.BudgetService.Dashboard)
-		api.GET("/budgets/:id", hub.BudgetService.GetByID)
+		apiRequireAuth.GET("/budgets/dashboard", hub.BudgetService.Dashboard)
+		apiRequireAuth.GET("/budgets/:id", hub.BudgetService.GetByID)
 
 		// 报销单——查询
-		api.GET("/reimbursements", hub.ReimbursementService.List)
-		api.GET("/reimbursements/no/:no", hub.ReimbursementService.GetByNo)
-		api.GET("/reimbursements/:id", hub.ReimbursementService.GetByID)
+		apiRequireAuth.GET("/reimbursements", hub.ReimbursementService.List)
+		apiRequireAuth.GET("/reimbursements/no/:no", hub.ReimbursementService.GetByNo)
+		apiRequireAuth.GET("/reimbursements/:id", hub.ReimbursementService.GetByID)
 
 		// 审批进度查询
-		api.GET("/reimbursements/:id/approvals", hub.ApprovalService.GetProgress)
+		apiRequireAuth.GET("/reimbursements/:id/approvals", hub.ApprovalService.GetProgress)
 
 		// 报销单——创建与提交
-		api.POST("/reimbursements", hub.ReimbursementService.Create)
-		api.POST("/reimbursements/:id/submit", hub.ReimbursementService.Submit)
+		apiRequireAuth.POST("/reimbursements", hub.ReimbursementService.Create)
+		apiRequireAuth.POST("/reimbursements/:id/submit", hub.ReimbursementService.Submit)
 
 		// 票据上传（Agent Phase 1 信息收集的前置步骤）
-		api.POST("/reimbursements/upload", hub.ReimbursementService.UploadInvoice)
+		apiRequireAuth.POST("/reimbursements/upload", hub.ReimbursementService.UploadInvoice)
 	}
 
 	// SSE 对话接口（Agent 流式响应）
-	api.GET("/chat/stream", hub.AgentService.HandleChat)
+	apiRequireAuth.GET("/chat/stream", hub.AgentService.HandleChat)
 
 	// 会话历史查询
-	api.GET("/chat/sessions", hub.AgentService.ListSessions)
-	api.GET("/chat/sessions/:id/messages", hub.AgentService.GetHistory)
+	apiRequireAuth.GET("/chat/sessions", hub.AgentService.ListSessions)
+	apiRequireAuth.GET("/chat/sessions/:id/messages", hub.AgentService.GetHistory)
 }
