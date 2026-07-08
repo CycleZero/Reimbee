@@ -135,6 +135,18 @@ func (b *EmployeeBiz) ListApprovers() ([]*model.Employee, error) {
 	return approvers, nil
 }
 
+// SearchByName 模糊搜索员工（按姓名，支持部分匹配如输入"张"可匹配"张三"）
+func (b *EmployeeBiz) SearchByName(name string) ([]*model.Employee, error) {
+	b.logger.Debug("模糊搜索员工", zap.String("关键词", name))
+	emps, err := b.repo.SearchByName(name)
+	if err != nil {
+		b.logger.Error("模糊搜索员工失败", zap.String("关键词", name), zap.Error(err))
+		return nil, fmt.Errorf("搜索员工失败: %w", err)
+	}
+	b.logger.Info("模糊搜索员工成功", zap.String("关键词", name), zap.Int("匹配数", len(emps)))
+	return emps, nil
+}
+
 // Update 更新员工信息
 // 业务流程：1) 查询现有员工 2) 按需更新字段 3) 自动同步审批人标志 4) 持久化
 func (b *EmployeeBiz) Update(id uint, name, email string, deptID uint, role string) (*model.Employee, error) {

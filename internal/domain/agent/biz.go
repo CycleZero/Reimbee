@@ -350,6 +350,12 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.SearchPolicy != nil {
 		list = append(list, ts.SearchPolicy)
 	}
+	if ts.SearchDepartment != nil {
+		list = append(list, ts.SearchDepartment)
+	}
+	if ts.SearchEmployee != nil {
+		list = append(list, ts.SearchEmployee)
+	}
 	if ts.Compliance != nil {
 		list = append(list, ts.Compliance)
 	}

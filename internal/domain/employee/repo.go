@@ -67,6 +67,13 @@ func (r *EmployeeRepo) ListApprovers() ([]*model.Employee, error) {
 	return emps, err
 }
 
+// SearchByName 模糊搜索员工（按姓名，支持部分匹配）
+func (r *EmployeeRepo) SearchByName(name string) ([]*model.Employee, error) {
+	var emps []*model.Employee
+	err := r.db.Where("name LIKE ?", "%"+name+"%").Preload("Department").Find(&emps).Error
+	return emps, err
+}
+
 // Update 更新员工信息
 func (r *EmployeeRepo) Update(e *model.Employee) error {
 	return r.db.Save(e).Error

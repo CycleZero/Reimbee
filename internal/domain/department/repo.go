@@ -50,6 +50,13 @@ func (r *DepartmentRepo) GetByName(name string) (*model.Department, error) {
 	return &d, nil
 }
 
+// SearchByName 模糊搜索部门（按名称，支持部分匹配）
+func (r *DepartmentRepo) SearchByName(name string) ([]*model.Department, error) {
+	var depts []*model.Department
+	err := r.db.Where("name LIKE ?", "%"+name+"%").Find(&depts).Error
+	return depts, err
+}
+
 // List 分页查询部门列表
 func (r *DepartmentRepo) List(page, pageSize int) ([]*model.Department, int64, error) {
 	var depts []*model.Department
