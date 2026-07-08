@@ -27,10 +27,10 @@ type SearchPolicyOutput struct {
 
 // PolicyChunk 单个政策文档片段（工具层 DTO）
 type PolicyChunk struct {
-	RuleID  string  `json:"rule_id"`  // 规则ID（如 RULE-TRAVEL-002）
-	Title   string  `json:"title"`    // 政策标题
-	Content string  `json:"content"`  // 政策原文片段
-	Score   float64 `json:"score"`    // 语义相似度分数
+	RuleID  string  `json:"rule_id"` // 规则ID（如 RULE-TRAVEL-002）
+	Title   string  `json:"title"`   // 政策标题
+	Content string  `json:"content"` // 政策原文片段
+	Score   float64 `json:"score"`   // 语义相似度分数
 }
 
 // SearchPolicyTool Wire 命名类型（Blades tools.Tool）
@@ -40,7 +40,7 @@ type SearchPolicyTool struct{ tools.Tool }
 func NewSearchPolicyTool(kb *compliance.KnowledgeBase, logger *log.Logger) *SearchPolicyTool {
 	t, err := tools.NewFunc[SearchPolicyInput, SearchPolicyOutput](
 		"search_policy",
-		"检索企业报销政策知识库。输入自然语言查询（如'差旅住宿标准'），返回最相关的政策文档片段（包括费用标准、审批流程、特殊规定等）。",
+		"检索企业报销政策RAG知识库。输入自然语言查询（如'差旅住宿标准'），返回最相关的政策文档片段（包括费用标准、审批流程、特殊规定等）。",
 		func(ctx context.Context, input SearchPolicyInput) (SearchPolicyOutput, error) {
 			if input.Limit <= 0 {
 				input.Limit = 5
