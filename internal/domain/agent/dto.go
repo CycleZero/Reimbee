@@ -20,11 +20,9 @@ type SessionItem struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// GetMessagesResponse 会话消息游标分页响应
+// GetMessagesResponse 会话消息响应（全量）
 type GetMessagesResponse struct {
-	Messages   []MessageItem `json:"messages"`
-	NextCursor uint          `json:"next_cursor"` // 下一页游标，0 表示无更多
-	HasMore    bool          `json:"has_more"`
+	Messages []MessageItem `json:"messages"`
 }
 
 // MessageItem 消息项（仅返回展示字段，不含完整 Parts）

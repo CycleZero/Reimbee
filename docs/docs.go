@@ -467,7 +467,7 @@ const docTemplate = `{
         },
         "/api/chat/sessions/{id}/messages": {
             "get": {
-                "description": "游标分页加载指定会话的消息记录，按 seq 正序",
+                "description": "获取指定会话的全部消息记录",
                 "consumes": [
                     "application/json"
                 ],
@@ -485,18 +485,6 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "游标（上次拉取的最后一条消息 seq，首次传0）",
-                        "name": "cursor",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "每页数量，默认20，最大100",
-                        "name": "limit",
-                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -1573,18 +1561,11 @@ const docTemplate = `{
         "agent.GetMessagesResponse": {
             "type": "object",
             "properties": {
-                "has_more": {
-                    "type": "boolean"
-                },
                 "messages": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/agent.MessageItem"
                     }
-                },
-                "next_cursor": {
-                    "description": "下一页游标，0 表示无更多",
-                    "type": "integer"
                 }
             }
         },

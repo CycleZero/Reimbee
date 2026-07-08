@@ -214,30 +214,23 @@ func (a *ReimburseAgent) ListSessions(ctx context.Context, userID uint, cursor s
 	}, nil
 }
 
-func (a *ReimburseAgent) GetHistory(ctx context.Context, sessionID string, cursor uint, limit int) (*GetMessagesResponse, error) {
-	result, err := a.repo.LoadMessagesCursor(ctx, sessionID, cursor, limit)
+func (a *ReimburseAgent) GetHistory(ctx context.Context, sessionID string) (*GetMessagesResponse, error) {
+	session, err := GetOrCreate(ctx, sessionID, a.repo)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]MessageItem, 0, len(result.Messages))
-	for _, mws := range result.Messages {
-		item := MessageItem{
-			Seq:  mws.Seq,
-			Role: string(mws.Msg.Role),
-		}
-		for _, part := range mws.Msg.Parts {
+	msgs, _ := session.History(ctx)
+	items := make([]MessageItem, 0, len(msgs))
+	for _, msg := range msgs {
+		item := MessageItem{Role: string(msg.Role)}
+		for _, part := range msg.Parts {
 			if tp, ok := any(part).(blades.TextPart); ok {
 				item.Content += tp.Text
 			}
 		}
-		item.CreatedAt = mws.CreatedAt.Format("2006-01-02 15:04:05")
 		items = append(items, item)
 	}
-	return &GetMessagesResponse{
-		Messages:   items,
-		NextCursor: result.NextCursor,
-		HasMore:    result.HasMore,
-	}, nil
+	return &GetMessagesResponse{Messages: items}, nil
 }
 
 // ============================================

@@ -134,25 +134,21 @@ func (s *AgentService) ListSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// GetHistory 游标分页查询指定会话的消息历史
+// GetHistory 获取会话消息历史
 // @Summary 获取会话消息历史
-// @Description 游标分页加载指定会话的消息记录，按 seq 正序
+// @Description 获取指定会话的全部消息记录
 // @Tags Agent对话
 // @Accept json
 // @Produce json
 // @Param id path string true "会话ID"
-// @Param cursor query int false "游标（上次拉取的最后一条消息 seq，首次传0）"
-// @Param limit query int false "每页数量，默认20，最大100"
 // @Param Authorization header string true "Bearer JWT Token"
 // @Success 200 {object} GetMessagesResponse "消息列表"
 // @Failure 500 {object} map[string]interface{} "查询失败"
 // @Router /api/chat/sessions/{id}/messages [get]
 func (s *AgentService) GetHistory(c *gin.Context) {
 	sessionID := c.Param("id")
-	cursor, _ := strconv.Atoi(c.DefaultQuery("cursor", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	resp, err := s.agent.GetHistory(c.Request.Context(), sessionID, uint(cursor), limit)
+	resp, err := s.agent.GetHistory(c.Request.Context(), sessionID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return

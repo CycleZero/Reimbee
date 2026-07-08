@@ -1,15 +1,10 @@
 definitions:
   agent.GetMessagesResponse:
     properties:
-      has_more:
-        type: boolean
       messages:
         items:
           $ref: '#/definitions/agent.MessageItem'
         type: array
-      next_cursor:
-        description: 下一页游标，0 表示无更多
-        type: integer
     type: object
   agent.ListSessionsResponse:
     properties:
@@ -762,21 +757,13 @@ paths:
     get:
       consumes:
       - application/json
-      description: 游标分页加载指定会话的消息记录，按 seq 正序
+      description: 获取指定会话的全部消息记录
       parameters:
       - description: 会话ID
         in: path
         name: id
         required: true
         type: string
-      - description: 游标（上次拉取的最后一条消息 seq，首次传0）
-        in: query
-        name: cursor
-        type: integer
-      - description: 每页数量，默认20，最大100
-        in: query
-        name: limit
-        type: integer
       - description: Bearer JWT Token
         in: header
         name: Authorization
