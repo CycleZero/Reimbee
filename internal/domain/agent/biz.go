@@ -9,6 +9,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/CycleZero/Reimbee/infra"
 	agenttools "github.com/CycleZero/Reimbee/internal/domain/agent/tools"
@@ -201,29 +202,34 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 	}
 
 	// 重放被中断的工具：直接调用 → 结果存入 session → LLM 无感
-	if pending, ok := session.State()["pending_tool"].(map[string]any); ok {
-		toolName, _ := pending["name"].(string)
-		toolInput, _ := pending["input"].(string)
+	pending, ok := session.State()["pending_tool"].(map[string]any)
+	if !ok || pending["name"] == nil {
+		writer.WriteEvent(NewErrorEvent("没有待审批的操作"))
+		writer.Flush()
+		return fmt.Errorf("会话 %s 没有待审批的操作", sessionID)
+	}
 
-		if t, ok := a.tools[toolName]; ok {
-			result, err := t.Handle(ctx, toolInput)
-			if err != nil {
-				a.logger.Warn("重放工具失败", zap.String("tool", toolName), zap.Error(err))
-			}
-			// 将工具结果作为 completed 消息存入 session（LLM 在后续 History 里能看到）
-			toolMsg := &blades.Message{
-				Role: blades.RoleTool,
-				Parts: []blades.Part{
-					blades.ToolPart{
-						Name:      toolName,
-						Request:   toolInput,
-						Response:  result,
-						Completed: true,
-					},
-				},
-			}
-			session.Append(ctx, toolMsg)
+	toolName, _ := pending["name"].(string)
+	toolInput, _ := pending["input"].(string)
+
+	if t, ok := a.tools[toolName]; ok {
+		result, err := t.Handle(ctx, toolInput)
+		if err != nil {
+			a.logger.Warn("重放工具失败", zap.String("tool", toolName), zap.Error(err))
 		}
+		// 将工具结果作为 completed 消息存入 session（LLM 在后续 History 里能看到）
+		toolMsg := &blades.Message{
+			Role: blades.RoleTool,
+			Parts: []blades.Part{
+				blades.ToolPart{
+					Name:      toolName,
+					Request:   toolInput,
+					Response:  result,
+					Completed: true,
+				},
+			},
+		}
+		session.Append(ctx, toolMsg)
 	}
 
 	// 写入审批状态
