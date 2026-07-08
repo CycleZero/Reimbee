@@ -16,6 +16,7 @@ type InvoiceState struct {
 	ImagePath string `json:"image_path"`
 	Amount    int64  `json:"amount"`
 	Category  string `json:"category"`
+	Date      string `json:"date"`
 }
 
 type BudgetCheckResult struct {

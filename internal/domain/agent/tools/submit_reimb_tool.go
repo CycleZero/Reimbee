@@ -59,5 +59,5 @@ func NewSubmitReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, store 
 		panic("创建submit_reimbursement工具失败: " + err.Error())
 	}
 	logger.Info("提交报销单工具初始化完成（含Interruptable包装）")
-	return &SubmitReimbTool{NewInterruptable(base, "确认提交报销单？提交后不可撤销。")}
+	return &SubmitReimbTool{NewRoleGuard(NewInterruptable(base, "确认提交报销单？提交后不可撤销。"), "employee")}
 }

@@ -380,5 +380,11 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.TestInterrupt != nil {
 		list = append(list, ts.TestInterrupt)
 	}
+	if ts.ListInvoices != nil {
+		list = append(list, ts.ListInvoices)
+	}
+	if ts.CheckDeadline != nil {
+		list = append(list, ts.CheckDeadline)
+	}
 	return list
 }
