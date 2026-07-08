@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Avatar, Tag, Button } from 'antd';
-import { RobotOutlined, ToolOutlined, BulbOutlined, BulbFilled } from '@ant-design/icons';
+import { Avatar, Tag, Button, Input } from 'antd';
+import { RobotOutlined, ToolOutlined, BulbOutlined, BulbFilled, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { TOOL_LABELS } from '@/utils/constants';
-import type { MessageRendererProps, ToolCallRecord } from '../types';
+import { useChatStore } from '../stores/chatStore';
+import type { MessageRendererProps, ToolCallRecord, MessageInterrupt } from '../types';
 
 const markdownStyle: React.CSSProperties = {
   lineHeight: 1.7,
@@ -19,6 +20,108 @@ function formatToolOutput(call: ToolCallRecord): string {
   } catch {
     return String(call.output);
   }
+}
+
+/** Inline 中断确认栏 */
+function InterruptBar({ interrupt, messageId }: { interrupt: MessageInterrupt; messageId: string }) {
+  const [reason, setReason] = useState('');
+  const [expanded, setExpanded] = useState(true);
+  const triggerApprove = useChatStore((s) => s.triggerApprove);
+  const sessionId = useChatStore((s) => s.currentSessionId);
+  const isPending = interrupt.status === 'pending';
+
+  const handle = (approved: boolean) => {
+    if (!sessionId) return;
+    useChatStore.setState((prev) => ({
+      messages: prev.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, interrupt: { ...interrupt, status: approved ? 'approved' : 'rejected' } as MessageInterrupt }
+          : m,
+      ),
+    }));
+    triggerApprove({ session_id: sessionId, approved, reason });
+  };
+
+  if (!isPending) {
+    // 已确认/已拒绝 — 灰色收起状态
+    return (
+      <div
+        style={{
+          marginTop: 6,
+          padding: '6px 12px',
+          background: '#f5f5f5',
+          borderRadius: 8,
+          border: '1px solid #e8e8e8',
+          fontSize: 12,
+          color: '#999',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+        }}
+        onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => { if (e.key === 'Enter') setExpanded((v) => !v); }}
+        role="button"
+        tabIndex={0}
+      >
+        <span>
+          {interrupt.status === 'approved' ? '✅ 已确认' : '❌ 已取消'} — {TOOL_LABELS[interrupt.toolName] ?? interrupt.toolName}
+        </span>
+        <span style={{ fontSize: 11 }}>{expanded ? '收起' : '展开'}</span>
+      </div>
+    );
+  }
+
+  // pending — 黄色醒目展开
+  const toolLabel = TOOL_LABELS[interrupt.toolName] ?? interrupt.toolName;
+
+  return (
+    <div
+      style={{
+        marginTop: 6,
+        padding: '10px 14px',
+        background: '#fffbe6',
+        borderRadius: 8,
+        border: '1px solid #ffe58f',
+        fontSize: 13,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 6, color: '#ad6800' }}>
+        ⚠ {toolLabel}
+      </div>
+      <div style={{ marginBottom: 10, color: '#8c6900', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+        {interrupt.reason}
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <Input.TextArea
+          rows={2}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="补充说明（可选）"
+          style={{ fontSize: 12 }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button
+          size="small"
+          icon={<CloseOutlined />}
+          onClick={() => handle(false)}
+        >
+          取消
+        </Button>
+        <Button
+          size="small"
+          type="primary"
+          icon={<CheckOutlined />}
+          onClick={() => handle(true)}
+        >
+          确认
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function AssistantBubble({ message }: MessageRendererProps) {
@@ -146,7 +249,7 @@ export function AssistantBubble({ message }: MessageRendererProps) {
             <Tag icon={<ToolOutlined />} color="default" style={{ fontSize: 11, lineHeight: '18px' }}>
               {toolCount} 个工具调用
             </Tag>
-            {hasRunning && (
+            {message.isStreaming && hasRunning && (
               <span
                 className="cursor-blink"
                 style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#1677ff' }}
@@ -186,6 +289,11 @@ export function AssistantBubble({ message }: MessageRendererProps) {
           </ReactMarkdown>
           {message.isStreaming && <span className="cursor-blink" />}
         </div>
+
+        {/* Inline 中断确认栏 — 放在 content 下方 */}
+        {message.interrupt && (
+          <InterruptBar interrupt={message.interrupt} messageId={message.id} />
+        )}
       </div>
     </div>
   );

@@ -40,9 +40,8 @@ export interface ToolResultData {
 }
 
 export interface InterruptedData {
-  interrupt_id: string;
-  action: string;
-  context: unknown;
+  tool_name: string;
+  reason: string;
 }
 
 export interface ErrorData {

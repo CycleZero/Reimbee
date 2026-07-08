@@ -44,5 +44,5 @@ func NewCancelReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger
 		panic("创建取消报销单工具失败: " + err.Error())
 	}
 	logger.Info("取消报销单工具初始化完成（含Interruptable包装）")
-	return &CancelReimbTool{NewRoleGuard(NewInterruptable(base, "确认取消此报销单？取消后不可恢复。"), "employee")}
+	return &CancelReimbTool{NewInterruptable(base, "确认取消此报销单？取消后不可恢复。")}
 }

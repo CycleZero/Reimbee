@@ -82,12 +82,11 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 				}
 			}
 
-		state.Invoices = append(state.Invoices, types.InvoiceState{
-			ImagePath: input.ImagePath,
-			Amount:    amountInCents,
-			Category:  result.Category,
-			Date:      result.Date,
-		})
+			state.Invoices = append(state.Invoices, types.InvoiceState{
+				ImagePath: input.ImagePath,
+				Amount:    amountInCents,
+				Category:  result.Category,
+			})
 			state.TotalAmount += amountInCents
 			if state.CurrentPhase == "" {
 				state.CurrentPhase = "phase1_collect"

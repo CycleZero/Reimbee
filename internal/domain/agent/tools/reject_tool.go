@@ -37,5 +37,5 @@ func NewRejectTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log
 	if err != nil {
 		panic("创建驳回工具失败: " + err.Error())
 	}
-	return &RejectTool{NewRoleGuard(t, "approver", "admin")}
+	return &RejectTool{t}
 }

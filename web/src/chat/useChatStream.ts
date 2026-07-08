@@ -1,6 +1,7 @@
 // ============================================
 // SSE 流式对话连接 Hook
 // v4.1: 类型从 SSE event: 字段读取，data 直接是载荷 JSON
+// v4.2: 支持 approve 模式 — POST /api/chat/approve 恢复中断执行
 // ============================================
 
 import { useEffect, useRef } from 'react';
@@ -16,7 +17,7 @@ import type {
   InterruptedData,
   ErrorData,
 } from '@/types/sse';
-import type { ToolCallRecord, ChatStreamHandlers } from './types';
+import type { ToolCallRecord, ChatStreamHandlers, ApprovePayload } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
@@ -24,10 +25,16 @@ function getStore() {
   return useChatStore.getState();
 }
 
+interface ApproveTrigger {
+  payload: ApprovePayload;
+  version: number;
+}
+
 export function useChatStream(
   sessionId: string | null,
   message: string | null,
   extraHandlers?: Partial<ChatStreamHandlers>,
+  approve?: ApproveTrigger | null,
 ) {
   const ctrlRef = useRef<AbortController | null>(null);
   const tokenRef = useRef(useAuthStore.getState().token);
@@ -37,25 +44,19 @@ export function useChatStream(
   });
 
   useEffect(() => {
-    if (!sessionId || !message) return;
+    const isApprove = !!approve;
+    const hasMessage = !!sessionId && !!message;
+
+    if (!isApprove && !hasMessage) return;
 
     ctrlRef.current?.abort();
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
 
-    const url = new URL('/api/chat/stream', BASE_URL);
-    url.searchParams.set('session_id', sessionId);
-    url.searchParams.set('message', message);
-
     getStore().setConnectionStatus('connecting');
 
-    fetchEventSource(url.toString(), {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${tokenRef.current}` },
-      signal: ctrl.signal,
-      openWhenHidden: true,
-
-      onopen: async (response) => {
+    const sharedHandlers = {
+      onopen: async (response: Response) => {
         if (response.ok) {
           getStore().setConnectionStatus('connected');
           return;
@@ -67,7 +68,7 @@ export function useChatStream(
         throw new Error(`SSE 连接失败 (${response.status})`);
       },
 
-      onmessage(evt) {
+      onmessage(evt: { event: string; data: string }) {
         if (!evt.data) return;
         const payload = JSON.parse(evt.data);
         const s = getStore();
@@ -140,7 +141,6 @@ export function useChatStream(
               if (!mid) mid = s.startStreamingMessage();
               s.appendStreamContent(mid, d.text);
             } else {
-              // 完整消息：替换流式内容（校验流式结果），或创建新消息
               if (s.currentStreamingMessageId) {
                 useChatStore.setState((prev) => ({
                   messages: prev.messages.map((m) =>
@@ -161,12 +161,45 @@ export function useChatStream(
 
           case 'interrupted': {
             const d = payload as InterruptedData;
-            extraHandlers?.onInterrupted?.(d.interrupt_id, d.action, d.context);
-            s.setInterruptPrompt({
-              interruptId: d.interrupt_id,
-              action: d.action,
-              context: d.context,
+            extraHandlers?.onInterrupted?.(d.tool_name, d.reason);
+            if (s.currentStreamingMessageId) {
+              s.finishStreamingMessage(s.currentStreamingMessageId);
+            }
+            // 将中断挂到最近一条 assistant 消息上，供 inline widget 渲染
+            useChatStore.setState((prev) => {
+              const lastAssistant = [...prev.messages].reverse().find((m) => m.role === 'assistant');
+              if (!lastAssistant) return {};
+              return {
+                messages: prev.messages.map((m) =>
+                  m.id === lastAssistant.id
+                    ? {
+                        ...m,
+                        interrupt: {
+                          toolName: d.tool_name,
+                          reason: d.reason,
+                          status: 'pending' as const,
+                        },
+                      }
+                    : m,
+                ),
+              };
             });
+            const sid = s.currentSessionId;
+            if (sid && s.messages.length > 0) {
+              useChatStore.setState((prev) => {
+                const touched = [sid, ...prev.cacheOrder.filter((id) => id !== sid)].slice(0, 5);
+                return {
+                  sessionCache: {
+                    ...prev.sessionCache,
+                    [sid]: { messages: prev.messages },
+                  },
+                  cacheOrder: touched,
+                };
+              });
+            }
+            s.clearThinking();
+            s.clearReasoning();
+            s.setConnectionStatus('disconnected');
             break;
           }
 
@@ -214,16 +247,45 @@ export function useChatStream(
         getStore().setConnectionStatus('disconnected');
       },
 
-      onerror(err) {
+      onerror(err: unknown) {
         getStore().setConnectionStatus('error');
         throw err;
       },
-    }).catch(() => {
-      getStore().setConnectionStatus('error');
-    });
+    };
+
+    if (isApprove) {
+      const url = `${BASE_URL}/api/chat/approve`;
+      fetchEventSource(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenRef.current}`,
+        },
+        body: JSON.stringify(approve.payload),
+        signal: ctrl.signal,
+        openWhenHidden: true,
+        ...sharedHandlers,
+      }).catch(() => {
+        getStore().setConnectionStatus('error');
+      });
+    } else {
+      const url = new URL('/api/chat/stream', BASE_URL);
+      url.searchParams.set('session_id', sessionId!);
+      url.searchParams.set('message', message!);
+
+      fetchEventSource(url.toString(), {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+        signal: ctrl.signal,
+        openWhenHidden: true,
+        ...sharedHandlers,
+      }).catch(() => {
+        getStore().setConnectionStatus('error');
+      });
+    }
 
     return () => {
       ctrl.abort();
     };
-  }, [sessionId, message]);
+  }, [sessionId, message, approve?.version]);
 }

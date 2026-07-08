@@ -46,4 +46,3 @@ export { MessageRenderer } from './components/MessageRenderer';
 export { ChatInput } from './components/ChatInput';
 export { ThinkingIndicator } from './components/ThinkingIndicator';
 export { PhaseIndicator } from './components/PhaseIndicator';
-export { ConfirmModal } from './components/ConfirmModal';

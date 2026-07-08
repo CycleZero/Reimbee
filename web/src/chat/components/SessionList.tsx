@@ -55,11 +55,11 @@ export function SessionList() {
       style={{
         width: SIDEBAR_WIDTH,
         minWidth: SIDEBAR_WIDTH,
-        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         borderRight: '1px solid #f0f0f0',
         background: '#fafafa',
+        overflow: 'hidden',
       }}
     >
       <div style={{ padding: '12px' }}>

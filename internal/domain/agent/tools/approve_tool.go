@@ -34,5 +34,5 @@ func NewApproveTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *lo
 	if err != nil {
 		panic("创建审批工具失败: " + err.Error())
 	}
-	return &ApproveTool{NewRoleGuard(NewInterruptable(base, "确认审批通过此报销单？"), "approver", "admin")}
+	return &ApproveTool{NewInterruptable(base, "确认审批通过此报销单？")}
 }

@@ -18,6 +18,16 @@ export interface ToolCallRecord {
   errorMessage?: string;
 }
 
+/** 中断状态 */
+export type InterruptStatus = 'pending' | 'approved' | 'rejected';
+
+/** 消息附带的中断数据（inline widget 使用） */
+export interface MessageInterrupt {
+  toolName: string;
+  reason: string;
+  status: InterruptStatus;
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
   id: string;
@@ -28,6 +38,8 @@ export interface ChatMessage {
   toolCalls?: ToolCallRecord[];
   /** 本消息对应的推理过程（模型思考链），可为空 */
   reasoning?: string;
+  /** 本消息触发的中断（需要用户确认时设置） */
+  interrupt?: MessageInterrupt;
 }
 
 /** 报销流程阶段 */
@@ -55,6 +67,13 @@ export interface InterruptPrompt {
   interruptId: string;
   action: string;
   context: unknown;
+}
+
+/** approve 请求体 */
+export interface ApprovePayload {
+  session_id: string;
+  approved: boolean;
+  reason: string;
 }
 
 /** 连接状态 */
@@ -90,7 +109,7 @@ export interface ChatStreamHandlers {
   onToolCall?: (tool: string, input: unknown) => void;
   onToolResult?: (tool: string, output: unknown) => void;
   onMessage?: (text: string, delta: boolean) => void;
-  onInterrupted?: (interruptId: string, action: string, context: unknown) => void;
+  onInterrupted?: (toolName: string, reason: string) => void;
   onError?: (message: string, retry: boolean, code: string) => void;
   onDone?: () => void;
 }

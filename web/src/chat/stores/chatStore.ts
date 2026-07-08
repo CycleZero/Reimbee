@@ -15,6 +15,7 @@ import type {
   InterruptPrompt,
   SessionItem,
   ConnectionStatus,
+  ApprovePayload,
 } from '../types';
 
 // ============================================
@@ -45,6 +46,9 @@ interface ChatState {
 
   // ---- 中断（v4.1）----
   interruptPrompt: InterruptPrompt | null;
+
+  // ---- approve 信号（v4.2）----
+  approveSignal: { version: number; payload: ApprovePayload } | null;
 
   // ---- 会话 ----
   sessions: SessionItem[];
@@ -86,6 +90,9 @@ interface ChatState {
   // 中断
   setInterruptPrompt: (prompt: InterruptPrompt | null) => void;
 
+  // approve 信号
+  triggerApprove: (payload: ApprovePayload) => void;
+
   // 会话
   initSession: (sessionId?: string) => string;
   clearMessages: () => void;
@@ -124,6 +131,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
   // ---- 中断 ----
   interruptPrompt: null,
+
+  // ---- approve 信号 ----
+  approveSignal: null,
 
   // ---- 会话 ----
   sessions: [],
@@ -241,6 +251,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   setConfirmPrompt: (prompt) => set({ confirmPrompt: prompt }),
 
   setInterruptPrompt: (prompt) => set({ interruptPrompt: prompt }),
+
+  triggerApprove: (payload) =>
+    set((s) => ({
+      approveSignal: { version: (s.approveSignal?.version ?? 0) + 1, payload },
+    })),
 
   // ============================================
   // 会话 Actions
@@ -370,6 +385,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         content: m.content,
         timestamp: new Date(m.created_at).getTime(),
         toolCalls: [],
+        reasoning: m.reasoning || undefined,
       }));
       const currentState = get();
       const cached = currentState.sessionCache[sessionId];

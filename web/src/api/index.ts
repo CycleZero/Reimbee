@@ -238,6 +238,7 @@ export interface SessionMessageItem {
   role: string;
   content: string;
   tool_name: string;
+  reasoning?: string;
   created_at: string;
 }
 

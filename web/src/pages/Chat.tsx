@@ -25,8 +25,8 @@ export default function Chat() {
 
   const sessionId = store.currentSessionId;
   const connectionStatus = store.connectionStatus;
+  const approveSignal = store.approveSignal;
 
-  // 页面挂载时同步 URL 中的 sessionId
   useEffect(() => {
     if (urlSessionId) {
       if (urlSessionId !== store.currentSessionId) {
@@ -36,10 +36,12 @@ export default function Chat() {
     store.loadSessions();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // SSE 连接
-  useChatStream(sessionId, pendingMessage);
+  const approveTrigger = approveSignal
+    ? { payload: approveSignal.payload, version: approveSignal.version }
+    : null;
 
-  // 发送消息
+  useChatStream(sessionId, pendingMessage, undefined, approveTrigger);
+
   const handleSend = useCallback(
     (msg: string) => {
       if (connectionStatus === 'connecting' || connectionStatus === 'connected') {
@@ -53,14 +55,13 @@ export default function Chat() {
         navigate(`/chat/${sid}`, { replace: true });
       }
 
-      // 拼接已上传的票据路径，供 Agent 调用 OCR 工具
       const fullMsg = uploadedFile
         ? `${msg}\n[已上传票据: ${uploadedFile.path}]`
         : msg;
 
       store.addUserMessage(fullMsg);
       setPendingMessage(fullMsg);
-      setUploadedFile(null); // 发送后清空已上传票据
+      setUploadedFile(null);
     },
     [sessionId, connectionStatus, uploadedFile, store, navigate, antMsg],
   );
@@ -68,12 +69,10 @@ export default function Chat() {
   const isDisabled = connectionStatus === 'connecting' || connectionStatus === 'connected';
 
   return (
-    <div style={{ height: 'calc(100vh - 120px)', display: 'flex' }}>
-      {/* 左侧会话列表 */}
+    <div style={{ height: 'calc(100vh - 64px - 48px - 48px)', display: 'flex', overflow: 'hidden' }}>
       <SessionList />
 
-      {/* 右侧聊天区域 */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         <ChatLayout
           header={<PhaseIndicator />}
           inputPrefix={

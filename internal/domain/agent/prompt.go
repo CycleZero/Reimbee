@@ -5,18 +5,25 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/CycleZero/Reimbee/internal/common"
 	"github.com/CycleZero/Reimbee/model"
 	"github.com/CycleZero/blades"
 )
 
+// BuildInstruction 返回 blades InstructionProvider：从 ctx 读角色，生成对应系统提示词
 func BuildInstruction() blades.InstructionProvider {
 	return func(ctx context.Context) (string, error) {
-		meta := common.GetRequestMetadata(ctx)
-		if meta != nil && (meta.Role == model.RoleApprover || meta.Role == model.RoleAdmin) {
-			return approverPrompt, nil
+		meta := GetAgentMeta(ctx)
+		role := ""
+		if meta != nil {
+			role = meta.Role
 		}
-		return employeePrompt, nil
+
+		switch role {
+		case model.RoleApprover, model.RoleAdmin:
+			return approverPrompt, nil
+		default:
+			return employeePrompt, nil
+		}
 	}
 }
 

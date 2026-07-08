@@ -3,6 +3,8 @@
 // ReimburseAgent 基于 Blades Runner 封装报销对话流程：
 //
 //	Run() — 创建/加载 Session → Runner.RunStream() → 直接写 SSE 事件
+//
+// TODO: 审批中断恢复（待中断机制设计完成后实现）
 package agent
 
 import (
@@ -23,13 +25,13 @@ import (
 
 // ReimburseAgent 报销 Agent 核心业务逻辑
 type ReimburseAgent struct {
-	agent    blades.Agent
-	runner   *blades.Runner
-	repo     *infra.SessionRepo
-	tools    map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
-	resolver *Resolver                    // 角色动态工具解析
-	config   *Config
-	logger   *log.Logger
+	agent      blades.Agent
+	runner     *blades.Runner
+	repo       *infra.SessionRepo
+	tools      map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
+	resolver   *Resolver                    // 角色动态工具解析
+	config     *Config
+	logger     *log.Logger
 }
 
 // NewReimburseAgent 创建报销 Agent 实例（Wire 兼容，失败 panic）
@@ -132,6 +134,8 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	ctx = agenttools.InjectApprovalState(ctx, session.State())
 	// 将 sessionID 注入 context，供工具写 state
 	ctx = agenttools.WithSessionID(ctx, params.SessionID)
+	// 将角色元数据注入 context，供 Resolver + InstructionProvider 读取
+	ctx = WithAgentMeta(ctx, &AgentMeta{Role: params.Role})
 
 	writer.WriteEvent(NewThinkingEvent("正在处理..."))
 	writer.Flush()
@@ -379,12 +383,6 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	}
 	if ts.TestInterrupt != nil {
 		list = append(list, ts.TestInterrupt)
-	}
-	if ts.ListInvoices != nil {
-		list = append(list, ts.ListInvoices)
-	}
-	if ts.CheckDeadline != nil {
-		list = append(list, ts.CheckDeadline)
 	}
 	return list
 }
