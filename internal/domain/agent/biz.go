@@ -25,12 +25,13 @@ import (
 
 // ReimburseAgent 报销 Agent 核心业务逻辑
 type ReimburseAgent struct {
-	agent  blades.Agent
-	runner *blades.Runner
-	repo   *infra.SessionRepo
-	tools  map[string]blades_tools.Tool // 工具名→实例，用于中断恢复时直接重放
-	config *Config
-	logger *log.Logger
+	agent      blades.Agent
+	runner     *blades.Runner
+	repo       *infra.SessionRepo
+	tools      map[string]blades_tools.Tool // 全部工具实例（供 HandleApprove 重放）
+	resolver   *Resolver                    // 角色动态工具解析
+	config     *Config
+	logger     *log.Logger
 }
 
 // NewReimburseAgent 创建报销 Agent 实例（Wire 兼容，失败 panic）
@@ -41,13 +42,35 @@ func NewReimburseAgent(
 	config *Config,
 	logger *log.Logger,
 ) *ReimburseAgent {
+	// 构建全量工具 map（供 HandleApprove 使用）
 	toolList := collectTools(toolSet)
+	toolMap := make(map[string]blades_tools.Tool, len(toolList))
+	for _, t := range toolList {
+		toolMap[t.Name()] = t
+	}
+
+	// 拆分工具：共用 + employee 专属 + approver 专属
+	var shared, employee, approver []blades_tools.Tool
+	for _, t := range toolList {
+		switch t.Name() {
+		case "recognize_invoice", "check_budget", "create_reimbursement",
+			"submit_reimbursement", "cancel_reimbursement", "generate_pdf",
+			"send_email", "get_department_id":
+			employee = append(employee, t)
+		case "approve_reimbursement", "reject_reimbursement", "list_pending":
+			approver = append(approver, t)
+		default:
+			shared = append(shared, t) // search_policy, compliance, progress, query, detail
+		}
+	}
+
+	resolver := NewResolver(shared, employee, approver)
 
 	agent, err := blades.NewAgent("reimburse_agent",
 		blades.WithModel(NewLoggingModelProvider(model, logger.Logger)),
-		blades.WithInstruction(buildSystemPrompt()),
+		blades.WithInstructionProvider(BuildInstruction()),
 		blades.WithDescription("企业报销全流程智能助手"),
-		blades.WithTools(toolList...),
+		blades.WithToolsResolver(resolver),
 		blades.WithMaxIterations(15),
 		blades.WithContext(true),
 		blades.WithMiddleware(MessageLoggingMiddleware(logger.Logger)),
@@ -56,20 +79,19 @@ func NewReimburseAgent(
 		panic("创建Agent失败: " + err.Error())
 	}
 
-	logger.Info("ReimburseAgent初始化完成", zap.Int("工具数", len(toolList)))
-
-	toolMap := make(map[string]blades_tools.Tool, len(toolList))
-	for _, t := range toolList {
-		toolMap[t.Name()] = t
-	}
+	logger.Info("ReimburseAgent初始化完成",
+		zap.Int("共享工具", len(shared)),
+		zap.Int("员工工具", len(employee)),
+		zap.Int("审批工具", len(approver)))
 
 	return &ReimburseAgent{
-		agent:  agent,
-		runner: blades.NewRunner(agent),
-		repo:   repo,
-		tools:  toolMap,
-		config: config,
-		logger: logger,
+		agent:    agent,
+		runner:   blades.NewRunner(agent),
+		repo:     repo,
+		tools:    toolMap,
+		resolver: resolver,
+		config:   config,
+		logger:   logger,
 	}
 }
 
@@ -112,6 +134,8 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	ctx = agenttools.InjectApprovalState(ctx, session.State())
 	// 将 sessionID 注入 context，供工具写 state
 	ctx = agenttools.WithSessionID(ctx, params.SessionID)
+	// 将角色元数据注入 context，供 Resolver + InstructionProvider 读取
+	ctx = WithAgentMeta(ctx, &AgentMeta{Role: params.Role})
 
 	writer.WriteEvent(NewThinkingEvent("正在处理..."))
 	writer.Flush()
@@ -289,6 +313,14 @@ func (a *ReimburseAgent) GetHistory(ctx context.Context, sessionID string) (*Get
 			if tp, ok := any(part).(blades.TextPart); ok {
 				item.Content += tp.Text
 			}
+			if tp, ok := any(part).(blades.ToolPart); ok {
+				item.ToolName = tp.Name
+				item.ToolCalls = append(item.ToolCalls, ToolCall{
+					Name:      tp.Name,
+					Arguments: tp.Request,
+					Result:    tp.Response,
+				})
+			}
 		}
 		items = append(items, item)
 	}
@@ -324,6 +356,15 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	}
 	if ts.SubmitReimb != nil {
 		list = append(list, ts.SubmitReimb)
+	}
+	if ts.ApproveReimb != nil {
+		list = append(list, ts.ApproveReimb)
+	}
+	if ts.RejectReimb != nil {
+		list = append(list, ts.RejectReimb)
+	}
+	if ts.PendingList != nil {
+		list = append(list, ts.PendingList)
 	}
 	if ts.CancelReimb != nil {
 		list = append(list, ts.CancelReimb)

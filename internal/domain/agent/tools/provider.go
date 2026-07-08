@@ -17,9 +17,12 @@ var ProviderSet = wire.NewSet(
 	NewQueryTool,
 	NewCreateReimbTool,
 	NewSubmitReimbTool,
+	NewApproveTool,
+	NewRejectTool,
+	NewPendingTool,
+	NewCancelReimbTool,
 	NewDeptTool,
 	NewReimbDetailTool,
-	NewCancelReimbTool,
 	NewTestInterruptTool,
 )
 
@@ -34,6 +37,9 @@ type ToolSet struct {
 	Compliance     *ComplianceAgentTool
 	CreateReimb    *CreateReimbTool
 	SubmitReimb    *SubmitReimbTool
+	ApproveReimb   *ApproveTool
+	RejectReimb    *RejectTool
+	PendingList    *PendingTool
 	CancelReimb    *CancelReimbTool
 	DeptQuery      *DeptTool
 	ReimbDetail    *ReimbDetailTool
@@ -51,6 +57,9 @@ func NewToolSet(
 	compliance *ComplianceAgentTool,
 	createReimb *CreateReimbTool,
 	submitReimb *SubmitReimbTool,
+	approveReimb *ApproveTool,
+	rejectReimb *RejectTool,
+	pendingList *PendingTool,
 	cancelReimb *CancelReimbTool,
 	dept *DeptTool,
 	detail *ReimbDetailTool,
@@ -69,6 +78,9 @@ func NewToolSet(
 		Compliance:    compliance,
 		CreateReimb:   createReimb,
 		SubmitReimb:   submitReimb,
+		ApproveReimb:  approveReimb,
+		RejectReimb:   rejectReimb,
+		PendingList:   pendingList,
 		CancelReimb:   cancelReimb,
 		DeptQuery:     dept,
 		ReimbDetail:   detail,

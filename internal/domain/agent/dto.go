@@ -25,12 +25,20 @@ type GetMessagesResponse struct {
 	Messages []MessageItem `json:"messages"`
 }
 
-// MessageItem 消息项（仅返回展示字段，不含完整 Parts）
+// MessageItem 消息项
 type MessageItem struct {
-	Seq       uint   `json:"seq"`
-	Role      string `json:"role"`
-	Content   string `json:"content"`
-	Reasoning string `json:"reasoning,omitempty"`
-	ToolName  string `json:"tool_name,omitempty"`
-	CreatedAt string `json:"created_at"`
+	Seq       uint        `json:"seq"`
+	Role      string      `json:"role"`
+	Content   string      `json:"content"`
+	Reasoning string      `json:"reasoning,omitempty"`
+	ToolName  string      `json:"tool_name,omitempty"`
+	ToolCalls []ToolCall  `json:"tool_calls,omitempty"`
+	CreatedAt string      `json:"created_at"`
+}
+
+// ToolCall 工具调用详情
+type ToolCall struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+	Result    string `json:"result,omitempty"`
 }
