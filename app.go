@@ -52,6 +52,9 @@ func NewMainApp(
 	// 注册业务路由
 	registerFunc(e, hub)
 
+	// 注册前端静态文件（嵌入的单页应用）
+	ServeFrontend(e)
+
 	app := &MainApp{
 		Engine:       e,
 		port:         vc.GetUint("server.http.port"),
