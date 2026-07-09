@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CycleZero/Reimbee/infra"
-	"github.com/CycleZero/Reimbee/internal/common"
 	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/CycleZero/blades/tools"
@@ -28,25 +26,12 @@ type PendingOutput struct {
 
 type PendingTool struct{ tools.Tool }
 
-func NewPendingTool(reimbursementBiz *reimbursement.ReimbursementBiz, store infra.StateStore, logger *log.Logger) *PendingTool {
+func NewPendingTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *PendingTool {
 	t, err := tools.NewFunc[PendingInput, PendingOutput](
 		ToolListPending,
 		"查询当前审批人待审批的报销单列表。返回报销单ID、单号、事由、金额、创建时间。仅返回当前用户作为审批人的待审批报销单。",
 		func(ctx context.Context, _ PendingInput) (PendingOutput, error) {
-			// 从请求元数据获取当前审批人姓名
-			meta := common.GetRequestMetadata(ctx)
-			approverName := ""
-			if meta != nil {
-				approverName = meta.EmployeeName
-			}
-			// 若元数据中无姓名，从 session state 回退读取
-			if approverName == "" {
-				sid := getSessionID(ctx)
-				var name string
-				if ok, _ := store.GetState(ctx, sid, infra.StateKeyUserIdentity, &name); ok && name != "" {
-					approverName = name
-				}
-			}
+			approverName := getApproverName(ctx)
 
 			var items []PendingItem
 			if approverName != "" {

@@ -383,7 +383,15 @@ func (b *ReimbursementBiz) List(page, pageSize int, employeeID string) ([]*model
 
 // ListPending 查询待审批的报销单
 func (b *ReimbursementBiz) ListPending() ([]*model.Reimbursement, error) {
-	return b.repo.ListByStatus(StatusPending)
+	rms, err := b.repo.ListByStatus(StatusPending)
+	if err != nil {
+		return nil, err
+	}
+	reviewing, err := b.repo.ListByStatus(StatusReviewing)
+	if err != nil {
+		return nil, err
+	}
+	return append(rms, reviewing...), nil
 }
 
 // ListPendingByApprover 按审批人查询待审批报销单
