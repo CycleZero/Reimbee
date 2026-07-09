@@ -28,7 +28,7 @@ type BudgetTool struct{ tools.Tool }
 
 func NewBudgetTool(budgetBiz *budget.BudgetBiz, store infra.StateStore, logger *log.Logger) *BudgetTool {
 	t, err := tools.NewFunc[BudgetInput, BudgetOutput](
-		"check_budget",
+		ToolCheckBudget,
 		"查询指定部门的当前财年预算余额。若本次报销金额超过可用余额，将触发特殊审批流程（need_special_approval=true）。返回可用余额、是否触发特殊审批、以及部门预算使用率。",
 		func(ctx context.Context, input BudgetInput) (BudgetOutput, error) {
 			sid := getSessionID(ctx)

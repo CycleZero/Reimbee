@@ -26,7 +26,7 @@ func NewComplianceAgentTool(
 	runner := blades.NewRunner(subAgent)
 
 	t, err := blades_tools.NewFunc[compliance.ComplianceInput, complianceOutput](
-		"check_compliance",
+		ToolCheckCompliance,
 		"合规审核票据。检索公司报销政策库，根据费用类别、金额、开票日期判定合规性，返回 pass/warning/error 三级结果。",
 		func(ctx context.Context, input compliance.ComplianceInput) (complianceOutput, error) {
 			return runComplianceCheck(ctx, runner, input, logger)

@@ -28,7 +28,7 @@ type PDFTool struct{ tools.Tool }
 // NewPDFTool 创建 PDF 生成工具，封装 infra.PDFGenerator
 func NewPDFTool(pdfGen infra.PDFGenerator, reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *PDFTool {
 	t, err := tools.NewFunc[PDFInput, PDFOutput](
-		"generate_pdf",
+		ToolGeneratePDF,
 		"生成标准格式的报销单 PDF 文件。包含报销单号、申请人、票据明细、合规检查结果、审批人签名栏。PDF 生成后会保存到文件存储中并返回访问路径",
 		func(ctx context.Context, input PDFInput) (PDFOutput, error) {
 			logger.Debug("PDF生成工具开始执行", zap.Uint("报销单ID", input.ReimbursementID))

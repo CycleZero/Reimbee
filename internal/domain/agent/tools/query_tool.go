@@ -37,7 +37,7 @@ type QueryTool struct{ tools.Tool }
 // NewQueryTool 创建报销记录查询工具，封装 reimbursement.ReimbursementBiz
 func NewQueryTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *QueryTool {
 	t, err := tools.NewFunc[QueryInput, QueryOutput](
-		"query_reimbursements",
+		ToolQueryReimbs,
 		"查询用户的报销记录列表，支持分页。可用于查看历史报销单、检查重复提交等场景。返回报销单号、状态、金额和创建时间等摘要信息",
 		func(ctx context.Context, input QueryInput) (QueryOutput, error) {
 			logger.Debug("报销记录查询工具开始执行",

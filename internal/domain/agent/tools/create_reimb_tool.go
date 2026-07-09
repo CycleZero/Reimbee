@@ -33,7 +33,7 @@ type CreateReimbTool struct{ tools.Tool }
 
 func NewCreateReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, store infra.StateStore, logger *log.Logger) *CreateReimbTool {
 	t, err := tools.NewFunc[CreateReimbInput, CreateReimbOutput](
-		"create_reimbursement",
+		ToolCreateReimb,
 		"创建报销单草稿。用户表达报销意图时立即调用。返回草稿ID，后续工具需要此ID。",
 		func(ctx context.Context, input CreateReimbInput) (CreateReimbOutput, error) {
 			sid := getSessionID(ctx)

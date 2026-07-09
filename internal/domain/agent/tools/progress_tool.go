@@ -46,7 +46,7 @@ type ProgressTool struct{ tools.Tool }
 // NewProgressTool 创建进度查询工具，封装 reimbursement.ReimbursementBiz + approval.ApprovalBiz
 func NewProgressTool(reimbursementBiz *reimbursement.ReimbursementBiz, approvalBiz *approval.ApprovalBiz, logger *log.Logger) *ProgressTool {
 	t, err := tools.NewFunc[ProgressInput, ProgressOutput](
-		"query_progress",
+		ToolQueryProgress,
 		"查询报销单的审批进度。可按报销单号精确查询，或按工号查询该员工的最近5条报销记录。返回每个审批人的审批状态（待审批/已通过/已驳回）及审批意见",
 		func(ctx context.Context, input ProgressInput) (ProgressOutput, error) {
 			logger.Debug("进度查询工具开始执行",

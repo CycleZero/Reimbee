@@ -30,7 +30,7 @@ type PendingTool struct{ tools.Tool }
 
 func NewPendingTool(reimbursementBiz *reimbursement.ReimbursementBiz, store infra.StateStore, logger *log.Logger) *PendingTool {
 	t, err := tools.NewFunc[PendingInput, PendingOutput](
-		"list_pending",
+		ToolListPending,
 		"查询当前审批人待审批的报销单列表。返回报销单ID、单号、事由、金额、创建时间。仅返回当前用户作为审批人的待审批报销单。",
 		func(ctx context.Context, _ PendingInput) (PendingOutput, error) {
 			// 从请求元数据获取当前审批人姓名

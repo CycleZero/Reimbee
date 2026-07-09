@@ -32,7 +32,7 @@ type SearchDepartmentTool struct{ tools.Tool }
 // NewSearchDepartmentTool 创建模糊搜索部门工具
 func NewSearchDepartmentTool(departmentBiz *department.DepartmentBiz, logger *log.Logger) *SearchDepartmentTool {
 	t, err := tools.NewFunc[SearchDepartmentInput, SearchDepartmentOutput](
-		"search_department",
+		ToolSearchDepartment,
 		"按名称模糊搜索部门。支持部分匹配（如输入'计算机'可匹配'计算机科学与技术学院'）。返回部门ID和名称。",
 		func(ctx context.Context, input SearchDepartmentInput) (SearchDepartmentOutput, error) {
 			depts, err := departmentBiz.SearchByName(input.Name)

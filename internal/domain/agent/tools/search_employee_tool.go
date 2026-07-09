@@ -37,7 +37,7 @@ type SearchEmployeeTool struct{ tools.Tool }
 // NewSearchEmployeeTool 创建模糊搜索员工工具
 func NewSearchEmployeeTool(employeeBiz *employee.EmployeeBiz, logger *log.Logger) *SearchEmployeeTool {
 	t, err := tools.NewFunc[SearchEmployeeInput, SearchEmployeeOutput](
-		"search_employee",
+		ToolSearchEmployee,
 		"按姓名模糊搜索员工。支持部分匹配（如输入'张'可匹配'张三'）。返回员工ID、工号、姓名、所属部门、角色、是否为审批人、邮箱。",
 		func(ctx context.Context, input SearchEmployeeInput) (SearchEmployeeOutput, error) {
 			emps, err := employeeBiz.SearchByName(input.Name)

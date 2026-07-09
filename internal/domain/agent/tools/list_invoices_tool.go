@@ -48,7 +48,7 @@ type ListInvoicesTool struct{ tools.Tool }
 
 func NewListInvoicesTool(store infra.StateStore, logger *log.Logger) *ListInvoicesTool {
 	t, err := tools.NewFunc[ListInvoicesInput, ListInvoicesOutput](
-		"list_invoices",
+		ToolListInvoices,
 		"列出当前会话的报销明细和票据汇总。已确认的明细按 Items 分组展示，未归类的票据列在 PendingReceipts 中。金额以人民币元为单位。",
 		func(ctx context.Context, input ListInvoicesInput) (ListInvoicesOutput, error) {
 			sid := getSessionID(ctx)

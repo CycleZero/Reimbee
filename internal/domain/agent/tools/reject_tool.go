@@ -23,7 +23,7 @@ type RejectTool struct{ tools.Tool }
 
 func NewRejectTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *RejectTool {
 	t, err := tools.NewFunc[RejectInput, RejectOutput](
-		"reject_reimbursement",
+		ToolRejectReimb,
 		"驳回报销单，需填写驳回理由。",
 		func(ctx context.Context, input RejectInput) (RejectOutput, error) {
 			rm, err := reimbursementBiz.Reject(input.ReimbursementID, input.Reason)

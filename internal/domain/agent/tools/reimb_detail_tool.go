@@ -26,7 +26,7 @@ type ReimbDetailTool struct{ tools.Tool }
 
 func NewReimbDetailTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *ReimbDetailTool {
 	t, err := tools.NewFunc[ReimbDetailInput, ReimbDetailOutput](
-		"get_reimbursement_detail",
+		ToolReimbDetail,
 		"查询指定报销单的详细信息，包括单号、状态、金额、事由、创建时间。",
 		func(ctx context.Context, input ReimbDetailInput) (ReimbDetailOutput, error) {
 			rm, err := reimbursementBiz.GetByID(input.ReimbursementID)

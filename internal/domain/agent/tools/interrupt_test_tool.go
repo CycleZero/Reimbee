@@ -25,7 +25,7 @@ type TestInterruptTool struct{ tools.Tool }
 // NewTestInterruptTool 创建中断测试工具（Interruptable 包装）
 func NewTestInterruptTool() *TestInterruptTool {
 	base, err := tools.NewFunc[TestInterruptInput, TestInterruptOutput](
-		"test_interrupt",
+		ToolTestInterrupt,
 		"中断流程演示工具。调用后触发审批流程等待用户确认。",
 		func(ctx context.Context, _ TestInterruptInput) (TestInterruptOutput, error) {
 			return TestInterruptOutput{Phase: 2, Message: "中断恢复成功，操作已执行"}, nil

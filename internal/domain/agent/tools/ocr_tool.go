@@ -39,7 +39,7 @@ type OCRTool struct{ tools.Tool }
 
 func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store infra.StateStore, receiptRepo *reimbursement.ReceiptRepo, logger *log.Logger) *OCRTool {
 	t, err := tools.NewFunc[OCRInput, OCROutput](
-		"recognize_invoice",
+		ToolRecognizeInvoice,
 		"识别票据图片，自动提取金额、开票日期、费用类别、销售方等信息。识别失败时返回 error 字段，Agent 应引导用户手动输入。",
 		func(ctx context.Context, input OCRInput) (OCROutput, error) {
 			sid := getSessionID(ctx)

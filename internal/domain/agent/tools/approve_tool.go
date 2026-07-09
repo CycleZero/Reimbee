@@ -20,7 +20,7 @@ type ApproveTool struct{ tools.Tool }
 
 func NewApproveTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *ApproveTool {
 	base, err := tools.NewFunc[ApproveInput, ApproveOutput](
-		"approve_reimbursement",
+		ToolApproveReimb,
 		"审批通过报销单。仅审批当前登录审批人对应的审批记录，全部通过后报销单状态变为 approved。",
 		func(ctx context.Context, input ApproveInput) (ApproveOutput, error) {
 			approverName := getApproverName(ctx)

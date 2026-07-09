@@ -46,7 +46,7 @@ func NewOrganizeItemsTool(
 	logger *log.Logger,
 ) *OrganizeItemsTool {
 	t, err := tools.NewFunc[OrganizeItemsInput, OrganizeItemsOutput](
-		"organize_items",
+		ToolOrganizeItems,
 		"将待归类的OCR票据分配到报销明细中。接收明细类别、事由和票据索引列表（1-based），创建报销明细并更新票据归属。应在用户确认票据归类后、创建报销单前调用。",
 		func(ctx context.Context, input OrganizeItemsInput) (OrganizeItemsOutput, error) {
 			sid := getSessionID(ctx)

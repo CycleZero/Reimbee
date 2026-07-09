@@ -30,7 +30,7 @@ type EmailTool struct{ tools.Tool }
 // NewEmailTool 创建邮件发送工具，封装 infra.EmailSender
 func NewEmailTool(emailSender infra.EmailSender, logger *log.Logger) *EmailTool {
 	t, err := tools.NewFunc[EmailInput, EmailOutput](
-		"send_email",
+		ToolSendEmail,
 		"将生成的报销单 PDF 通过邮件发送给审批人。收件人自动从审批链中提取。发送失败时不阻塞流程——Agent 会告知用户稍后手动通知审批人",
 		func(ctx context.Context, input EmailInput) (EmailOutput, error) {
 			logger.Debug("邮件发送工具开始执行",

@@ -55,7 +55,7 @@ func NewCheckDeadlineTool(store infra.StateStore, logger *log.Logger) *CheckDead
 	t := &CheckDeadlineTool{Now: time.Now}
 
 	base, err := tools.NewFunc[CheckDeadlineInput, CheckDeadlineOutput](
-		"check_deadline",
+		ToolCheckDeadline,
 		"校验已收集票据的开票日期是否在有效期内。默认有效期为开票日期起90天内。返回每张票据的剩余天数、状态（valid有效/approaching即将过期/expired已过期/unknown未知）和汇总信息。金额以人民币元为单位展示。",
 		func(ctx context.Context, input CheckDeadlineInput) (CheckDeadlineOutput, error) {
 			sid := getSessionID(ctx)

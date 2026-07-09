@@ -39,7 +39,7 @@ type SearchPolicyTool struct{ tools.Tool }
 // NewSearchPolicyTool 创建政策检索工具
 func NewSearchPolicyTool(kb *compliance.KnowledgeBase, logger *log.Logger) *SearchPolicyTool {
 	t, err := tools.NewFunc[SearchPolicyInput, SearchPolicyOutput](
-		"search_policy",
+		ToolSearchPolicy,
 		"检索企业报销政策RAG知识库。输入自然语言查询（如'差旅住宿标准'），返回最相关的政策文档片段（包括费用标准、审批流程、特殊规定等）。",
 		func(ctx context.Context, input SearchPolicyInput) (SearchPolicyOutput, error) {
 			if input.Limit <= 0 {

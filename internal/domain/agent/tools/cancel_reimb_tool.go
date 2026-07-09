@@ -22,7 +22,7 @@ type CancelReimbTool struct{ tools.Tool }
 
 func NewCancelReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.Logger) *CancelReimbTool {
 	base, err := tools.NewFunc[CancelReimbInput, CancelReimbOutput](
-		"cancel_reimbursement",
+		ToolCancelReimb,
 		"取消报销单草稿（仅 draft 状态可取消）。取消后不可恢复。",
 		func(ctx context.Context, input CancelReimbInput) (CancelReimbOutput, error) {
 			cancelled, err := reimbursementBiz.Cancel(input.ReimbursementID)

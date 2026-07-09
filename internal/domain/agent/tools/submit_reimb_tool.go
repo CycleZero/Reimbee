@@ -26,7 +26,7 @@ type SubmitReimbTool struct{ tools.Tool }
 
 func NewSubmitReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, store infra.StateStore, logger *log.Logger) *SubmitReimbTool {
 	base, err := tools.NewFunc[SubmitReimbInput, SubmitReimbOutput](
-		"submit_reimbursement",
+		ToolSubmitReimb,
 		"提交报销单进入审批流程。调用后将冻结部门预算、创建审批链。提交后不可撤销。",
 		func(ctx context.Context, input SubmitReimbInput) (SubmitReimbOutput, error) {
 			sid := getSessionID(ctx)

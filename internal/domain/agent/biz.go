@@ -53,11 +53,11 @@ func NewReimburseAgent(
 	var shared, employee, approver []blades_tools.Tool
 	for _, t := range toolList {
 		switch t.Name() {
-		case "recognize_invoice", "check_budget", "create_reimbursement",
-			"submit_reimbursement", "cancel_reimbursement", "generate_pdf",
-			"send_email", "get_department_id":
+		case agenttools.ToolRecognizeInvoice, agenttools.ToolCheckBudget, agenttools.ToolCreateReimb,
+			agenttools.ToolSubmitReimb, agenttools.ToolCancelReimb, agenttools.ToolGeneratePDF,
+			agenttools.ToolSendEmail, agenttools.ToolGetDeptID:
 			employee = append(employee, t)
-		case "approve_reimbursement", "reject_reimbursement", "list_pending":
+		case agenttools.ToolApproveReimb, agenttools.ToolRejectReimb, agenttools.ToolListPending:
 			approver = append(approver, t)
 		default:
 			shared = append(shared, t) // search_policy, compliance, progress, query, detail
