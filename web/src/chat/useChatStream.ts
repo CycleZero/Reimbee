@@ -65,6 +65,11 @@ export function useChatStream(
 
     store().setConnectionStatus('connecting');
 
+    // 消费 approveSignal，防止后续请求误走 approve 端点
+    if (isApprove) {
+      useChatStore.setState({ approveSignal: null });
+    }
+
     const sharedHandlers = {
       onopen: async (response: Response) => {
         if (response.ok) {
