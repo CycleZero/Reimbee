@@ -68,7 +68,6 @@ export function SessionList() {
           block
           icon={<PlusOutlined />}
           onClick={() => {
-            switchSession('');
             navigate('/chat', { replace: true });
           }}
         >

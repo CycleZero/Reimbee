@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UserInfo } from '@/types/models';
+import { useChatStore } from '@/chat/stores/chatStore';
 
 interface AuthState {
   token: string | null;
@@ -24,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         localStorage.clear();
+        useChatStore.getState().reset();
         set({ token: null, user: null, isAuthenticated: false });
       },
 

@@ -239,6 +239,11 @@ export interface SessionMessageItem {
   content: string;
   tool_name: string;
   reasoning?: string;
+  tool_calls?: {
+    name: string;
+    arguments: string;
+    result?: string;
+  }[];
   created_at: string;
 }
 

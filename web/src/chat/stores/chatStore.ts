@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { generateUUIDv7 } from '@/utils/uuid';
 import { listSessions as apiListSessions, deleteSession as apiDeleteSession, getSessionMessages } from '@/api/index';
+import type { SessionMessageItem } from '@/api/index';
 import type {
   ChatMessage,
   MessageCard,
@@ -14,6 +15,60 @@ import type {
   ConnectionStatus,
   ApprovePayload,
 } from '../types';
+
+/** 安全解析 JSON 字符串，失败返回原始字符串 */
+function safeJsonParse(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
+}
+
+/** 将后端历史消息转换为前端 ChatMessage（含卡片拆解） */
+function convertHistoryMessage(m: SessionMessageItem): ChatMessage {
+  const cards: MessageCard[] = [];
+
+  // reasoning → thinking 卡片
+  if (m.reasoning) {
+    cards.push({
+      type: 'thinking',
+      content: m.reasoning,
+      thinkingText: '思考中...',
+    });
+  }
+
+  // role=tool 时：tool_calls[] → 各一张 tool 卡片
+  const toolCalls = m.tool_calls;
+  if (m.role === 'tool' && toolCalls && toolCalls.length > 0) {
+    for (const tc of toolCalls) {
+      cards.push({
+        type: 'tool',
+        toolName: tc.name,
+        status: 'success',
+        input: safeJsonParse(tc.arguments),
+        output: tc.result ? safeJsonParse(tc.result) : undefined,
+      });
+    }
+  }
+
+  // content → message 卡片
+  if (m.content) {
+    cards.push({
+      type: 'message',
+      content: m.content,
+    });
+  }
+
+  return {
+    id: generateUUIDv7(),
+    role: m.role === 'tool' ? 'assistant' : (m.role as 'user' | 'assistant' | 'system'),
+    content: m.content,
+    timestamp: new Date(m.created_at).getTime(),
+    cards,
+    reasoning: m.reasoning || undefined,
+  };
+}
 
 // ============================================
 // State
@@ -50,6 +105,8 @@ interface ChatState {
   loadSessions: () => Promise<void>;
   switchSession: (sessionId: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
+  /** 重置所有状态（切换账号时调用，防止旧用户数据泄露） */
+  reset: () => void;
 }
 
 // ============================================
@@ -215,6 +272,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   },
 
   switchSession: async (sessionId) => {
+    // 守卫：空 sessionId 不发起请求（"新建对话"场景）
+    if (!sessionId) return;
     const { sessionCache, cacheOrder } = get();
     let cachedMessages: ChatMessage[] = [];
 
@@ -251,14 +310,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
     try {
       const res = await getSessionMessages(sessionId);
-      const remoteMsgs: ChatMessage[] = (res?.messages ?? []).map((m) => ({
-        id: generateUUIDv7(),
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-        timestamp: new Date(m.created_at).getTime(),
-        cards: [],
-        reasoning: m.reasoning || undefined,
-      }));
+      const remoteMsgs: ChatMessage[] = (res?.messages ?? []).map((m) =>
+        convertHistoryMessage(m),
+      );
       const currentState = get();
       const cached = currentState.sessionCache[sessionId];
       const finalMsgs =
@@ -295,4 +349,17 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       };
     });
   },
+
+  reset: () =>
+    set({
+      messages: [],
+      currentStreamingMessageId: null,
+      connectionStatus: 'disconnected',
+      approveSignal: null,
+      sessions: [],
+      currentSessionId: null,
+      sessionCache: {},
+      cacheOrder: [],
+      isLoadingMessages: false,
+    }),
 }));
