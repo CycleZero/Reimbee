@@ -104,3 +104,12 @@ func GetCurrentEmployeeID(c *gin.Context) string {
 	}
 	return ""
 }
+
+// GetCurrentEmployeeName 从 gin.Context 安全获取当前用户姓名
+func GetCurrentEmployeeName(c *gin.Context) string {
+	name, _ := c.Get("employee_name")
+	if s, ok := name.(string); ok {
+		return s
+	}
+	return ""
+}

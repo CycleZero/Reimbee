@@ -138,6 +138,8 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	ctx = WithAgentMeta(ctx, &AgentMeta{Role: params.Role})
 	// 将 session state 注入 context，供 InstructionProvider 渲染提示词模板
 	ctx = WithSessionState(ctx, session.State())
+	// 将审批人姓名注入 context，供 approve_tool 读取
+	ctx = agenttools.WithApproverName(ctx, params.EmployeeName)
 
 	a.logger.Info("会话状态已就绪",
 		zap.String("employeeID", params.EmployeeID),

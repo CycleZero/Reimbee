@@ -61,7 +61,7 @@ func newComplianceSubAgent(
 		blades.WithDescription("企业合规审核专家。调用 search_policy 检索政策，根据金额、类别、日期判定合规性。"),
 		blades.WithInstruction(complianceReviewerInstruction),
 		blades.WithTools(searchPolicyTool),
-		blades.WithMaxIterations(5),
+		blades.WithMaxIterations(8),
 	)
 	if err != nil {
 		logger.Error("创建合规审核子Agent失败", zap.Error(err))
@@ -171,10 +171,9 @@ func extractJSON(text string, v interface{}) error {
 
 const complianceReviewerInstruction = "你是一个企业财务合规审核专家。" +
 	"\n\n## 工作流程" +
-	"\n1. 收到票据信息后，先调用 search_policy 检索相关报销政策" +
-	"\n2. 根据检索到的政策原文，审核票据合规性" +
-	"\n3. 如果一次检索未找到完整规则，换用不同关键词再次检索" +
-	"\n4. 审核完成后，以 JSON 格式返回结果" +
+	"\n1. 调用 search_policy 检索相关报销政策（使用费用类别+金额作为查询词，一次即可）" +
+	"\n2. 根据检索到的政策原文，直接判定合规性" +
+	"\n3. 以 JSON 格式返回结果（不要额外文字）" +
 	"\n\n## 输出格式（严格 JSON，不要输出额外内容）" +
 	"\n{\n  \"result\": \"pass|warning|error\"," +
 	"\n  \"level\": \"pass|warning|error\"," +

@@ -13,8 +13,13 @@ import (
 
 // 中文字体文件路径（按优先级查找）
 var chineseFontPaths = []string{
-	"./data/simhei.ttf",                              // 项目内置（最高优先级）
-	"/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",   // Linux 文泉驿
+	"./data/simhei.ttf",                                    // 项目内置
+	"/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",         // Linux 文泉驿
+	"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", // Linux Noto
+	"/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf", // Linux Droid
+	"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",      // Linux DejaVu
+	"/System/Library/Fonts/PingFang.ttc",                   // macOS
+	"/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",       // Linux 文泉驿微米黑
 }
 
 // findChineseFont 查找可用的中文字体文件

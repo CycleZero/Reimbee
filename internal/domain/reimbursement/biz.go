@@ -265,8 +265,8 @@ func (b *ReimbursementBiz) Submit(id uint) (*model.Reimbursement, error) {
 	return rm, nil
 }
 
-// Approve 审批通过报销单（强制模式）
-func (b *ReimbursementBiz) Approve(id uint) (*model.Reimbursement, error) {
+// Approve 审批通过报销单（按当前审批人审批，非强制模式）
+func (b *ReimbursementBiz) Approve(id uint, approverName string) (*model.Reimbursement, error) {
 	rm, err := b.repo.GetByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("报销单不存在")
@@ -275,24 +275,44 @@ func (b *ReimbursementBiz) Approve(id uint) (*model.Reimbursement, error) {
 		return nil, fmt.Errorf("当前状态为'%s'，不可审批", rm.Status)
 	}
 
+	// 只审批当前审批人的待审批记录
+	var approved bool
 	for _, a := range rm.Approvals {
-		if a.Action == model.ApprovalActionPending {
-			if err := b.approvalBiz.Approve(a.ID, "系统自动审批"); err != nil {
+		if a.ApproverName == approverName && a.Action == model.ApprovalActionPending {
+			if err := b.approvalBiz.Approve(a.ID, "审批通过"); err != nil {
 				return nil, fmt.Errorf("更新审批记录失败: %w", err)
 			}
+			approved = true
+			break
 		}
 	}
-
-	if err := b.budgetBiz.Deduct(rm.DepartmentID, rm.TotalAmount); err != nil {
-		return nil, fmt.Errorf("扣减预算失败: %w", err)
+	if !approved {
+		return nil, fmt.Errorf("未找到待审批记录或无审批权限")
 	}
 
-	rm.Status = StatusApproved
+	// 检查是否所有审批人都已通过
+	allApproved, err := b.approvalBiz.IsAllApproved(rm.ID)
+	if err != nil {
+		return nil, fmt.Errorf("检查审批状态失败: %w", err)
+	}
+
+	if allApproved {
+		if err := b.budgetBiz.Deduct(rm.DepartmentID, rm.TotalAmount); err != nil {
+			return nil, fmt.Errorf("扣减预算失败: %w", err)
+		}
+		rm.Status = StatusApproved
+	} else {
+		rm.Status = StatusReviewing
+	}
+
 	if err := b.repo.Update(rm); err != nil {
-		return nil, fmt.Errorf("审批通过操作失败: %w", err)
+		return nil, fmt.Errorf("审批操作失败: %w", err)
 	}
 
-	b.logger.Info("报销单已通过", zap.String("报销单号", rm.ReimbursementNo))
+	b.logger.Info("审批处理完成",
+		zap.String("报销单号", rm.ReimbursementNo),
+		zap.String("审批人", approverName),
+		zap.Bool("全部通过", allApproved))
 	return rm, nil
 }
 

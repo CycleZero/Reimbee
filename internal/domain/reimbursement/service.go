@@ -349,7 +349,18 @@ func (s *ReimbursementService) Approve(c *gin.Context) {
 		return
 	}
 
-	rm, err := s.biz.Approve(uint(id))
+	approverName := ""
+	if meta := common.GetRequestMetadata(c); meta != nil {
+		approverName = meta.EmployeeName
+	}
+	if approverName == "" {
+		if name, ok := c.Get("employee_name"); ok {
+			if s, ok2 := name.(string); ok2 {
+				approverName = s
+			}
+		}
+	}
+	rm, err := s.biz.Approve(uint(id), approverName)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return

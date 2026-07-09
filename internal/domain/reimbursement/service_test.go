@@ -67,6 +67,7 @@ func setupEngine(t *testing.T) (*gin.Engine, *infra.Data, func()) {
 			c.Set("user_id", uint(1))
 			c.Set("employee_id", "E001")
 			c.Set("role", "admin")
+			c.Set("employee_name", "审批人")
 			c.Next()
 		}
 	}

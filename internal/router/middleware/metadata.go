@@ -20,13 +20,14 @@ var (
 func AddMetaData() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		meta := &common.RequestMetadata{
-			UserID:     0,
-			EmployeeID: GetCurrentEmployeeID(c),
-			Role:       GetCurrentRole(c),
-			Request:    c.Request,
-			ClientIP:   c.ClientIP(),
-			UserAgent:  c.Request.UserAgent(),
-			RequestID:  generateRequestID(),
+			UserID:       0,
+			EmployeeID:   GetCurrentEmployeeID(c),
+			EmployeeName: GetCurrentEmployeeName(c),
+			Role:         GetCurrentRole(c),
+			Request:      c.Request,
+			ClientIP:     c.ClientIP(),
+			UserAgent:    c.Request.UserAgent(),
+			RequestID:    generateRequestID(),
 		}
 		// 存入 request context（gin.Value 会 fallthrough 到 c.Request.Context）
 		common.SetGinRequestMetadata(c, meta)

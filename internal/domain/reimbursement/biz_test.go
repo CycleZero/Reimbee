@@ -390,16 +390,25 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 			t.Fatalf("期望 Submit 后为 pending，实际为 %s", submitted.Status)
 		}
 
-		// 审批通过
-		approved, err := biz.Approve(submitted.ID)
+		// 审批人甲审批通过
+		approved, err := biz.Approve(submitted.ID, "审批人甲")
 		if err != nil {
-			t.Fatalf("Approve 失败: %v", err)
+			t.Fatalf("审批人甲 Approve 失败: %v", err)
 		}
-		if approved.Status != StatusApproved {
-			t.Errorf("期望状态为 approved，实际为 %s", approved.Status)
+		if approved.Status != StatusReviewing {
+			t.Errorf("期望甲审批后状态为 reviewing，实际为 %s", approved.Status)
 		}
 
-		// 验证预算已扣减（冻结→实际支出）
+		// 审批人乙审批通过 → 全部通过
+		approved2, err := biz.Approve(submitted.ID, "审批人乙")
+		if err != nil {
+			t.Fatalf("审批人乙 Approve 失败: %v", err)
+		}
+		if approved2.Status != StatusApproved {
+			t.Errorf("期望乙审批后状态为 approved，实际为 %s", approved2.Status)
+		}
+
+		// 验证预算已扣减
 		var budget model.DepartmentBudget
 		if err := data.DB.Where("department_id = ?", dept.ID).First(&budget).Error; err != nil {
 			t.Fatalf("查询预算失败: %v", err)
@@ -425,7 +434,7 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		_, err := biz.Approve(99999)
+		_, err := biz.Approve(99999, "审批人甲")
 		if err == nil {
 			t.Errorf("期望报销单不存在时返回错误，但成功了")
 		}
@@ -438,7 +447,7 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 		dept := testutil.SeedDepartment(data, "技术部")
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-DRAFT", "EMP001", "张三", dept.ID, StatusDraft, 10000)
 
-		_, err := biz.Approve(rm.ID)
+		_, err := biz.Approve(rm.ID, "审批人甲")
 		if err == nil {
 			t.Errorf("期望草稿状态审批失败，但成功了")
 		}
@@ -451,7 +460,7 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 		dept := testutil.SeedDepartment(data, "技术部")
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-DUPAP", "EMP001", "张三", dept.ID, StatusApproved, 10000)
 
-		_, err := biz.Approve(rm.ID)
+		_, err := biz.Approve(rm.ID, "审批人甲")
 		if err == nil {
 			t.Errorf("期望已通过状态不可重复审批，但成功了")
 		}
@@ -464,7 +473,7 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 		dept := testutil.SeedDepartment(data, "技术部")
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-RJCTAP", "EMP001", "张三", dept.ID, StatusRejected, 10000)
 
-		_, err := biz.Approve(rm.ID)
+		_, err := biz.Approve(rm.ID, "审批人甲")
 		if err == nil {
 			t.Errorf("期望已驳回状态不可审批，但成功了")
 		}
