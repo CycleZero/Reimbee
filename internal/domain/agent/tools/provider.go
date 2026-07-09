@@ -27,6 +27,8 @@ var ProviderSet = wire.NewSet(
 	NewReimbDetailTool,
 	NewTestInterruptTool,
 	NewOrganizeItemsTool,
+	NewListInvoicesTool,
+	NewCheckDeadlineTool,
 )
 
 type ToolSet struct {
@@ -50,6 +52,8 @@ type ToolSet struct {
 	ReimbDetail      *ReimbDetailTool
 	TestInterrupt    *TestInterruptTool
 	OrganizeItems    *OrganizeItemsTool
+	ListInvoices     *ListInvoicesTool
+	CheckDeadline    *CheckDeadlineTool
 }
 
 func NewToolSet(
@@ -73,9 +77,11 @@ func NewToolSet(
 	detail *ReimbDetailTool,
 	testInterrupt *TestInterruptTool,
 	organizeItems *OrganizeItemsTool,
+	listInvoices *ListInvoicesTool,
+	checkDeadline *CheckDeadlineTool,
 	logger *log.Logger,
 ) *ToolSet {
-	logger.Info("智能体工具集初始化完成（Blades，14个工具已启用）")
+	logger.Info("智能体工具集初始化完成（Blades，16个工具已启用）")
 	return &ToolSet{
 		OCR:              ocr,
 		Budget:           budget,
@@ -97,5 +103,7 @@ func NewToolSet(
 		ReimbDetail:      detail,
 		TestInterrupt:    testInterrupt,
 		OrganizeItems:    organizeItems,
+		ListInvoices:     listInvoices,
+		CheckDeadline:    checkDeadline,
 	}
 }

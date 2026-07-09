@@ -426,5 +426,11 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.OrganizeItems != nil {
 		list = append(list, ts.OrganizeItems)
 	}
+	if ts.ListInvoices != nil {
+		list = append(list, ts.ListInvoices)
+	}
+	if ts.CheckDeadline != nil {
+		list = append(list, ts.CheckDeadline)
+	}
 	return list
 }
