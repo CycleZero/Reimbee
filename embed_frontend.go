@@ -25,26 +25,31 @@ func init() {
 	}
 }
 
+// spaFileSystem SPA 兜底：文件不存在时返回 index.html
+type spaFileSystem struct{ fs.FS }
+
+func (s spaFileSystem) Open(name string) (fs.File, error) {
+	f, err := s.FS.Open(name)
+	if err != nil {
+		return s.FS.Open("index.html")
+	}
+	return f, nil
+}
+
 // ServeFrontend 注册前端静态文件路由和 SPA 兜底
-// 必须在所有 API 路由注册之后调用
 func ServeFrontend(e *gin.Engine) {
-	// 检查是否有开发模式的前端代理（环境变量控制）
 	if os.Getenv("DEV_FRONTEND") == "true" {
 		return
 	}
 
-	fileServer := http.FileServer(http.FS(frontendFS))
+	fileServer := http.FileServer(http.FS(spaFileSystem{frontendFS}))
 
 	e.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-
-		// API 路径不处理
 		if strings.HasPrefix(path, "/api") || strings.HasPrefix(path, "/admin") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "接口不存在"})
 			return
 		}
-
-		// 尝试作为静态文件响应
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	})
 }
