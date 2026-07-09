@@ -54,37 +54,34 @@ func NewAuthBiz(logger *log.Logger, repo *EmployeeRepo, vc *viper.Viper) *AuthBi
 	}
 }
 
-// Login 验证工号密码，返回 JWT
-// 流程：查询员工 → 验证密码 → 签发 JWT → 返回响应
-func (b *AuthBiz) Login(employeeID, password string) (*LoginResponse, error) {
-	b.logger.Debug("用户登录流程开始", zap.String("工号", employeeID))
+// Login 验证用户名或工号+密码，返回 JWT
+func (b *AuthBiz) Login(username, password string) (*LoginResponse, error) {
+	b.logger.Debug("用户登录流程开始", zap.String("用户名", username))
 
-	// ==========================================
-	// 第一步：根据工号查询员工信息
-	// ==========================================
-	// 调用仓储层查询数据库，判断该工号是否已注册
-	b.logger.Debug("正在查询员工信息", zap.String("工号", employeeID))
-	emp, err := b.repo.GetByEmployeeID(employeeID)
+	// 先按工号精确匹配，失败则按姓名匹配
+	emp, err := b.repo.GetByEmployeeID(username)
 	if err != nil {
-		// 查询失败视为"工号不存在"——不暴露具体数据库错误给前端
-		// 这样可以防止攻击者通过错误信息差异枚举有效工号
-		b.logger.Warn("登录失败：工号不存在", zap.String("工号", employeeID))
-		return nil, fmt.Errorf("工号或密码错误")
+		b.logger.Debug("工号未匹配，尝试姓名查询", zap.String("输入", username))
+		emp, err = b.repo.GetByName(username)
+		if err != nil {
+			b.logger.Warn("登录失败：用户不存在", zap.String("输入", username))
+			return nil, fmt.Errorf("用户名或密码错误")
+		}
 	}
-	b.logger.Debug("员工信息查询成功", zap.String("工号", employeeID), zap.String("角色", emp.Role))
+	b.logger.Debug("员工信息查询成功", zap.String("用户", username), zap.String("角色", emp.Role))
 
 	// ==========================================
 	// 第二步：验证密码
 	// ==========================================
 	// bcrypt.CompareHashAndPassword 恒定时间比较，防止时序攻击
 	// PasswordHash 字段使用 json:"-" 标签，不会序列化到 JSON 响应中
-	b.logger.Debug("开始验证密码", zap.String("工号", employeeID))
+	b.logger.Debug("开始验证密码", zap.String("用户", username))
 	if err := bcrypt.CompareHashAndPassword([]byte(emp.PasswordHash), []byte(password)); err != nil {
 		// 密码不匹配同样返回统一错误信息，防止用户枚举
-		b.logger.Warn("登录失败：密码错误", zap.String("工号", employeeID))
-		return nil, fmt.Errorf("工号或密码错误")
+		b.logger.Warn("登录失败：密码错误", zap.String("用户", username))
+		return nil, fmt.Errorf("用户名或密码错误")
 	}
-	b.logger.Debug("密码验证通过", zap.String("工号", employeeID))
+	b.logger.Debug("密码验证通过", zap.String("用户", username))
 
 	// ==========================================
 	// 第三步：构建 JWT Claims（载荷）
@@ -94,7 +91,7 @@ func (b *AuthBiz) Login(employeeID, password string) (*LoginResponse, error) {
 	// 用于 JWT 的 exp 声明，客户端应在此时间前刷新 Token
 	expiresAt := now.Add(b.jwtTTL)
 	b.logger.Debug("正在构建JWT载荷",
-		zap.String("工号", employeeID),
+		zap.String("用户", username),
 		zap.Time("签发时间", now),
 		zap.Time("过期时间", expiresAt),
 	)
@@ -127,7 +124,7 @@ func (b *AuthBiz) Login(employeeID, password string) (*LoginResponse, error) {
 	// 第五步：组装登录响应，返回给调用方
 	// ==========================================
 	// ExpiresIn 以秒为单位返回有效期，方便前端计算 Token 刷新时机
-	b.logger.Info("登录成功", zap.String("工号", employeeID), zap.String("角色", emp.Role))
+	b.logger.Info("登录成功", zap.String("用户", username), zap.String("角色", emp.Role))
 	return &LoginResponse{
 		Token:      tokenStr,
 		EmployeeID: emp.EmployeeID,

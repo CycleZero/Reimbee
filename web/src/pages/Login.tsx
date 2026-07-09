@@ -98,8 +98,8 @@ export default function Login() {
               label: '登录',
               children: (
                 <Form form={loginForm} onFinish={handleLogin} size="large" layout="vertical">
-                  <Form.Item name="employee_id" rules={[{ required: true, message: '请输入工号' }]}>
-                    <Input prefix={<IdcardOutlined />} placeholder="工号" />
+                  <Form.Item name="username" rules={[{ required: true, message: '请输入工号或姓名' }]}>
+                    <Input prefix={<IdcardOutlined />} placeholder="工号或姓名" />
                   </Form.Item>
                   <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
                     <Input.Password prefix={<LockOutlined />} placeholder="密码" />

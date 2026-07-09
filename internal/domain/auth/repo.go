@@ -28,6 +28,15 @@ func (r *EmployeeRepo) GetByEmployeeID(employeeID string) (*model.Employee, erro
 	return &e, nil
 }
 
+// GetByName 根据姓名查询员工
+func (r *EmployeeRepo) GetByName(name string) (*model.Employee, error) {
+	var e model.Employee
+	if err := r.db.Where("name = ?", name).First(&e).Error; err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
 // Create 创建员工
 func (r *EmployeeRepo) Create(e *model.Employee) error {
 	return r.db.Create(e).Error

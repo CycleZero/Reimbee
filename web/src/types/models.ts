@@ -8,7 +8,7 @@
 // ============================================
 
 export interface LoginRequest {
-  employee_id: string;
+  username: string; // 工号或姓名
   password: string;
 }
 

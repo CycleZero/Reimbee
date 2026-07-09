@@ -115,7 +115,7 @@ func TestAuthBiz_Login_Success(t *testing.T) {
 }
 
 // TestAuthBiz_Login_WrongPassword 测试密码错误场景
-// 验证：使用错误密码登录返回"工号或密码错误"
+// 验证：使用错误密码登录返回"用户名或密码错误"
 func TestAuthBiz_Login_WrongPassword(t *testing.T) {
 	biz := newTestAuthBiz(t)
 
@@ -132,18 +132,18 @@ func TestAuthBiz_Login_WrongPassword(t *testing.T) {
 	resp, err := biz.Login(emp.EmployeeID, "wrongpassword")
 	assert.Nil(t, resp, "错误密码登录不应返回响应")
 	assert.Error(t, err, "错误密码登录应返回错误")
-	assert.Equal(t, "工号或密码错误", err.Error())
+	assert.Equal(t, "用户名或密码错误", err.Error())
 }
 
 // TestAuthBiz_Login_UnknownEmployee 测试不存在的工号登录
-// 验证：使用不存在的工号登录返回"工号或密码错误"
+// 验证：使用不存在的工号登录返回"用户名或密码错误"
 func TestAuthBiz_Login_UnknownEmployee(t *testing.T) {
 	biz := newTestAuthBiz(t)
 
 	resp, err := biz.Login("EMP999", "anypassword")
 	assert.Nil(t, resp, "不存在的工号不应返回响应")
 	assert.Error(t, err)
-	assert.Equal(t, "工号或密码错误", err.Error())
+	assert.Equal(t, "用户名或密码错误", err.Error())
 }
 
 // TestAuthBiz_Register_AutoID 测试工号自动递增

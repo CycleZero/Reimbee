@@ -32,11 +32,11 @@ func NewAuthService(biz *AuthBiz, logger *log.Logger) *AuthService {
 func (s *AuthService) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误：工号和密码必填"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误：用户名和密码必填"})
 		return
 	}
 
-	resp, err := s.biz.Login(req.EmployeeID, req.Password)
+	resp, err := s.biz.Login(req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return

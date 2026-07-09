@@ -1,9 +1,9 @@
 package auth
 
-// LoginRequest 登录请求
+// LoginRequest 登录请求（支持工号或姓名）
 type LoginRequest struct {
-	EmployeeID string `json:"employee_id" binding:"required"` // 工号
-	Password   string `json:"password" binding:"required"`    // 密码
+	Username string `json:"username" binding:"required"` // 工号或姓名
+	Password string `json:"password" binding:"required"` // 密码
 }
 
 // RegisterRequest 注册请求（工号自动分配）
