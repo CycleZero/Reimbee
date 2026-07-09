@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+
 	"github.com/CycleZero/Reimbee/conf"
 	"github.com/CycleZero/Reimbee/log"
 	"os"
@@ -10,8 +12,10 @@ import (
 )
 
 func main() {
+	seed := flag.Bool("seed", false, "预置演示数据（部门、员工、预算、报销单）")
+	flag.Parse()
+
 	vc := conf.GetConfig()
-	// 初始化日志（必须在 GetLogger 之前调用）
 	if err := log.InitLogger(
 		vc.GetString("log.mode"),
 		vc.GetString("log.level"),
@@ -23,15 +27,21 @@ func main() {
 
 	app := initApp(vc, logger)
 
+	if *seed {
+		logger.Info("开始预置演示数据...")
+		if err := SeedDemoData(app.data.DB); err != nil {
+			logger.Error("预置数据失败", zap.Error(err))
+			os.Exit(1)
+		}
+		logger.Info("演示数据预置完成")
+	}
+
 	done := make(chan os.Signal, 1)
 	go func() {
-		defer func() {
-			done <- os.Interrupt
-		}()
+		defer func() { done <- os.Interrupt }()
 		logger.Info("服务已启动")
 		if err := app.StartServer(); err != nil {
 			logger.Error("服务崩溃", zap.Error(err))
-			return
 		}
 	}()
 
