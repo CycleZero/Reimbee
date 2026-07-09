@@ -136,6 +136,13 @@ func (a *ReimburseAgent) Run(ctx context.Context, params RunParams, writer *GinS
 	ctx = agenttools.WithSessionID(ctx, params.SessionID)
 	// 将角色元数据注入 context，供 Resolver + InstructionProvider 读取
 	ctx = WithAgentMeta(ctx, &AgentMeta{Role: params.Role})
+	// 将 session state 注入 context，供 InstructionProvider 渲染提示词模板
+	ctx = WithSessionState(ctx, session.State())
+
+	a.logger.Info("会话状态已就绪",
+		zap.String("employeeID", params.EmployeeID),
+		zap.String("employeeName", params.EmployeeName),
+		zap.String("role", params.Role))
 
 	writer.WriteEvent(NewThinkingEvent("正在处理..."))
 	writer.Flush()
