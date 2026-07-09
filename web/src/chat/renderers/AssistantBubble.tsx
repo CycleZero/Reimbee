@@ -27,6 +27,32 @@ const markdownStyle: React.CSSProperties = {
   wordBreak: 'break-word',
 };
 
+const tableBorder = '1px solid #d9d9d9';
+const markdownComponents = {
+  p: ({ children }: { children: React.ReactNode }) => <p style={markdownStyle}>{children}</p>,
+  code: ({ className, children, ...props }: { className?: string; children: React.ReactNode }) => {
+    const isInline = !className;
+    return isInline ? (
+      <code style={{ background: '#e8e8e8', padding: '2px 6px', borderRadius: 4, fontSize: '0.9em' }} {...props}>
+        {children}
+      </code>
+    ) : (
+      <pre style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 12, borderRadius: 8, overflow: 'auto', fontSize: '0.85em' }}>
+        <code className={className} {...props}>{children}</code>
+      </pre>
+    );
+  },
+  table: ({ children }: { children: React.ReactNode }) => (
+    <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 13 }}>{children}</table>
+  ),
+  th: ({ children }: { children: React.ReactNode }) => (
+    <th style={{ border: tableBorder, padding: '6px 12px', background: '#fafafa', textAlign: 'left', fontWeight: 600 }}>{children}</th>
+  ),
+  td: ({ children }: { children: React.ReactNode }) => (
+    <td style={{ border: tableBorder, padding: '6px 12px' }}>{children}</td>
+  ),
+};
+
 function formatOutput(output: unknown): string {
   if (output == null) return '';
   try {
@@ -111,7 +137,7 @@ function ThinkingCard({ card, isStreaming }: { card: MessageCard; isStreaming: b
         >
           {hasContent && (
             <div style={{ marginBottom: hasTools ? 12 : 0 }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                 {card.content!}
               </ReactMarkdown>
             </div>
@@ -388,42 +414,7 @@ function MessageCardView({ card, isStreaming }: { card: MessageCard; isStreaming
         marginBottom: 4,
       }}
     >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children }) => <p style={markdownStyle}>{children}</p>,
-          code: ({ className, children, ...props }) => {
-            const isInline = !className;
-            const content = children as React.ReactNode;
-            return isInline ? (
-              <code
-                style={{
-                  background: '#e8e8e8',
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  fontSize: '0.9em',
-                }}
-                {...props}
-              >
-                {content}
-              </code>
-            ) : (
-              <pre
-                style={{
-                  background: '#1e1e1e',
-                  color: '#d4d4d4',
-                  padding: 12,
-                  borderRadius: 8,
-                  overflow: 'auto',
-                  fontSize: '0.85em',
-                }}
-              >
-                <code className={className} {...props}>{content}</code>
-              </pre>
-            );
-          },
-        }}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {card.content || (isStreaming ? '' : '...')}
       </ReactMarkdown>
       {isStreaming && <span className="cursor-blink" />}
