@@ -107,6 +107,8 @@ interface ChatState {
   deleteSession: (sessionId: string) => Promise<void>;
   /** 重置所有状态（切换账号时调用，防止旧用户数据泄露） */
   reset: () => void;
+  /** 新建空白会话（不清除侧栏列表） */
+  newSession: () => void;
 }
 
 // ============================================
@@ -243,6 +245,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           )
         : s.sessions,
     })),
+
+  /** 新建空白会话，不清除侧栏列表 */
+  newSession: () => set({ currentSessionId: null, messages: [] }),
 
   loadSessions: async () => {
     try {

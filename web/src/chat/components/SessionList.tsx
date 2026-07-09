@@ -31,6 +31,7 @@ export function SessionList() {
   const currentId = useChatStore((s) => s.currentSessionId);
   const switchSession = useChatStore((s) => s.switchSession);
   const deleteSession = useChatStore((s) => s.deleteSession);
+  const newSession = useChatStore((s) => s.newSession);
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -68,6 +69,7 @@ export function SessionList() {
           block
           icon={<PlusOutlined />}
           onClick={() => {
+            newSession();
             navigate('/chat', { replace: true });
           }}
         >
