@@ -9,7 +9,9 @@ import (
 
 	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/internal/domain/agent/types"
+	"github.com/CycleZero/Reimbee/internal/domain/reimbursement"
 	"github.com/CycleZero/Reimbee/log"
+	"github.com/CycleZero/Reimbee/model"
 	"github.com/CycleZero/blades/tools"
 	"go.uber.org/zap"
 )
@@ -35,7 +37,7 @@ type OCROutput struct {
 
 type OCRTool struct{ tools.Tool }
 
-func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store infra.StateStore, logger *log.Logger) *OCRTool {
+func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store infra.StateStore, receiptRepo *reimbursement.ReceiptRepo, logger *log.Logger) *OCRTool {
 	t, err := tools.NewFunc[OCRInput, OCROutput](
 		"recognize_invoice",
 		"识别票据图片，自动提取金额、开票日期、费用类别、销售方等信息。识别失败时返回 error 字段，Agent 应引导用户手动输入。",
@@ -93,17 +95,38 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 			}
 
 			// OCR 结果存入 PendingReceipts，保留完整字段待用户归类
-			state.PendingReceipts = append(state.PendingReceipts, types.ReceiptState{
-				ImagePath:    input.ImagePath,
-				Amount:       amountInCents,
-				Category:     result.Category,
-				Date:         result.Date,
-				InvoiceCode:  result.InvoiceCode,
-				InvoiceNo:    result.InvoiceNumber,
-				SellerName:   result.SellerName,
-				OCRRawAmount: amountInCents,
+			pendingReceipt := types.ReceiptState{
+				ImagePath:     input.ImagePath,
+				Amount:        amountInCents,
+				Category:      result.Category,
+				Date:          result.Date,
+				InvoiceCode:   result.InvoiceCode,
+				InvoiceNo:     result.InvoiceNumber,
+				SellerName:    result.SellerName,
+				OCRRawAmount:  amountInCents,
 				OCRConfidence: result.Confidence,
-			})
+			}
+
+			// 持久化票据到数据库（ItemID=0 表示尚未归类）
+			receipt := &model.Receipt{
+				ItemID:         0,
+				InvoiceCode:    result.InvoiceCode,
+				InvoiceNumber:  result.InvoiceNumber,
+				Amount:         amountInCents,
+				InvoiceDate:    result.Date,
+				SellerName:     result.SellerName,
+				Category:       result.Category,
+				ImagePath:      input.ImagePath,
+				OCRRawAmount:   amountInCents,
+				OCRConfidence:  result.Confidence,
+			}
+			if err := receiptRepo.Create(receipt); err != nil {
+				logger.Error("持久化票据到数据库失败", zap.Error(err))
+				return OCROutput{Error: fmt.Sprintf("保存票据失败: %v", err), Retry: true}, nil
+			}
+			pendingReceipt.DBID = receipt.ID
+
+			state.PendingReceipts = append(state.PendingReceipts, pendingReceipt)
 			if state.CurrentPhase == "" {
 				state.CurrentPhase = "phase1_collect"
 			}

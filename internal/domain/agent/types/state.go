@@ -36,6 +36,7 @@ type ItemState struct {
 
 // ReceiptState 一张票据的会话状态（替代旧 InvoiceState）
 type ReceiptState struct {
+	DBID         uint    `json:"db_id,omitempty"` // 对应 DB Receipt 记录的主键ID
 	ImagePath    string  `json:"image_path"`
 	Amount       int64   `json:"amount"`
 	Category     string  `json:"category"`

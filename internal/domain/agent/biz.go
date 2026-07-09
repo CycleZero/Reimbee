@@ -423,5 +423,8 @@ func collectTools(ts *agenttools.ToolSet) []blades_tools.Tool {
 	if ts.TestInterrupt != nil {
 		list = append(list, ts.TestInterrupt)
 	}
+	if ts.OrganizeItems != nil {
+		list = append(list, ts.OrganizeItems)
+	}
 	return list
 }

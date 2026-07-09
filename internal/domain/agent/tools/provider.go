@@ -26,6 +26,7 @@ var ProviderSet = wire.NewSet(
 	NewDeptTool,
 	NewReimbDetailTool,
 	NewTestInterruptTool,
+	NewOrganizeItemsTool,
 )
 
 type ToolSet struct {
@@ -48,6 +49,7 @@ type ToolSet struct {
 	DeptQuery        *DeptTool
 	ReimbDetail      *ReimbDetailTool
 	TestInterrupt    *TestInterruptTool
+	OrganizeItems    *OrganizeItemsTool
 }
 
 func NewToolSet(
@@ -70,9 +72,10 @@ func NewToolSet(
 	dept *DeptTool,
 	detail *ReimbDetailTool,
 	testInterrupt *TestInterruptTool,
+	organizeItems *OrganizeItemsTool,
 	logger *log.Logger,
 ) *ToolSet {
-	logger.Info("智能体工具集初始化完成（Blades，13个工具已启用）")
+	logger.Info("智能体工具集初始化完成（Blades，14个工具已启用）")
 	return &ToolSet{
 		OCR:              ocr,
 		Budget:           budget,
@@ -93,5 +96,6 @@ func NewToolSet(
 		DeptQuery:        dept,
 		ReimbDetail:      detail,
 		TestInterrupt:    testInterrupt,
+		OrganizeItems:    organizeItems,
 	}
 }

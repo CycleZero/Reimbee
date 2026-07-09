@@ -135,6 +135,51 @@ func (b *ReimbursementBiz) Create(input *CreateReimbInput) (*model.Reimbursement
 	return rm, nil
 }
 
+// AddItems 向已有报销单追加报销明细和票据（用于 organize_items 工具）
+func (b *ReimbursementBiz) AddItems(reimbID uint, inputs []ItemInput) error {
+	rm, err := b.repo.GetByID(reimbID)
+	if err != nil {
+		return fmt.Errorf("报销单不存在")
+	}
+	if rm.Status != StatusDraft {
+		return fmt.Errorf("只有草稿状态的报销单可以添加明细")
+	}
+
+	return b.repo.db.Transaction(func(tx *gorm.DB) error {
+		for _, itemInput := range inputs {
+			item := &model.ReimbursementItem{
+				ReimbursementID: reimbID,
+				Category:        itemInput.Category,
+				Amount:          itemInput.Amount,
+				Description:     itemInput.Description,
+			}
+			if err := tx.Create(item).Error; err != nil {
+				return fmt.Errorf("创建明细失败: %w", err)
+			}
+			for _, rctInput := range itemInput.Receipts {
+				receipt := &model.Receipt{
+					ItemID:         item.ID,
+					InvoiceCode:    rctInput.InvoiceCode,
+					InvoiceNumber:  rctInput.InvoiceNumber,
+					Amount:         rctInput.Amount,
+					InvoiceDate:    rctInput.InvoiceDate,
+					SellerName:     rctInput.SellerName,
+					Category:       itemInput.Category,
+					ImagePath:      rctInput.ImagePath,
+					OCRRawAmount:   rctInput.OCRRawAmount,
+					OCRRawDate:     rctInput.OCRRawDate,
+					OCRRawCategory: rctInput.OCRRawCategory,
+					OCRConfidence:  rctInput.OCRConfidence,
+				}
+				if err := tx.Create(receipt).Error; err != nil {
+					return fmt.Errorf("创建票据失败: %w", err)
+				}
+			}
+		}
+		return nil
+	})
+}
+
 // Submit 提交报销单（草稿 → 待审批）
 // 总金额从 Items 汇总计算，不再由外部传入
 func (b *ReimbursementBiz) Submit(id uint) (*model.Reimbursement, error) {

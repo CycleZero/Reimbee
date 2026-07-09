@@ -18,8 +18,8 @@ import "gorm.io/gorm"
 // 保留 OCR 原始值、用户修正记录、审批人裁决，形成完整审计链
 type Receipt struct {
 	gorm.Model
-	// ItemID 关联的报销明细ID（外键），替代原 ReimbursementID
-	ItemID uint `gorm:"index;not null;comment:关联报销明细ID" json:"item_id"`
+	// ItemID 关联的报销明细ID（外键），替代原 ReimbursementID；0 表示尚未归类
+	ItemID uint `gorm:"index;default:0;comment:关联报销明细ID(0=未归类)" json:"item_id"`
 	// InvoiceCode 发票代码，如"031002200111"
 	InvoiceCode string `gorm:"type:varchar(50);comment:发票代码" json:"invoice_code"`
 	// InvoiceNumber 发票号码，如"98765432"
