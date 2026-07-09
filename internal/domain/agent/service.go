@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/internal/common"
+	"github.com/CycleZero/Reimbee/internal/domain/agent/types"
 	"github.com/CycleZero/Reimbee/log"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -13,12 +15,13 @@ import (
 
 type AgentService struct {
 	agent  *ReimburseAgent
+	store  infra.StateStore
 	logger *log.Logger
 }
 
-func NewAgentService(agent *ReimburseAgent, logger *log.Logger) *AgentService {
+func NewAgentService(agent *ReimburseAgent, store infra.StateStore, logger *log.Logger) *AgentService {
 	logger.Info("Agent HTTP服务初始化完成")
-	return &AgentService{agent: agent, logger: logger}
+	return &AgentService{agent: agent, store: store, logger: logger}
 }
 
 // HandleChat SSE 流式对话端点
@@ -168,4 +171,66 @@ func (s *AgentService) GetHistory(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// HandleOCRConfirm 用户修正 OCR 识别结果
+func (s *AgentService) HandleOCRConfirm(c *gin.Context) {
+	var req struct {
+		SessionID     string `json:"session_id" binding:"required"`
+		ImagePath     string `json:"image_path" binding:"required"`
+		Amount        int64  `json:"amount"`
+		Category      string `json:"category"`
+		Date          string `json:"date"`
+		InvoiceCode   string `json:"invoice_code"`
+		InvoiceNumber string `json:"invoice_number"`
+		SellerName    string `json:"seller_name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	var state types.ReimbursementState
+	if _, err := s.store.GetState(ctx, req.SessionID, infra.StateKeyReimbursement, &state); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "读取状态失败"})
+		return
+	}
+
+	updated := false
+	for i, rct := range state.PendingReceipts {
+		if rct.ImagePath == req.ImagePath {
+			if req.Amount > 0 {
+				state.PendingReceipts[i].Amount = req.Amount
+			}
+			if req.Category != "" {
+				state.PendingReceipts[i].Category = req.Category
+			}
+			if req.Date != "" {
+				state.PendingReceipts[i].Date = req.Date
+			}
+			if req.InvoiceCode != "" {
+				state.PendingReceipts[i].InvoiceCode = req.InvoiceCode
+			}
+			if req.InvoiceNumber != "" {
+				state.PendingReceipts[i].InvoiceNo = req.InvoiceNumber
+			}
+			if req.SellerName != "" {
+				state.PendingReceipts[i].SellerName = req.SellerName
+			}
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到对应票据"})
+		return
+	}
+
+	if err := s.store.SaveState(ctx, req.SessionID, infra.StateKeyReimbursement, &state); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存状态失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "已更新"})
 }

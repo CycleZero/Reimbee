@@ -300,3 +300,20 @@ export function getKBStatus() {
 export function searchPolicies(query: string, limit?: number) {
   return api.get<SearchTestResult>('/admin/policies/search', { params: { query, limit } });
 }
+
+// ============================================
+// OCR 修正
+// ============================================
+
+export function confirmInvoice(data: {
+  session_id: string;
+  image_path: string;
+  amount?: number;
+  category?: string;
+  date?: string;
+  invoice_code?: string;
+  invoice_number?: string;
+  seller_name?: string;
+}) {
+  return api.post<{ message: string }>('/api/chat/ocr-confirm', data);
+}

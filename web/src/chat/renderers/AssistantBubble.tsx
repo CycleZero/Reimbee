@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tag, Button, Input, Typography } from 'antd';
+import { Tag, Button, Input, Typography, Select, App } from 'antd';
 import {
   ToolOutlined,
   BulbOutlined,
@@ -8,11 +8,13 @@ import {
   CloseOutlined,
   LoadingOutlined,
   CaretRightOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { TOOL_LABELS } from '@/utils/constants';
 import { useChatStore } from '../stores/chatStore';
+import { confirmInvoice } from '@/api';
 import type { MessageRendererProps, ToolCallRecord, MessageCard } from '../types';
 
 const { Text } = Typography;
@@ -169,6 +171,13 @@ function ThinkingCard({ card, isStreaming }: { card: MessageCard; isStreaming: b
   );
 }
 
+// 金额分→元的格式化
+function formatAmount(fen: unknown): string {
+  const n = Number(fen);
+  if (isNaN(n) || n === 0) return '';
+  return (n / 100).toFixed(2);
+}
+
 // ============================================
 // 🔧 工具卡片
 // 默认折叠（连续工具卡片不占用空间），仅显示一行摘要
@@ -178,6 +187,57 @@ function ToolCard({ card, isStreaming }: { card: MessageCard; isStreaming: boole
   const [expanded, setExpanded] = useState(false);
   const label = TOOL_LABELS[card.toolName!] ?? card.toolName!;
   const isRunning = card.status === 'running';
+  const isOCR = card.toolName === 'recognize_invoice' && card.status === 'success' && card.output;
+  const { message } = App.useApp();
+  const sessionId = useChatStore((s) => s.currentSessionId);
+
+  // OCR 编辑状态
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editNumber, setEditNumber] = useState('');
+  const [editSeller, setEditSeller] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // 解析 OCR 输出
+  const ocrData = isOCR ? (typeof card.output === 'string' ? JSON.parse(card.output) : card.output) as Record<string, unknown> : null;
+  const confidence = (ocrData?.confidence as number) ?? 0;
+  const isLowConf = confidence < 0.7;
+
+  // 初始化编辑字段
+  if (isOCR && editAmount === '' && ocrData) {
+    setEditAmount(formatAmount(ocrData.amount));
+    setEditCategory((ocrData.category as string) ?? '');
+    setEditDate((ocrData.date as string) ?? '');
+    setEditCode((ocrData.invoice_code as string) ?? '');
+    setEditNumber((ocrData.invoice_number as string) ?? '');
+    setEditSeller((ocrData.seller_name as string) ?? '');
+  }
+
+  const handleOCRConfirm = async () => {
+    if (!sessionId || !ocrData) return;
+    setSaving(true);
+    try {
+      await confirmInvoice({
+        session_id: sessionId,
+        image_path: (ocrData.image_path as string) ?? (card.input as Record<string,unknown>)?.image_path as string ?? '',
+        amount: editAmount ? Math.round(parseFloat(editAmount) * 100) : undefined,
+        category: editCategory || undefined,
+        date: editDate || undefined,
+        invoice_code: editCode || undefined,
+        invoice_number: editNumber || undefined,
+        seller_name: editSeller || undefined,
+      });
+      setSaved(true);
+      message.success('票据信息已更新');
+    } catch {
+      message.error('更新失败');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div style={{ marginBottom: 4 }}>
@@ -256,28 +316,57 @@ function ToolCard({ card, isStreaming }: { card: MessageCard; isStreaming: boole
               </pre>
             </div>
           )}
-          {!isRunning && card.output != null && (
+          {!isRunning && card.output != null && !isOCR && (
             <div>
               <div style={{ fontWeight: 600, marginBottom: 4, color: '#555', fontSize: 12 }}>
                 📤 输出结果
               </div>
-              <pre
-                style={{
-                  margin: 0,
-                  padding: '6px 8px',
-                  background: '#fff',
-                  borderRadius: 4,
-                  border: '1px solid #f0f0f0',
-                  fontSize: 11,
-                  lineHeight: 1.4,
-                  overflow: 'auto',
-                  maxHeight: 200,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                }}
-              >
+              <pre style={{ margin: 0, padding: '6px 8px', background: '#fff', borderRadius: 4, border: '1px solid #f0f0f0', fontSize: 11, lineHeight: 1.4, overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {formatOutput(card.output)}
               </pre>
+            </div>
+          )}
+
+          {/* OCR 编辑表单 */}
+          {isOCR && ocrData && (
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 8, color: '#555', fontSize: 12 }}>
+                ✏️ 识别结果（可修改）
+                {isLowConf && <Tag color="warning" style={{ marginLeft: 8, fontSize: 10 }}>低置信度 {Math.round(confidence*100)}%</Tag>}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ width: 'calc(50% - 4px)' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>费用类别</div>
+                  <Select size="small" value={editCategory || undefined} onChange={setEditCategory} style={{ width: '100%' }}
+                    options={['差旅-交通','差旅-住宿','差旅-补助','招待费','办公用品','印刷费','其他'].map(v=>({label:v,value:v}))} />
+                </div>
+                <div style={{ width: 'calc(50% - 4px)' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>票面金额（元）</div>
+                  <Input size="small" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div style={{ width: 'calc(50% - 4px)' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>开票日期</div>
+                  <Input size="small" value={editDate} onChange={e => setEditDate(e.target.value)} placeholder="YYYY-MM-DD" />
+                </div>
+                <div style={{ width: 'calc(50% - 4px)' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>销售方</div>
+                  <Input size="small" value={editSeller} onChange={e => setEditSeller(e.target.value)} placeholder="销售方名称" />
+                </div>
+                <div style={{ width: 'calc(50% - 4px)' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>发票代码</div>
+                  <Input size="small" value={editCode} onChange={e => setEditCode(e.target.value)} placeholder="发票代码" />
+                </div>
+                <div style={{ width: 'calc(50% - 4px)' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>发票号码</div>
+                  <Input size="small" value={editNumber} onChange={e => setEditNumber(e.target.value)} placeholder="发票号码" />
+                </div>
+              </div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                <Button type="primary" size="small" icon={<CheckOutlined />} loading={saving} disabled={saved} onClick={handleOCRConfirm}>
+                  {saved ? '已确认' : '确认修正'}
+                </Button>
+                {saved && <span style={{ fontSize: 12, color: '#52c41a', lineHeight: '24px' }}>✅ 已更新到会话</span>}
+              </div>
             </div>
           )}
         </div>
