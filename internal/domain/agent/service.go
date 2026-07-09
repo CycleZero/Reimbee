@@ -77,7 +77,7 @@ func (s *AgentService) HandleChat(c *gin.Context) {
 		Message:      message,
 		UserID:       meta.UserID,
 		EmployeeID:   meta.EmployeeID,
-		EmployeeName: meta.EmployeeID,
+		EmployeeName: meta.EmployeeName,
 		Role:         meta.Role,
 	}, writer); err != nil {
 		s.logger.Error("对话失败", zap.Error(err))
