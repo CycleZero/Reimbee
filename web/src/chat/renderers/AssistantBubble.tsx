@@ -120,7 +120,7 @@ function ThinkingCard({ card, isStreaming }: { card: MessageCard; isStreaming: b
           className={animating ? 'thinking-done' : ''}
           style={{
             fontSize: 13,
-            color: isDone ? '#52c41a' : '#666',
+            color: '#666',
             transition: 'color 0.4s',
             display: 'inline-block',
           }}
