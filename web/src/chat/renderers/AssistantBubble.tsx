@@ -27,10 +27,12 @@ const markdownStyle: React.CSSProperties = {
   wordBreak: 'break-word',
 };
 
+import type { Components } from 'react-markdown';
+
 const tableBorder = '1px solid #d9d9d9';
-const markdownComponents = {
-  p: ({ children }: { children: React.ReactNode }) => <p style={markdownStyle}>{children}</p>,
-  code: ({ className, children, ...props }: { className?: string; children: React.ReactNode }) => {
+const markdownComponents: Components = {
+  p: ({ children }) => <p style={markdownStyle}>{children}</p>,
+  code: ({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'>) => {
     const isInline = !className;
     return isInline ? (
       <code style={{ background: '#e8e8e8', padding: '2px 6px', borderRadius: 4, fontSize: '0.9em' }} {...props}>
@@ -42,13 +44,13 @@ const markdownComponents = {
       </pre>
     );
   },
-  table: ({ children }: { children: React.ReactNode }) => (
+  table: ({ children }) => (
     <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 13 }}>{children}</table>
   ),
-  th: ({ children }: { children: React.ReactNode }) => (
+  th: ({ children }) => (
     <th style={{ border: tableBorder, padding: '6px 12px', background: '#fafafa', textAlign: 'left', fontWeight: 600 }}>{children}</th>
   ),
-  td: ({ children }: { children: React.ReactNode }) => (
+  td: ({ children }) => (
     <td style={{ border: tableBorder, padding: '6px 12px' }}>{children}</td>
   ),
 };
