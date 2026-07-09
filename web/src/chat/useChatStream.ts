@@ -98,6 +98,25 @@ export function useChatStream(
           return msg?.cards?.[msg.cards.length - 1]?.type;
         };
 
+        // 将最后一张未完成的 thinking 卡片标记为"思考完成"
+        const finishLastThinking = (): void => {
+          const mid = store().currentStreamingMessageId;
+          if (!mid) return;
+          useChatStore.setState((prev) => ({
+            messages: prev.messages.map((m) => {
+              if (m.id !== mid) return m;
+              const cards = [...m.cards];
+              for (let i = cards.length - 1; i >= 0; i--) {
+                if (cards[i].type === 'thinking' && cards[i].thinkingText !== '思考完成') {
+                  cards[i] = { ...cards[i], thinkingText: '思考完成' };
+                  break;
+                }
+              }
+              return { ...m, cards };
+            }),
+          }));
+        };
+
         switch (evt.event) {
 
           // ============================================
@@ -147,6 +166,7 @@ export function useChatStream(
             if (!d.name) break;
             extraHandlers?.onToolCall?.(d.name, d.input);
             ensureStreaming();
+            finishLastThinking();
             s.appendCard({
               type: 'tool',
               toolName: d.name,
@@ -197,6 +217,7 @@ export function useChatStream(
             extraHandlers?.onMessage?.(d.text, true);
             ensureStreaming();
             if (lastCardType() !== 'message') {
+              finishLastThinking();
               s.appendCard({ type: 'message', content: d.text });
             } else {
               s.updateLastCard((card) => ({
@@ -273,22 +294,9 @@ export function useChatStream(
           // ============================================
           case 'done': {
             extraHandlers?.onDone?.();
-            const mid = s.currentStreamingMessageId;
-            if (mid) {
-              // 将所有 thinking 卡片标记为完成
-              useChatStore.setState((prev) => ({
-                messages: prev.messages.map((m) =>
-                  m.id === mid
-                    ? {
-                        ...m,
-                        cards: m.cards.map((c) =>
-                          c.type === 'thinking' ? { ...c, thinkingText: '思考完成' } : c,
-                        ),
-                      }
-                    : m,
-                ),
-              }));
-              s.finishStreamingMessage(mid);
+            finishLastThinking();
+            if (s.currentStreamingMessageId) {
+              s.finishStreamingMessage(s.currentStreamingMessageId);
             }
             const sid = s.currentSessionId;
             if (sid && s.messages.length > 0) {
