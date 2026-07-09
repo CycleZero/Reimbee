@@ -263,6 +263,11 @@ func (a *ReimburseAgent) HandleApprove(ctx context.Context, sessionID string, ap
 	})
 	ctx = agenttools.InjectApprovalState(ctx, session.State())
 
+	// 从 session state 恢复审批人身份，注入 context（approve_tool 需要）
+	if name, ok := session.State()["employee_name"].(string); ok && name != "" {
+		ctx = agenttools.WithApproverName(ctx, name)
+	}
+
 	// 重放被中断的工具：尝试更新旧 tool_msg 的 Response，找不到则追加新消息
 	if t, ok := a.tools[toolName]; ok {
 		result, err := t.Handle(ctx, toolInput)
