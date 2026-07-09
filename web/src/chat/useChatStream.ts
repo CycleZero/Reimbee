@@ -65,11 +65,6 @@ export function useChatStream(
 
     store().setConnectionStatus('connecting');
 
-    // 消费 approveSignal，防止后续请求误走 approve 端点
-    if (isApprove) {
-      useChatStore.setState({ approveSignal: null });
-    }
-
     const sharedHandlers = {
       onopen: async (response: Response) => {
         if (response.ok) {
@@ -300,6 +295,9 @@ export function useChatStream(
           case 'done': {
             extraHandlers?.onDone?.();
             finishLastThinking();
+            if (isApprove) {
+              useChatStore.setState({ approveSignal: null });
+            }
             if (s.currentStreamingMessageId) {
               s.finishStreamingMessage(s.currentStreamingMessageId);
             }
@@ -324,13 +322,17 @@ export function useChatStream(
 
       onclose() {
         store().setConnectionStatus('disconnected');
+        if (isApprove) {
+          useChatStore.setState({ approveSignal: null });
+        }
       },
 
       onerror(err: unknown) {
         store().setConnectionStatus('error');
         if (!isApprove) {
-          throw err; // 仅流式请求允许重试，approve 不重试（非幂等）
+          throw err;
         }
+        useChatStore.setState({ approveSignal: null });
       },
     };
 
@@ -347,6 +349,7 @@ export function useChatStream(
         ...sharedHandlers,
       }).catch(() => {
         store().setConnectionStatus('error');
+        useChatStore.setState({ approveSignal: null });
       });
     } else {
       const url = new URL('/api/chat/stream', BASE_URL);
