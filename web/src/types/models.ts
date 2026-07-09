@@ -145,15 +145,25 @@ export interface UpdateBudgetRequest {
 // 报销
 // ============================================
 
-export interface InvoiceItem {
+export interface ReceiptItem {
   id: number;
-  amount: number; // 分
+  amount: number; // 票面金额(分)
+  invoice_date: string;
+  invoice_code?: string;
+  invoice_number?: string;
+  image_path?: string;
   category: string;
   check_result: 'pass' | 'warning' | 'error' | 'pending';
-  invoice_date: string;
 }
 
-/** 报销单中内嵌的审批信息（简化版） */
+export interface ReimbursementItem {
+  id: number;
+  category: string;
+  amount: number; // 申请报销金额(分)
+  description: string;
+  receipts: ReceiptItem[];
+}
+
 export interface ApprovalInfo {
   id: number;
   action: 'pending' | 'approved' | 'rejected';
@@ -168,12 +178,12 @@ export interface Reimbursement {
   employee_id: string;
   employee_name: string;
   department_id: number;
-  department: string; // 部门名称
-  total_amount: number; // 分
+  department: string;
+  total_amount: number;
   status: 'draft' | 'pending' | 'reviewing' | 'approved' | 'rejected';
   submit_note?: string;
   need_special_approval: boolean;
-  invoices: InvoiceItem[];
+  items: ReimbursementItem[];
   approvals: ApprovalInfo[];
   created_at: string;
   updated_at: string;

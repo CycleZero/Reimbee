@@ -16,6 +16,7 @@ export const TOOL_LABELS: Record<string, string> = {
   // 共享工具
   search_policy: '政策检索',
   check_compliance: '合规审核',
+  organize_items: '归类票据',
   list_invoices: '票据汇总',
   check_deadline: '有效期校验',
   query_reimbursements: '报销记录',

@@ -27,7 +27,7 @@ import { AmountText } from '@/components/common/AmountText';
 import { StatusTag } from '@/components/common/StatusTag';
 import { useAuthStore } from '@/stores/authStore';
 import { yuanToFen, formatDate } from '@/utils/format';
-import type { Reimbursement, InvoiceItem, ApprovalInfo } from '@/types/models';
+import type { Reimbursement, ReimbursementItem, ReceiptItem, ApprovalInfo } from '@/types/models';
 
 /** 核查结果颜色映射 */
 const CHECK_RESULT_MAP: Record<string, { color: string; label: string }> = {
@@ -208,27 +208,13 @@ export default function ReimbursementDetail() {
 
   // ---------- 表格列定义 ----------
 
-  const invoiceColumns = [
-    {
-      title: '类别',
-      dataIndex: 'category',
-      key: 'category',
-    },
-    {
-      title: '金额',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (v: number) => <AmountText amount={v} />,
-    },
-    {
-      title: '日期',
-      dataIndex: 'invoice_date',
-      key: 'date',
-    },
-    {
-      title: '核查结果',
-      dataIndex: 'check_result',
-      key: 'check',
+  const receiptColumns = [
+    { title: '明细', dataIndex: 'item_desc', key: 'item' },
+    { title: '类别', dataIndex: 'category', key: 'category' },
+    { title: '票面金额', dataIndex: 'amount', key: 'amount', render: (v: number) => <AmountText amount={v} /> },
+    { title: '日期', dataIndex: 'invoice_date', key: 'date' },
+    { title: '发票号码', dataIndex: 'invoice_number', key: 'invoice' },
+    { title: '核查结果', dataIndex: 'check_result', key: 'check',
       render: (v: string) => {
         const cfg = CHECK_RESULT_MAP[v] ?? { color: 'default', label: v };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
@@ -337,11 +323,13 @@ export default function ReimbursementDetail() {
         </Descriptions>
       </Card>
 
-      {/* 票据列表 */}
-      <Card title="票据列表" style={{ marginBottom: 16 }}>
-        <Table<InvoiceItem>
-          columns={invoiceColumns}
-          dataSource={reimbursement.invoices}
+      {/* 票据列表（按明细分组） */}
+      <Card title="报销明细" style={{ marginBottom: 16 }}>
+        <Table<ReceiptItem & { item_desc: string }>
+          columns={receiptColumns}
+          dataSource={reimbursement.items?.flatMap(item =>
+            item.receipts?.map(rct => ({ ...rct, item_desc: `${item.category} · ${item.description || '-'}` })) ?? []
+          ) ?? []}
           rowKey="id"
           size="small"
           pagination={false}

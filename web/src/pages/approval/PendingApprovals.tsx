@@ -220,10 +220,17 @@ export default function PendingApprovals() {
 
     return (
       <div style={{ padding: '0 24px 16px' }}>
-        <h4>票据列表</h4>
+        <h4>报销明细</h4>
         <Table
-          columns={invoiceColumns}
-          dataSource={record.invoices}
+          columns={[
+            { title: '明细', dataIndex: 'item_desc', key: 'item' },
+            { title: '类别', dataIndex: 'category', key: 'cat' },
+            { title: '票面金额', dataIndex: 'amount', key: 'invAmount', render: (v: number) => <AmountText amount={v} /> },
+            { title: '日期', dataIndex: 'invoice_date', key: 'date' },
+          ]}
+          dataSource={record.items?.flatMap(item =>
+            item.receipts?.map(rct => ({ ...rct, item_desc: item.category })) ?? []
+          ) ?? []}
           rowKey="id"
           size="small"
           pagination={false}
