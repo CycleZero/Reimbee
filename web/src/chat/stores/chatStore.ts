@@ -38,6 +38,14 @@ function convertHistoryMessage(m: SessionMessageItem): ChatMessage {
     });
   }
 
+  // content → message 卡片
+  if (m.content) {
+    cards.push({
+      type: 'message',
+      content: m.content,
+    });
+  }
+
   // role=tool 时：tool_calls[] → 各一张 tool 卡片
   const toolCalls = m.tool_calls;
   if (m.role === 'tool' && toolCalls && toolCalls.length > 0) {
@@ -50,14 +58,6 @@ function convertHistoryMessage(m: SessionMessageItem): ChatMessage {
         output: tc.result ? safeJsonParse(tc.result) : undefined,
       });
     }
-  }
-
-  // content → message 卡片
-  if (m.content) {
-    cards.push({
-      type: 'message',
-      content: m.content,
-    });
   }
 
   return {
