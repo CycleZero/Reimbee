@@ -328,7 +328,9 @@ export function useChatStream(
 
       onerror(err: unknown) {
         store().setConnectionStatus('error');
-        throw err;
+        if (!isApprove) {
+          throw err; // 仅流式请求允许重试，approve 不重试（非幂等）
+        }
       },
     };
 
