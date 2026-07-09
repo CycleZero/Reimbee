@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tag, Button, Input, Typography, Select, App } from 'antd';
 import {
   ToolOutlined,
@@ -72,9 +72,21 @@ function formatOutput(output: unknown): string {
 // ============================================
 function ThinkingCard({ card, isStreaming }: { card: MessageCard; isStreaming: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const hasContent = (card.content?.length ?? 0) > 0;
   const hasTools = (card.toolCalls?.length ?? 0) > 0;
   const thinkingText = card.thinkingText || '思考中...';
+  const isDone = thinkingText === '思考完成';
+  const prevDone = useRef(isDone);
+
+  useEffect(() => {
+    if (isDone && !prevDone.current) {
+      setAnimating(true);
+      const timer = setTimeout(() => setAnimating(false), 600);
+      return () => clearTimeout(timer);
+    }
+    prevDone.current = isDone;
+  }, [isDone]);
 
   return (
     <div style={{ marginBottom: 6 }}>
@@ -104,7 +116,15 @@ function ThinkingCard({ card, isStreaming }: { card: MessageCard; isStreaming: b
             transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
           }}
         />
-        <span style={{ fontSize: 13, color: '#666' }}>
+        <span
+          className={animating ? 'thinking-done' : ''}
+          style={{
+            fontSize: 13,
+            color: isDone ? '#52c41a' : '#666',
+            transition: 'color 0.4s',
+            display: 'inline-block',
+          }}
+        >
           🧠 {thinkingText}
         </span>
         {hasTools && (

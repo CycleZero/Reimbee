@@ -40,6 +40,16 @@ body {
   min-height: 100vh;
 }
 
+/* ── 思考完成切换动画 ── */
+@keyframes thinking-done {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.thinking-done {
+  animation: thinking-done 0.5s ease;
+}
+
 /* ── AI 思考三点跳动 ── */
 @keyframes thinking-bounce {
   0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }

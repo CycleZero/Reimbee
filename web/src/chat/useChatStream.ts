@@ -273,8 +273,22 @@ export function useChatStream(
           // ============================================
           case 'done': {
             extraHandlers?.onDone?.();
-            if (s.currentStreamingMessageId) {
-              s.finishStreamingMessage(s.currentStreamingMessageId);
+            const mid = s.currentStreamingMessageId;
+            if (mid) {
+              // 将所有 thinking 卡片标记为完成
+              useChatStore.setState((prev) => ({
+                messages: prev.messages.map((m) =>
+                  m.id === mid
+                    ? {
+                        ...m,
+                        cards: m.cards.map((c) =>
+                          c.type === 'thinking' ? { ...c, thinkingText: '思考完成' } : c,
+                        ),
+                      }
+                    : m,
+                ),
+              }));
+              s.finishStreamingMessage(mid);
             }
             const sid = s.currentSessionId;
             if (sid && s.messages.length > 0) {

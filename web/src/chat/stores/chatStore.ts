@@ -34,7 +34,7 @@ function convertHistoryMessage(m: SessionMessageItem): ChatMessage {
     cards.push({
       type: 'thinking',
       content: m.reasoning,
-      thinkingText: '思考中...',
+      thinkingText: '思考完成',
     });
   }
 
