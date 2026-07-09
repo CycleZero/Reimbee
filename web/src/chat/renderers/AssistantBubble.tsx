@@ -328,7 +328,7 @@ function ToolCard({ card, isStreaming }: { card: MessageCard; isStreaming: boole
           )}
 
           {/* OCR 编辑表单 */}
-          {isOCR && ocrData && (
+          {isOCR && ocrData ? (
             <div>
               <div style={{ fontWeight: 600, marginBottom: 8, color: '#555', fontSize: 12 }}>
                 ✏️ 识别结果（可修改）
@@ -368,7 +368,7 @@ function ToolCard({ card, isStreaming }: { card: MessageCard; isStreaming: boole
                 {saved && <span style={{ fontSize: 12, color: '#52c41a', lineHeight: '24px' }}>✅ 已更新到会话</span>}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>

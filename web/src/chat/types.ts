@@ -16,6 +16,7 @@ export interface ToolCallRecord {
   status: 'running' | 'success' | 'error';
   input?: unknown;
   output?: unknown;
+  errorMessage?: string;
 }
 
 /** 中断状态 */

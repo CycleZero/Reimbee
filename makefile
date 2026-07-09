@@ -8,11 +8,11 @@ wire:
 
 # 编译前端
 build-frontend:
-	cd web && npm run build
+	cd web && pnpm run build
 
 # 编译（含前端）
 build:
-	cd web && npm run build
+	cd web && pnpm run build
 	go build -o ${BINARY_PATH} ${MAIN_FILE_DIR}
 
 # 仅编译后端（开发时前端用 dev server）
@@ -24,7 +24,7 @@ rebuild: wire build
 
 # 编译至 Linux AMD64 平台（含前端）
 build-linux:
-	cd web && npm run build
+	cd web && pnpm run build
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ${BINARY_PATH} ${MAIN_FILE_DIR}
 
 # 运行
