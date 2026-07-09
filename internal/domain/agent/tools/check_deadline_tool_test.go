@@ -41,14 +41,14 @@ func assertDeadlineResult(t *testing.T, result tools.DeadlineResult, wantIndex i
 }
 
 // seedCheckDeadlineState 将测试票据写入假存储
-func seedCheckDeadlineState(t *testing.T, store *fakeStateStore, sessionID string, invoices []types.InvoiceState) {
+func seedCheckDeadlineState(t *testing.T, store *fakeStateStore, sessionID string, receipts []types.ReceiptState) {
 	t.Helper()
 	var total int64
-	for _, inv := range invoices {
-		total += inv.Amount
+	for _, rct := range receipts {
+		total += rct.Amount
 	}
 	state := &types.ReimbursementState{
-		Invoices:     invoices,
+		Items:        []types.ItemState{{Receipts: receipts}},
 		TotalAmount:  total,
 		CurrentPhase: "phase1_collect",
 	}
@@ -62,7 +62,7 @@ func TestCheckDeadline_Valid(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 10000, Category: "办公用品", Date: "2026-06-01"},
 	})
 
@@ -98,7 +98,7 @@ func TestCheckDeadline_Approaching(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 5000, Category: "交通费", Date: "2026-04-13"},
 	})
 
@@ -124,7 +124,7 @@ func TestCheckDeadline_Expired(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 3000, Category: "差旅费", Date: "2026-04-01"},
 	})
 
@@ -150,7 +150,7 @@ func TestCheckDeadline_UnknownEmpty(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 2000, Category: "餐饮费", Date: ""},
 	})
 
@@ -176,7 +176,7 @@ func TestCheckDeadline_UnknownMalformed(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 2000, Category: "其他", Date: "invalid-date"},
 	})
 
@@ -199,7 +199,7 @@ func TestCheckDeadline_UnknownFuture(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 4000, Category: "设备采购", Date: "2026-08-01"},
 	})
 
@@ -248,7 +248,7 @@ func TestCheckDeadline_CustomValidity(t *testing.T) {
 	store := newFakeStateStore()
 	tool := setupCheckDeadlineTool(store)
 
-	seedCheckDeadlineState(t, store, "test-session", []types.InvoiceState{
+	seedCheckDeadlineState(t, store, "test-session", []types.ReceiptState{
 		{Amount: 10000, Category: "办公用品", Date: "2026-06-01"},
 	})
 

@@ -16,6 +16,7 @@ const EmployeeList = lazy(() => import('@/pages/employee/EmployeeList'));
 const DepartmentList = lazy(() => import('@/pages/department/DepartmentList'));
 const BudgetManage = lazy(() => import('@/pages/budget/BudgetManage'));
 const Chat = lazy(() => import('@/pages/Chat'));
+const PolicyManage = lazy(() => import('@/pages/PolicyManage'));
 
 function PageLoader() {
   return (
@@ -82,6 +83,10 @@ export const router = createBrowserRouter([
       {
         path: 'chat/:sessionId',
         element: <Lazy><Chat /></Lazy>,
+      },
+      {
+        path: 'policies',
+        element: <Lazy><PolicyManage /></Lazy>,
       },
       { path: '*', element: <div style={{ padding: 48, textAlign: 'center' }}><h2>404</h2></div> },
     ],

@@ -285,7 +285,12 @@ func (s *ReimbursementService) Create(c *gin.Context) {
 		return
 	}
 
-	rm, err := s.biz.Create(req.EmployeeID, req.EmployeeName, req.DepartmentID, req.SubmitNote)
+	rm, err := s.biz.Create(&CreateReimbInput{
+		EmployeeID:   req.EmployeeID,
+		EmployeeName: req.EmployeeName,
+		DepartmentID: req.DepartmentID,
+		SubmitNote:   req.SubmitNote,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -318,7 +323,7 @@ func (s *ReimbursementService) Submit(c *gin.Context) {
 		return
 	}
 
-	rm, err := s.biz.Submit(uint(id), req.TotalAmount)
+	rm, err := s.biz.Submit(uint(id))
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
@@ -401,16 +406,31 @@ func toReimbursementResponse(rm *model.Reimbursement) *ReimbursementResponse {
 	if rm.Department != nil {
 		resp.Department = rm.Department.Name
 	}
-	if rm.Invoices != nil {
-		resp.Invoices = make([]*InvoiceItemResponse, 0, len(rm.Invoices))
-		for _, inv := range rm.Invoices {
-			resp.Invoices = append(resp.Invoices, &InvoiceItemResponse{
-				ID:          inv.ID,
-				Amount:      inv.Amount,
-				InvoiceDate: inv.InvoiceDate,
-				Category:    inv.Category,
-				CheckResult: inv.CheckResult,
-			})
+	if rm.Items != nil {
+		resp.Items = make([]*ItemResponse, 0, len(rm.Items))
+		for _, item := range rm.Items {
+			itemResp := &ItemResponse{
+				ID:          item.ID,
+				Category:    item.Category,
+				Amount:      item.Amount,
+				Description: item.Description,
+			}
+			if item.Receipts != nil {
+				itemResp.Receipts = make([]*ReceiptResponse, 0, len(item.Receipts))
+				for _, rct := range item.Receipts {
+					itemResp.Receipts = append(itemResp.Receipts, &ReceiptResponse{
+						ID:            rct.ID,
+						Amount:        rct.Amount,
+						InvoiceDate:   rct.InvoiceDate,
+						InvoiceCode:   rct.InvoiceCode,
+						InvoiceNumber: rct.InvoiceNumber,
+						ImagePath:     rct.ImagePath,
+						Category:      rct.Category,
+						CheckResult:   rct.CheckResult,
+					})
+				}
+			}
+			resp.Items = append(resp.Items, itemResp)
 		}
 	}
 	if rm.Approvals != nil {

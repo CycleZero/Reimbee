@@ -11,33 +11,45 @@ import (
 	"go.uber.org/zap"
 )
 
-// ListInvoicesInput 列出票据汇总工具的输入参数（无需输入）
+// ListInvoicesInput 列出票据汇总的输入参数
 type ListInvoicesInput struct{}
 
-// ListInvoicesOutput 列出票据汇总工具的输出结果
+// ListInvoicesOutput 列出票据汇总的输出（按明细→票据层级）
 type ListInvoicesOutput struct {
-	Count       int           `json:"count"`        // 票据数量
-	TotalAmount float64       `json:"total_amount"` // 票据总金额（元）
-	Invoices    []InvoiceItem `json:"invoices"`     // 票据明细列表
+	// Items 已确认的报销明细列表
+	Items []ItemSummary `json:"items"`
+	// PendingReceipts 尚未归类的票据
+	PendingReceipts []ReceiptSummary `json:"pending_receipts"`
+	// TotalCount 票据总数（含已归类和待归类）
+	TotalCount int `json:"total_count"`
+	// TotalAmount 票据总金额（元）
+	TotalAmount float64 `json:"total_amount"`
 }
 
-// InvoiceItem 单条票据明细
-type InvoiceItem struct {
-	Index     int     `json:"index"`      // 序号（从1开始）
-	Category  string  `json:"category"`   // 费用类别
-	Amount    float64 `json:"amount"`     // 金额（元）
-	Date      string  `json:"date"`       // 开票日期
-	ImagePath string  `json:"image_path"` // 票据图片路径
+// ItemSummary 一条报销明细的汇总
+type ItemSummary struct {
+	Index       int              `json:"index"`
+	Category    string           `json:"category"`
+	Amount      float64          `json:"amount"`
+	Description string           `json:"description"`
+	Receipts    []ReceiptSummary `json:"receipts"`
 }
 
-// ListInvoicesTool 列出票据汇总的共享工具（非中断式）
+// ReceiptSummary 单张票据的汇总
+type ReceiptSummary struct {
+	Index     int     `json:"index"`
+	Category  string  `json:"category"`
+	Amount    float64 `json:"amount"`
+	Date      string  `json:"date"`
+	ImagePath string  `json:"image_path"`
+}
+
 type ListInvoicesTool struct{ tools.Tool }
 
-// NewListInvoicesTool 创建列出票据汇总工具，封装 infra.StateStore
 func NewListInvoicesTool(store infra.StateStore, logger *log.Logger) *ListInvoicesTool {
 	t, err := tools.NewFunc[ListInvoicesInput, ListInvoicesOutput](
 		"list_invoices",
-		"列出当前会话已收集的票据汇总，包括序号、费用类别、金额(元)、开票日期。金额均以人民币元为单位展示。",
+		"列出当前会话的报销明细和票据汇总。已确认的明细按 Items 分组展示，未归类的票据列在 PendingReceipts 中。金额以人民币元为单位。",
 		func(ctx context.Context, input ListInvoicesInput) (ListInvoicesOutput, error) {
 			sid := getSessionID(ctx)
 
@@ -48,33 +60,59 @@ func NewListInvoicesTool(store infra.StateStore, logger *log.Logger) *ListInvoic
 				return ListInvoicesOutput{}, fmt.Errorf("读取票据状态失败: %w", err)
 			}
 
-			if !found || len(state.Invoices) == 0 {
-				logger.Info("列出票据汇总", zap.Int("数量", 0))
-				return ListInvoicesOutput{
-					Count:    0,
-					Invoices: []InvoiceItem{},
-				}, nil
+			if !found {
+				return ListInvoicesOutput{}, nil
 			}
 
-			items := make([]InvoiceItem, 0, len(state.Invoices))
-			for i, inv := range state.Invoices {
-				items = append(items, InvoiceItem{
+			// 汇总已确认明细
+			itemSummaries := make([]ItemSummary, 0, len(state.Items))
+			totalReceipts := 0
+			var totalAmount int64
+			for i, item := range state.Items {
+				rcpts := make([]ReceiptSummary, 0, len(item.Receipts))
+				for j, rct := range item.Receipts {
+					rcpts = append(rcpts, ReceiptSummary{
+						Index:     j + 1,
+						Category:  rct.Category,
+						Amount:    float64(rct.Amount) / 100.0,
+						Date:      rct.Date,
+						ImagePath: rct.ImagePath,
+					})
+				}
+				itemSummaries = append(itemSummaries, ItemSummary{
+					Index:       i + 1,
+					Category:    item.Category,
+					Amount:      float64(item.Amount) / 100.0,
+					Description: item.Description,
+					Receipts:    rcpts,
+				})
+				totalReceipts += len(item.Receipts)
+				totalAmount += item.Amount
+			}
+
+			// 汇总待归类票据
+			pendingSummaries := make([]ReceiptSummary, 0, len(state.PendingReceipts))
+			for i, rct := range state.PendingReceipts {
+				pendingSummaries = append(pendingSummaries, ReceiptSummary{
 					Index:     i + 1,
-					Category:  inv.Category,
-					Amount:    float64(inv.Amount) / 100.0, // 分转元
-					Date:      inv.Date,
-					ImagePath: inv.ImagePath,
+					Category:  rct.Category,
+					Amount:    float64(rct.Amount) / 100.0,
+					Date:      rct.Date,
+					ImagePath: rct.ImagePath,
 				})
 			}
 
-			count := len(items)
-			totalYuan := float64(state.TotalAmount) / 100.0 // 分转元
+			totalCount := totalReceipts + len(state.PendingReceipts)
+			logger.Info("列出票据汇总",
+				zap.Int("明细数", len(itemSummaries)),
+				zap.Int("待归类", len(pendingSummaries)),
+				zap.Int("票据总数", totalCount))
 
-			logger.Info("列出票据汇总", zap.Int("数量", count))
 			return ListInvoicesOutput{
-				Count:       count,
-				TotalAmount: totalYuan,
-				Invoices:    items,
+				Items:           itemSummaries,
+				PendingReceipts: pendingSummaries,
+				TotalCount:      totalCount,
+				TotalAmount:     float64(totalAmount) / 100.0,
 			}, nil
 		},
 	)

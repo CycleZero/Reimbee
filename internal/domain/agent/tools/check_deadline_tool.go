@@ -66,51 +66,73 @@ func NewCheckDeadlineTool(store infra.StateStore, logger *log.Logger) *CheckDead
 				validityDays = 90
 			}
 
-			// 读取报销状态
 			var state types.ReimbursementState
 			store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
 
-			results := make([]DeadlineResult, 0, len(state.Invoices))
-			summary := DeadlineSummary{TotalCount: len(state.Invoices)}
+			// 收集所有票据：已确认明细中的 + 待归类的
+			type receiptWithPath struct {
+				imagePath string
+				category  string
+				amount    int64
+				date      string
+				index     int
+			}
+			var allReceipts []receiptWithPath
+			idx := 0
+			for _, item := range state.Items {
+				for _, rct := range item.Receipts {
+					allReceipts = append(allReceipts, receiptWithPath{
+						imagePath: rct.ImagePath,
+						category:  rct.Category,
+						amount:    rct.Amount,
+						date:      rct.Date,
+						index:     idx,
+					})
+					idx++
+				}
+			}
+			for _, rct := range state.PendingReceipts {
+				allReceipts = append(allReceipts, receiptWithPath{
+					imagePath: rct.ImagePath,
+					category:  rct.Category,
+					amount:    rct.Amount,
+					date:      rct.Date,
+					index:     idx,
+				})
+				idx++
+			}
 
+			results := make([]DeadlineResult, 0, len(allReceipts))
+			summary := DeadlineSummary{TotalCount: len(allReceipts)}
 			today := t.Now()
 
-			for i, inv := range state.Invoices {
+			for _, inv := range allReceipts {
 				result := DeadlineResult{
-					Index:    i,
-					Category: inv.Category,
-					Amount:   float64(inv.Amount) / 100.0, // 分→元
-					Date:     inv.Date,
+					Index:    inv.index,
+					Category: inv.category,
+					Amount:   float64(inv.amount) / 100.0,
+					Date:     inv.date,
 				}
 
-				// 解析日期：尝试两种格式
-				issueDate, err := time.Parse("2006-01-02", inv.Date)
+				issueDate, err := time.Parse("2006-01-02", inv.date)
 				if err != nil {
-					issueDate, err = time.Parse("2006/01/02", inv.Date)
+					issueDate, err = time.Parse("2006/01/02", inv.date)
 				}
-				if err != nil || inv.Date == "" {
+				if err != nil || inv.date == "" {
 					result.Status = "unknown"
-					result.DaysRemaining = 0
 					summary.HasUnknown = true
 					results = append(results, result)
-					logger.Warn("票据日期无法解析或为空", zap.Int("序号", i), zap.String("原始值", inv.Date))
 					continue
 				}
-
-				// 未来日期视为未知
 				if issueDate.After(today) {
 					result.Status = "unknown"
-					result.DaysRemaining = 0
 					summary.HasUnknown = true
 					results = append(results, result)
-					logger.Warn("票据日期为未来日期", zap.Int("序号", i), zap.String("日期", inv.Date))
 					continue
 				}
 
-				// 计算剩余天数
 				daysSinceIssue := int(today.Sub(issueDate).Hours() / 24)
 				daysRemaining := validityDays - daysSinceIssue
-
 				result.DaysRemaining = daysRemaining
 				switch {
 				case daysRemaining < 0:
@@ -122,7 +144,6 @@ func NewCheckDeadlineTool(store infra.StateStore, logger *log.Logger) *CheckDead
 				default:
 					result.Status = "valid"
 				}
-
 				results = append(results, result)
 			}
 
@@ -132,10 +153,7 @@ func NewCheckDeadlineTool(store infra.StateStore, logger *log.Logger) *CheckDead
 				zap.Bool("有即将过期", summary.HasApproaching),
 				zap.Bool("有未知日期", summary.HasUnknown))
 
-			return CheckDeadlineOutput{
-				Results: results,
-				Summary: summary,
-			}, nil
+			return CheckDeadlineOutput{Results: results, Summary: summary}, nil
 		},
 	)
 	if err != nil {

@@ -4,6 +4,9 @@ import "github.com/google/wire"
 
 var ProviderSet = wire.NewSet(
 	NewReimbursementRepo,
+	NewItemRepo,
+	NewReceiptRepo,
+	NewItemBiz,
 	NewReimbursementBiz,
 	NewReimbursementService,
 )

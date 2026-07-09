@@ -23,43 +23,46 @@ func NewComplianceBiz(logger *log.Logger, kb *KnowledgeBase) *ComplianceBiz {
 }
 
 func (b *ComplianceBiz) CheckCompliance(ctx context.Context, input *ComplianceInput) (*ComplianceOutput, error) {
-	invoices := input.GetInvoices()
+	invoices := input.GetItems()
 	if len(invoices) == 0 {
 		return &ComplianceOutput{
-			Result: model.CheckResultPass, Level: "pass",
+			Result: model.CheckResultPass,
 			Message: "无待审核票据", RuleID: "no-input",
 		}, nil
 	}
 
-	b.logger.Debug("开始合规检查", zap.Int("票据数", len(invoices)))
+	b.logger.Debug("开始合规检查", zap.Int("明细数", len(invoices)))
 
-	var items []ComplianceItemResult
-	worstResult, worstLevel := model.CheckResultPass, "pass"
+	var allResults []ComplianceItemResult
+	worstResult := model.CheckResultPass
 
-	for _, inv := range invoices {
-		out := b.checkSingle(ctx, inv)
-		items = append(items, ComplianceItemResult{
-			Result: out.Result, Level: out.Level,
-			Message: out.Message, RuleID: out.RuleID,
-			Amount: inv.Amount, Category: inv.Category,
-		})
-		if isWorse(out.Result, worstResult) {
-			worstResult = out.Result
-			worstLevel = out.Level
+	for _, item := range invoices {
+		for _, rct := range item.Receipts {
+			out := b.checkSingle(ctx, rct)
+			allResults = append(allResults, ComplianceItemResult{
+				Result:   out.Result,
+				Message:  out.Message,
+				RuleID:   out.RuleID,
+				Amount:   rct.Amount,
+				Category: rct.Category,
+			})
+			if isWorse(out.Result, worstResult) {
+				worstResult = out.Result
+			}
 		}
 	}
 
 	return &ComplianceOutput{
-		Result:  worstResult, Level: worstLevel,
+		Result:  worstResult,
 		Message: fmt.Sprintf("共审核%d张票据，%d张通过，%d张警告，%d张违规",
-			len(items), countBy(items, model.CheckResultPass),
-			countBy(items, model.CheckResultWarning), countBy(items, model.CheckResultError)),
-		RuleID: worstRuleID(items),
-		Items:  items,
+			len(allResults), countBy(allResults, model.CheckResultPass),
+			countBy(allResults, model.CheckResultWarning), countBy(allResults, model.CheckResultError)),
+		RuleID: worstRuleID(allResults),
+		Items:  allResults,
 	}, nil
 }
 
-func (b *ComplianceBiz) checkSingle(ctx context.Context, inv ComplianceInvoiceItem) *ComplianceOutput {
+func (b *ComplianceBiz) checkSingle(ctx context.Context, inv ComplianceReceiptItem) *ComplianceOutput {
 	b.logger.Debug("合规检查(单张)", zap.Int64("金额(分)", inv.Amount), zap.String("类别", inv.Category))
 	amountYuan := float64(inv.Amount) / 100.0
 
@@ -67,18 +70,17 @@ func (b *ComplianceBiz) checkSingle(ctx context.Context, inv ComplianceInvoiceIt
 	chunks, err := b.kb.Search(ctx, query, 5)
 	if err != nil {
 		b.logger.Error("知识库检索失败", zap.Error(err))
-		return &ComplianceOutput{Result: model.CheckResultPass, Level: "pass", Message: "知识库检索异常，默认通过", RuleID: "default-pass"}
+		return &ComplianceOutput{Result: model.CheckResultPass, Message: "知识库检索异常，默认通过", RuleID: "default-pass"}
 	}
 	if len(chunks) == 0 {
-		return &ComplianceOutput{Result: model.CheckResultPass, Level: "pass", Message: "未找到相关合规规则，默认通过", RuleID: "no-rule"}
+		return &ComplianceOutput{Result: model.CheckResultPass, Message: "未找到相关合规规则，默认通过", RuleID: "no-rule"}
 	}
 	return b.evaluateRules(inv.Category, inv.InvoiceDate, chunks, amountYuan)
 }
 
 func (b *ComplianceBiz) evaluateRules(category, invoiceDate string, chunks []*model.PolicyChunk, amountYuan float64) *ComplianceOutput {
 	var worstResult = model.CheckResultPass
-	var worstMessage, worstRuleID, worstLevel string
-	worstLevel = "pass"
+	var worstMessage, worstRuleID string
 
 	for _, chunk := range chunks {
 		rules := extractRules(chunk.Content)
@@ -92,14 +94,6 @@ func (b *ComplianceBiz) evaluateRules(category, invoiceDate string, chunks []*mo
 				worstResult = result
 				worstMessage = msg
 				worstRuleID = ruleID
-				switch result {
-				case model.CheckResultError:
-					worstLevel = "error"
-				case model.CheckResultWarning:
-					worstLevel = "warning"
-				default:
-					worstLevel = "pass"
-				}
 			}
 		}
 	}
@@ -110,8 +104,7 @@ func (b *ComplianceBiz) evaluateRules(category, invoiceDate string, chunks []*mo
 			if !ok && isWorse(model.CheckResultError, worstResult) {
 				worstResult = model.CheckResultError
 				worstMessage = msg
-				worstRuleID = fmt.Sprintf("chunk-%d-expiry", chunk.ID)
-				worstLevel = "error"
+			worstRuleID = fmt.Sprintf("chunk-%d-expiry", chunk.ID)
 			}
 		}
 	}
@@ -122,7 +115,7 @@ func (b *ComplianceBiz) evaluateRules(category, invoiceDate string, chunks []*mo
 	}
 
 	return &ComplianceOutput{
-		Result: worstResult, Level: worstLevel,
+		Result: worstResult,
 		Message: worstMessage, RuleID: worstRuleID,
 	}
 }

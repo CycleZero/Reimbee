@@ -45,23 +45,4 @@ const (
 	CheckResultPending = "pending" // 待检查
 )
 
-// ============================================
-// 审批人裁决
-// ============================================
-const (
-	ApproverChoiceOCR  = "ocr"  // 采纳 OCR 原始值
-	ApproverChoiceUser = "user" // 采纳用户修正值
-)
 
-// ============================================
-// 费用类别
-// ============================================
-const (
-	CategoryTravel        = "差旅-交通"
-	CategoryAccommodation = "差旅-住宿"
-	CategorySubsidy       = "差旅-补助"
-	CategoryEntertainment = "招待费"
-	CategoryOffice        = "办公用品"
-	CategoryPrinting      = "印刷费"
-	CategoryOther         = "其他"
-)

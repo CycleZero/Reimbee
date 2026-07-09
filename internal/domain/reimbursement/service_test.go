@@ -18,6 +18,7 @@ import (
 	"github.com/CycleZero/Reimbee/internal/router"
 	"github.com/CycleZero/Reimbee/internal/router/middleware"
 	"github.com/CycleZero/Reimbee/internal/testutil"
+	"github.com/CycleZero/Reimbee/model"
 	zaplog "github.com/CycleZero/Reimbee/log"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -46,7 +47,10 @@ func setupEngine(t *testing.T) (*gin.Engine, *infra.Data, func()) {
 	approvalSvc := approval.NewApprovalService(approvalBiz, logger)
 
 	reimbRepo := reimbursement.NewReimbursementRepo(data)
-	reimbBiz := reimbursement.NewReimbursementBiz(logger, reimbRepo, budgetBiz, approvalBiz, empBiz)
+	itemRepo := reimbursement.NewItemRepo(data)
+	receiptRepo := reimbursement.NewReceiptRepo(data)
+	itemBiz := reimbursement.NewItemBiz(logger, itemRepo)
+	reimbBiz := reimbursement.NewReimbursementBiz(logger, reimbRepo, itemBiz, receiptRepo, budgetBiz, approvalBiz, empBiz)
 	reimbSvc := reimbursement.NewReimbursementService(reimbBiz, approvalBiz, nil, logger)
 
 	hub := &domain.ServiceHub{
@@ -345,6 +349,13 @@ func TestReimbursementService_Submit_Success(t *testing.T) {
 	testutil.SeedEmployee(data, "AP01", "审批人", d.ID, true)
 
 	rm := testutil.SeedReimbursement(data, "RM-S01", "EE01", "张三", d.ID, "draft", 0)
+	// 添加明细以提供报销金额
+	data.DB.Create(&model.ReimbursementItem{
+		ReimbursementID: rm.ID,
+		Category:        "差旅费",
+		Amount:          10000,
+		Description:     "测试明细",
+	})
 
 	req := reimbursement.SubmitReimbursementRequest{TotalAmount: 10000}
 	w := doJSON(http.MethodPost, fmt.Sprintf("/api/reimbursements/%d/submit", rm.ID), req, engine)
@@ -404,6 +415,14 @@ func TestReimbursementService_Submit_InsufficientBudget(t *testing.T) {
 	testutil.SeedEmployee(data, "AP01", "审批人", d.ID, true)
 
 	rm := testutil.SeedReimbursement(data, "RM-S04", "EE01", "张三", d.ID, "draft", 0)
+
+	// 添加超额明细（20000 > 10000 预算）
+	data.DB.Create(&model.ReimbursementItem{
+		ReimbursementID: rm.ID,
+		Category:        "设备采购",
+		Amount:          20000,
+		Description:     "超额测试",
+	})
 
 	req := reimbursement.SubmitReimbursementRequest{TotalAmount: 20000} // 超额
 	w := doJSON(http.MethodPost, fmt.Sprintf("/api/reimbursements/%d/submit", rm.ID), req, engine)

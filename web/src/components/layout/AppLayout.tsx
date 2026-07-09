@@ -8,6 +8,7 @@ import {
   BankOutlined,
   DollarOutlined,
   RobotOutlined,
+  BookOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -27,6 +28,7 @@ const MENU_ITEMS = [
   { key: '/employees', icon: <TeamOutlined />, label: '员工管理', roles: ['approver', 'admin'] },
   { key: '/departments', icon: <BankOutlined />, label: '部门管理', roles: ['admin'] },
   { key: '/budgets', icon: <DollarOutlined />, label: '预算管理', roles: ['admin'] },
+  { key: '/policies', icon: <BookOutlined />, label: '知识库', roles: ['admin'] },
   { key: '/chat', icon: <RobotOutlined />, label: 'AI 助手' },
 ];
 

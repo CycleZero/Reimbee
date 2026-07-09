@@ -8,6 +8,7 @@ import (
 	"github.com/CycleZero/Reimbee/infra"
 	"github.com/CycleZero/Reimbee/internal/testutil"
 	"github.com/CycleZero/Reimbee/model"
+	"gorm.io/gorm"
 )
 
 // setupRepoTest 创建测试用内存数据库与 ReimbursementRepo 实例，返回清理函数
@@ -160,9 +161,18 @@ func TestReimbursementRepo_GetByID(t *testing.T) {
 	// 创建报销单
 	rm := createTestReimbursement(data, "REIMB-2026-R01", "EMP001", "张三", dept.ID, StatusDraft, 50000)
 
-	// 为报销单添加一张票据
-	invoice := &model.InvoiceItem{
+	// 为报销单添加一条明细
+	item := &model.ReimbursementItem{
 		ReimbursementID: rm.ID,
+		Category:        "差旅费",
+		Amount:          30000,
+		Description:     "测试明细",
+	}
+	data.DB.Create(item)
+
+	// 为明细添加一张票据
+	invoice := &model.Receipt{
+		ItemID: item.ID,
 		InvoiceCode:     "INV-001",
 		InvoiceNumber:   "12345678",
 		Amount:          30000,
@@ -197,12 +207,14 @@ func TestReimbursementRepo_GetByID(t *testing.T) {
 		} else if got.Department.Name != "技术部" {
 			t.Errorf("期望部门名称为'技术部'，实际为 %s", got.Department.Name)
 		}
-		// 验证 Invoices 预加载
-		if len(got.Invoices) != 1 {
-			t.Errorf("期望预加载 1 条票据，实际为 %d 条", len(got.Invoices))
+		// 验证 Items 预加载
+		if len(got.Items) != 1 {
+			t.Errorf("期望预加载 1 条明细，实际为 %d 条", len(got.Items))
 		} else {
-			if got.Invoices[0].InvoiceNumber != "12345678" {
-				t.Errorf("期望发票号码为 12345678，实际为 %s", got.Invoices[0].InvoiceNumber)
+			if len(got.Items[0].Receipts) != 1 {
+				t.Errorf("期望明细下预加载 1 张票据")
+			} else if got.Items[0].Receipts[0].InvoiceNumber != "12345678" {
+				t.Errorf("期望发票号码为 12345678，实际为 %s", got.Items[0].Receipts[0].InvoiceNumber)
 			}
 		}
 		// 验证 Approvals 预加载
@@ -242,9 +254,16 @@ func TestReimbursementRepo_GetByNo(t *testing.T) {
 	dept := testutil.SeedDepartment(data, "财务部")
 	rm := createTestReimbursement(data, "REIMB-2026-GBN01", "EMP002", "李四", dept.ID, StatusPending, 20000)
 
-	// 添加票据和审批以验证预加载
-	data.DB.Create(&model.InvoiceItem{
+	// 添加明细和票据以验证预加载
+	item2 := &model.ReimbursementItem{
 		ReimbursementID: rm.ID,
+		Category:        "办公用品",
+		Amount:          20000,
+		Description:     "测试明细",
+	}
+	data.DB.Create(item2)
+	data.DB.Create(&model.Receipt{
+		ItemID: item2.ID,
 		Amount:          20000,
 		Category:        "办公用品",
 		InvoiceNumber:   "NO-88888",
@@ -267,8 +286,8 @@ func TestReimbursementRepo_GetByNo(t *testing.T) {
 		if got.Department == nil || got.Department.Name != "财务部" {
 			t.Errorf("期望部门预加载正确，但 Department 为 nil 或名称不匹配")
 		}
-		if len(got.Invoices) != 1 {
-			t.Errorf("期望预加载 1 条票据，实际为 %d 条", len(got.Invoices))
+		if len(got.Items) != 1 {
+			t.Errorf("期望预加载 1 条明细，实际为 %d 条", len(got.Items))
 		}
 		if len(got.Approvals) != 1 {
 			t.Errorf("期望预加载 1 条审批记录，实际为 %d 条", len(got.Approvals))
@@ -604,8 +623,9 @@ func TestReimbursementRepo_UpdateStatus(t *testing.T) {
 
 	t.Run("更新为 pending 状态", func(t *testing.T) {
 		rm := createTestReimbursement(data, "REIMB-2026-US01", "EMP001", "张三", dept.ID, StatusDraft, 1000)
-		if err := repo.UpdateStatus(rm.ID, StatusPending); err != nil {
-			t.Fatalf("UpdateStatus 失败: %v", err)
+		rm.Status = StatusPending
+		if err := repo.Update(rm); err != nil {
+			t.Fatalf("Update 失败: %v", err)
 		}
 		got, err := repo.GetByID(rm.ID)
 		if err != nil {
@@ -622,8 +642,9 @@ func TestReimbursementRepo_UpdateStatus(t *testing.T) {
 
 	t.Run("更新为 approved 状态", func(t *testing.T) {
 		rm := createTestReimbursement(data, "REIMB-2026-US02", "EMP002", "李四", dept.ID, StatusPending, 2000)
-		if err := repo.UpdateStatus(rm.ID, StatusApproved); err != nil {
-			t.Fatalf("UpdateStatus 失败: %v", err)
+		rm.Status = StatusApproved
+		if err := repo.Update(rm); err != nil {
+			t.Fatalf("Update 失败: %v", err)
 		}
 		got, err := repo.GetByID(rm.ID)
 		if err != nil {
@@ -635,8 +656,10 @@ func TestReimbursementRepo_UpdateStatus(t *testing.T) {
 	})
 
 	t.Run("更新不存在的 ID", func(t *testing.T) {
-		err := repo.UpdateStatus(99999, StatusPending)
-		// UpdateStatus 对不存在的 ID 不会报错（RowsAffected=0）
+		rm := &model.Reimbursement{Model: gorm.Model{ID: 99999}}
+		rm.Status = StatusPending
+		err := repo.Update(rm)
+		// Update 对不存在的 ID 会创建新记录或报错，此处仅验证不 panic
 		if err != nil {
 			t.Errorf("期望 UpdateStatus 不存在的 ID 不报错，但返回了: %v", err)
 		}

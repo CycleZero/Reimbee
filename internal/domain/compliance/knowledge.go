@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -183,7 +184,21 @@ func (kb *KnowledgeBase) searchByVector(ctx context.Context, query string, topK 
 
 	chunks := make([]*model.PolicyChunk, 0, len(results))
 	for _, r := range results {
-		chunks = append(chunks, &model.PolicyChunk{Content: r.Content})
+		chunk := &model.PolicyChunk{Content: r.Content}
+		// 从向量库返回的 Metadata 中恢复 DocumentID 和 ChunkIndex
+		if r.Metadata != nil {
+			if docID, ok := r.Metadata["doc_id"]; ok {
+				if id, err := strconv.Atoi(docID); err == nil {
+					chunk.DocumentID = uint(id)
+				}
+			}
+			if idx, ok := r.Metadata["chunk_index"]; ok {
+				if i, err := strconv.Atoi(idx); err == nil {
+					chunk.ChunkIndex = i
+				}
+			}
+		}
+		chunks = append(chunks, chunk)
 	}
 
 	kb.logger.Debug("向量搜索完成", zap.Int("结果数", len(chunks)))
@@ -227,6 +242,185 @@ func (kb *KnowledgeBase) searchByKeywords(query string, topK int) []*model.Polic
 		out[i] = r.chunk
 	}
 	return out
+}
+
+// ReIndex 重建文档索引：删除旧分块和向量，重新分块和向量化
+func (kb *KnowledgeBase) ReIndex(ctx context.Context, doc *model.PolicyDocument) error {
+	// 删除旧分块
+	if err := kb.db.Where("document_id = ?", doc.ID).Delete(&model.PolicyChunk{}).Error; err != nil {
+		return fmt.Errorf("删除旧分块失败: %w", err)
+	}
+
+	// 删除旧向量
+	if kb.vectorStore != nil {
+		ids := make([]string, 0)
+		for i := 0; ; i++ {
+			ids = append(ids, fmt.Sprintf("policy-%d-%d", doc.ID, i))
+			if i > 10000 {
+				break // 安全上限
+			}
+		}
+		if err := kb.vectorStore.Delete(ctx, ids); err != nil {
+			kb.logger.Warn("删除旧向量失败，继续重建", zap.Error(err))
+		}
+	}
+
+	// 重新分块
+	chunks := splitContent(doc.Content, 500, 50)
+
+	// 重新向量化
+	var vectors []vectorstore.Vector
+	if kb.embedder != nil && kb.vectorStore != nil {
+		for i, content := range chunks {
+			embeddings, err := kb.embedder.Embed(ctx, []string{content})
+			if err != nil {
+				kb.logger.Warn("重建索引时向量化失败", zap.Int("分块", i), zap.Error(err))
+				vectors = nil
+				break
+			}
+			if len(embeddings) > 0 {
+				vectors = append(vectors, vectorstore.Vector{
+					ID:        fmt.Sprintf("policy-%d-%d", doc.ID, i),
+					Content:   content,
+					Embedding: embeddings[0],
+					Metadata: map[string]string{
+						"doc_id":      fmt.Sprintf("%d", doc.ID),
+						"doc_title":   doc.Title,
+						"version":     doc.Version,
+						"chunk_index": fmt.Sprintf("%d", i),
+					},
+				})
+			}
+		}
+	}
+
+	// 写入向量库
+	if len(vectors) > 0 {
+		if err := kb.vectorStore.Store(ctx, vectors); err != nil {
+			kb.logger.Warn("重建索引时存储向量失败", zap.Error(err))
+		}
+	}
+
+	// 写入数据库
+	var dbChunks []*model.PolicyChunk
+	for i, content := range chunks {
+		dbChunks = append(dbChunks, &model.PolicyChunk{
+			DocumentID: doc.ID,
+			ChunkIndex: i,
+			Content:    content,
+		})
+	}
+	if len(dbChunks) > 0 {
+		if err := kb.db.WithContext(ctx).Create(&dbChunks).Error; err != nil {
+			return fmt.Errorf("保存新分块失败: %w", err)
+		}
+	}
+
+	// 更新内存缓存
+	kb.mu.Lock()
+	var kept []*model.PolicyChunk
+	for _, c := range kb.chunks {
+		if c.DocumentID != doc.ID {
+			kept = append(kept, c)
+		}
+	}
+	kb.chunks = append(kept, dbChunks...)
+	kb.mu.Unlock()
+
+	kb.logger.Info("文档重建索引完成",
+		zap.Uint("文档ID", doc.ID),
+		zap.Int("分块数", len(chunks)),
+		zap.Int("向量数", len(vectors)))
+	return nil
+}
+
+// DeleteDocument 删除文档及其在向量库中的全部向量
+func (kb *KnowledgeBase) DeleteDocument(ctx context.Context, docID uint) error {
+	// 查询分块构建向量 ID 列表
+	var chunks []*model.PolicyChunk
+	if err := kb.db.Where("document_id = ?", docID).Find(&chunks).Error; err != nil {
+		return fmt.Errorf("查询分块失败: %w", err)
+	}
+
+	// 删除向量库中的向量
+	if kb.vectorStore != nil && len(chunks) > 0 {
+		ids := make([]string, 0, len(chunks))
+		for _, c := range chunks {
+			ids = append(ids, fmt.Sprintf("policy-%d-%d", docID, c.ChunkIndex))
+		}
+		if err := kb.vectorStore.Delete(ctx, ids); err != nil {
+			kb.logger.Warn("删除向量失败", zap.Error(err))
+		}
+	}
+
+	// 删除文档（CASCADE 自动删关联 chunks）
+	if err := kb.db.Delete(&model.PolicyDocument{}, docID).Error; err != nil {
+		return fmt.Errorf("删除文档失败: %w", err)
+	}
+
+	// 更新内存缓存
+	kb.mu.Lock()
+	var kept []*model.PolicyChunk
+	for _, c := range kb.chunks {
+		if c.DocumentID != docID {
+			kept = append(kept, c)
+		}
+	}
+	kb.chunks = kept
+	kb.mu.Unlock()
+
+	kb.logger.Info("文档删除完成", zap.Uint("文档ID", docID))
+	return nil
+}
+
+// Status 返回知识库运行状态
+func (kb *KnowledgeBase) Status() KnowledgeBaseStatus {
+	docCount, _ := kb.CountDocuments()
+	chunkCount, _ := kb.CountChunks()
+
+	mode := "keyword"
+	embedderModel := ""
+	vectorStoreName := ""
+	healthy := true
+
+	if kb.embedder != nil && kb.vectorStore != nil {
+		mode = "vector"
+		embedderModel = kb.embedder.ModelName()
+		vectorStoreName = kb.vectorStore.Name()
+		healthy = kb.vectorStore.HealthCheck(context.Background()) == nil
+	}
+
+	return KnowledgeBaseStatus{
+		DocumentCount: docCount,
+		ChunkCount:    chunkCount,
+		SearchMode:    mode,
+		EmbedderModel: embedderModel,
+		VectorStore:   vectorStoreName,
+		Healthy:       healthy,
+	}
+}
+
+// GetDocumentTitle 根据文档 ID 查询标题（用于搜索测试展示来源）
+func (kb *KnowledgeBase) GetDocumentTitle(docID uint) string {
+	var doc model.PolicyDocument
+	if err := kb.db.First(&doc, docID).Error; err != nil {
+		return ""
+	}
+	return doc.Title
+}
+
+// CountDocuments 统计文档数
+func (kb *KnowledgeBase) CountDocuments() (int64, error) {
+	var count int64
+	err := kb.db.Model(&model.PolicyDocument{}).Count(&count).Error
+	return count, err
+}
+
+// CountChunks 统计分块数
+func (kb *KnowledgeBase) CountChunks() (int64, error) {
+	var count int64
+	err := kb.db.Model(&model.PolicyChunk{}).Count(&count).Error
+	return count, err
 }
 
 // splitContent 将文本按段落切分为固定大小的块，相邻块之间有重叠

@@ -70,22 +70,37 @@ func newComplianceSubAgent(
 	return agent
 }
 
-// runComplianceCheck 运行子 Agent，解析 JSON 结果
+// runComplianceCheck 运行子 Agent，支持多明细多票据审核
 func runComplianceCheck(
 	ctx context.Context,
 	runner *blades.Runner,
 	input compliance.ComplianceInput,
 	logger *log.Logger,
 ) (complianceOutput, error) {
-	amountYuan := float64(input.Amount) / 100.0
-	prompt := fmt.Sprintf(
-		"请审核以下票据：\n- 费用类别: %s\n- 金额: %.2f元\n- 开票日期: %s\n\n先调用 search_policy 检索相关报销政策，然后输出 JSON 格式审核结果。",
-		input.Category, amountYuan, input.InvoiceDate,
-	)
+	// 使用 GetItems() 兼容单张/多张模式
+	items := input.GetItems()
+	if len(items) == 0 {
+		return complianceOutput{Result: "pass", Message: "无待审核票据", RuleID: "no-input"}, nil
+	}
+
+	// 构建多票据审核 prompt
+	var promptLines []string
+	promptLines = append(promptLines, fmt.Sprintf("请审核以下%d条报销明细的票据：", len(items)))
+	totalReceipts := 0
+	for i, item := range items {
+		promptLines = append(promptLines, fmt.Sprintf("\n明细%d: %s, 申请金额 %.2f元", i+1, item.Category, float64(item.Amount)/100.0))
+		for j, rct := range item.Receipts {
+			promptLines = append(promptLines, fmt.Sprintf("  票据%d: 票面%.2f元, 日期%s",
+				j+1, float64(rct.Amount)/100.0, rct.InvoiceDate))
+			totalReceipts++
+		}
+	}
+	promptLines = append(promptLines, "\n先调用 search_policy 检索相关报销政策，然后输出 JSON 格式审核结果。")
+	prompt := strings.Join(promptLines, "\n")
 
 	logger.Debug("开始合规审核（子Agent）",
-		zap.String("类别", input.Category),
-		zap.Float64("金额(元)", amountYuan))
+		zap.Int("明细数", len(items)),
+		zap.Int("票据数", totalReceipts))
 
 	stream := runner.RunStream(ctx, blades.UserMessage(prompt))
 

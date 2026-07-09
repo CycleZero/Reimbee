@@ -17,6 +17,12 @@ func NewReimbursementRepo(data *infra.Data) *ReimbursementRepo {
 	if err := data.DB.AutoMigrate(&model.Reimbursement{}); err != nil {
 		panic(err)
 	}
+	if err := data.DB.AutoMigrate(&model.ReimbursementItem{}); err != nil {
+		panic(err)
+	}
+	if err := data.DB.AutoMigrate(&model.Receipt{}); err != nil {
+		panic(err)
+	}
 	return &ReimbursementRepo{db: data.DB}
 }
 
@@ -25,11 +31,11 @@ func (r *ReimbursementRepo) Create(rm *model.Reimbursement) error {
 	return r.db.Create(rm).Error
 }
 
-// GetByID 根据主键 ID 查询报销单，预加载部门、票据明细、审批记录
+// GetByID 根据主键 ID 查询报销单，预加载部门、报销明细→票据、审批记录
 func (r *ReimbursementRepo) GetByID(id uint) (*model.Reimbursement, error) {
 	var rm model.Reimbursement
 	if err := r.db.Preload("Department").
-		Preload("Invoices").
+		Preload("Items.Receipts").
 		Preload("Approvals").
 		First(&rm, id).Error; err != nil {
 		return nil, err
@@ -37,12 +43,12 @@ func (r *ReimbursementRepo) GetByID(id uint) (*model.Reimbursement, error) {
 	return &rm, nil
 }
 
-// GetByNo 根据报销单号查询，预加载部门、票据明细、审批记录
+// GetByNo 根据报销单号查询，预加载部门、报销明细→票据、审批记录
 func (r *ReimbursementRepo) GetByNo(no string) (*model.Reimbursement, error) {
 	var rm model.Reimbursement
 	if err := r.db.Where("reimbursement_no = ?", no).
 		Preload("Department").
-		Preload("Invoices").
+		Preload("Items.Receipts").
 		Preload("Approvals").
 		First(&rm).Error; err != nil {
 		return nil, err
@@ -60,7 +66,7 @@ func (r *ReimbursementRepo) List(page, pageSize int, employeeID string) ([]*mode
 	}
 	db.Count(&total)
 	err := db.Offset((page - 1) * pageSize).Limit(pageSize).
-		Preload("Department").Preload("Invoices").Preload("Approvals").
+		Preload("Department").Preload("Items.Receipts").Preload("Approvals").
 		Order("id DESC").Find(&rms).Error
 	return rms, total, err
 }
@@ -69,7 +75,7 @@ func (r *ReimbursementRepo) List(page, pageSize int, employeeID string) ([]*mode
 func (r *ReimbursementRepo) ListByStatus(status string) ([]*model.Reimbursement, error) {
 	var rms []*model.Reimbursement
 	err := r.db.Where("status = ?", status).
-		Preload("Department").Preload("Invoices").Preload("Approvals").
+		Preload("Department").Preload("Items.Receipts").Preload("Approvals").
 		Order("id ASC").Find(&rms).Error
 	return rms, err
 }
@@ -81,7 +87,7 @@ func (r *ReimbursementRepo) ListByIDs(ids []uint) ([]*model.Reimbursement, error
 	}
 	var rms []*model.Reimbursement
 	err := r.db.Where("id IN ?", ids).
-		Preload("Department").Preload("Invoices").Preload("Approvals").
+		Preload("Department").Preload("Items.Receipts").Preload("Approvals").
 		Order("id ASC").Find(&rms).Error
 	return rms, err
 }
@@ -89,10 +95,4 @@ func (r *ReimbursementRepo) ListByIDs(ids []uint) ([]*model.Reimbursement, error
 // Update 更新报销单
 func (r *ReimbursementRepo) Update(rm *model.Reimbursement) error {
 	return r.db.Save(rm).Error
-}
-
-// UpdateStatus 仅更新报销单状态
-func (r *ReimbursementRepo) UpdateStatus(id uint, status string) error {
-	return r.db.Model(&model.Reimbursement{}).Where("id = ?", id).
-		Update("status", status).Error
 }

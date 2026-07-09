@@ -30,15 +30,18 @@ func setupBizTest() (*ReimbursementBiz, *infra.Data, func()) {
 	logger := newTestLogger()
 
 	reimbursementRepo := NewReimbursementRepo(data)
+	itemRepo := NewItemRepo(data)
+	receiptRepo := NewReceiptRepo(data)
 	budgetRepo := budget.NewBudgetRepo(data)
 	approvalRepo := approval.NewApprovalRepo(data)
 	employeeRepo := employee.NewEmployeeRepo(data)
 
+	itemBiz := NewItemBiz(logger, itemRepo)
 	budgetBiz := budget.NewBudgetBiz(logger, budgetRepo)
 	approvalBiz := approval.NewApprovalBiz(logger, approvalRepo)
 	employeeBiz := employee.NewEmployeeBiz(logger, employeeRepo)
 
-	biz := NewReimbursementBiz(logger, reimbursementRepo, budgetBiz, approvalBiz, employeeBiz)
+	biz := NewReimbursementBiz(logger, reimbursementRepo, itemBiz, receiptRepo, budgetBiz, approvalBiz, employeeBiz)
 
 	cleanup := func() {
 		testutil.CleanDB(data)
@@ -61,7 +64,7 @@ func TestReimbursementBiz_Create(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		rm, err := biz.Create("EMP001", "张三", 1, "差旅费报销")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: 1, SubmitNote: "差旅费报销"})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
@@ -99,11 +102,11 @@ func TestReimbursementBiz_Create(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		rm1, err := biz.Create("EMP001", "张三", 1, "第一张")
+		rm1, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: 1, SubmitNote: "第一张"})
 		if err != nil {
 			t.Fatalf("Create rm1 失败: %v", err)
 		}
-		rm2, err := biz.Create("EMP002", "李四", 2, "第二张")
+		rm2, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP002", EmployeeName: "李四", DepartmentID: 2, SubmitNote: "第二张"})
 		if err != nil {
 			t.Fatalf("Create rm2 失败: %v", err)
 		}
@@ -136,21 +139,21 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		testutil.SeedEmployee(data, "APPR02", "审批人乙", dept.ID, true)
 
 		// 创建报销单
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "测试提交")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "测试提交", Items: []ItemInput{{Category: "差旅-交通", Amount: 100000, Description: "测试"}}})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
 
 		// 提交
-		submitted, err := biz.Submit(rm.ID, 50000)
+		submitted, err := biz.Submit(rm.ID)
 		if err != nil {
 			t.Fatalf("Submit 失败: %v", err)
 		}
 		if submitted.Status != StatusPending {
 			t.Errorf("期望状态为 pending，实际为 %s", submitted.Status)
 		}
-		if submitted.TotalAmount != 50000 {
-			t.Errorf("期望 TotalAmount 为 50000，实际为 %d", submitted.TotalAmount)
+		if submitted.TotalAmount != 100000 {
+			t.Errorf("期望 TotalAmount 为 100000，实际为 %d", submitted.TotalAmount)
 		}
 
 		// 验证预算已冻结
@@ -158,7 +161,7 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		if err := data.DB.Where("department_id = ?", dept.ID).First(&budget).Error; err != nil {
 			t.Fatalf("查询预算失败: %v", err)
 		}
-		if budget.FrozenAmount != 50000 {
+		if budget.FrozenAmount != 100000 {
 			t.Errorf("期望冻结金额为 50000，实际为 %d", budget.FrozenAmount)
 		}
 
@@ -191,8 +194,10 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 
 		// 直接创建一条已驳回的报销单
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-RJCT", "EMP001", "张三", dept.ID, StatusRejected, 30000)
+		// 添加一条明细以便 Submit 能计算出总金额
+		data.DB.Create(&model.ReimbursementItem{ReimbursementID: rm.ID, Category: "差旅-交通", Amount: 30000, Description: "测试"})
 
-		submitted, err := biz.Submit(rm.ID, 30000)
+		submitted, err := biz.Submit(rm.ID)
 		if err != nil {
 			t.Fatalf("从已驳回状态 Submit 失败: %v", err)
 		}
@@ -219,7 +224,7 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-ALREADY", "EMP001", "张三", dept.ID, StatusPending, 10000)
 
-		_, err := biz.Submit(rm.ID, 10000)
+		_, err := biz.Submit(rm.ID)
 		if err == nil {
 			t.Errorf("期望 pending 状态提交失败，但成功了")
 		}
@@ -236,7 +241,7 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 
 		rm := testutil.SeedReimbursement(data, "REIMB-2026-APPRV", "EMP001", "张三", dept.ID, StatusApproved, 10000)
 
-		_, err := biz.Submit(rm.ID, 10000)
+		_, err := biz.Submit(rm.ID)
 		if err == nil {
 			t.Errorf("期望 approved 状态提交失败，但成功了")
 		}
@@ -251,12 +256,12 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		testutil.SeedBudget(data, dept.ID, 2026, 100000)
 		testutil.SeedEmployee(data, "APPR01", "审批人甲", dept.ID, true)
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "零金额测试")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "零金额测试"})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
 
-		_, err = biz.Submit(rm.ID, 0)
+		_, err = biz.Submit(rm.ID)
 		if err == nil {
 			t.Errorf("期望金额为 0 时 Submit 返回错误，但成功了")
 		}
@@ -271,12 +276,12 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		testutil.SeedBudget(data, dept.ID, 2026, 100000)
 		testutil.SeedEmployee(data, "APPR01", "审批人甲", dept.ID, true)
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "负数金额测试")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "负数金额测试"})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
 
-		_, err = biz.Submit(rm.ID, -100)
+		_, err = biz.Submit(rm.ID)
 		if err == nil {
 			t.Errorf("期望金额为负数时 Submit 返回错误，但成功了")
 		}
@@ -287,7 +292,7 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		_, err := biz.Submit(99999, 10000)
+		_, err := biz.Submit(99999)
 		if err == nil {
 			t.Errorf("期望报销单不存在时返回错误，但成功了")
 		}
@@ -302,12 +307,12 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		// 不创建预算记录
 		testutil.SeedEmployee(data, "APPR01", "审批人甲", dept.ID, true)
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "无预算测试")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "无预算测试", Items: []ItemInput{{Category: "差旅-交通", Amount: 100000, Description: "测试"}}})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
 
-		_, err = biz.Submit(rm.ID, 50000)
+		_, err = biz.Submit(rm.ID)
 		if err == nil {
 			t.Errorf("期望无预算记录时返回错误，但成功了")
 		}
@@ -322,12 +327,12 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		testutil.SeedBudget(data, dept.ID, 2026, 100000)
 		// 不创建任何审批人
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "无审批人测试")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "无审批人测试", Items: []ItemInput{{Category: "差旅-交通", Amount: 100000, Description: "测试"}}})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
 
-		_, err = biz.Submit(rm.ID, 50000)
+		_, err = biz.Submit(rm.ID)
 		if err == nil {
 			t.Errorf("期望无审批人时返回错误，但成功了")
 		}
@@ -351,26 +356,26 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 		testutil.SeedEmployee(data, "APPR01", "审批人甲", dept.ID, true)
 		testutil.SeedEmployee(data, "APPR02", "审批人乙", dept.ID, true)
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "超额预算测试")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "超额预算测试", Items: []ItemInput{{Category: "差旅-交通", Amount: 99999999, Description: "测试"}}})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
 
-		submitted, err := biz.Submit(rm.ID, 50000) // 超过 10000 预算
+		submitted, err := biz.Submit(rm.ID) // 超过 10000 预算
 		if err != nil {
 			t.Fatalf("Submit 失败（即使超额也应成功提交）: %v", err)
 		}
 		if !submitted.NeedSpecialApproval {
 			t.Errorf("期望 NeedSpecialApproval 为 true（预算不足），实际为 false")
 		}
-		if submitted.TotalAmount != 50000 {
+		if submitted.TotalAmount != 99999999 {
 			t.Errorf("期望金额为 50000，实际为 %d", submitted.TotalAmount)
 		}
 
 		// 预算仍然被冻结（超额也冻结）
 		var budget model.DepartmentBudget
 		data.DB.Where("department_id = ?", dept.ID).First(&budget)
-		if budget.FrozenAmount != 50000 {
+		if budget.FrozenAmount != 99999999 {
 			t.Errorf("期望冻结金额为 50000，实际为 %d", budget.FrozenAmount)
 		}
 	})
@@ -391,11 +396,11 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 		testutil.SeedEmployee(data, "APPR01", "审批人甲", dept.ID, true)
 		testutil.SeedEmployee(data, "APPR02", "审批人乙", dept.ID, true)
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "测试审批")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "测试审批", Items: []ItemInput{{Category: "差旅-交通", Amount: 100000, Description: "测试"}}})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
-		submitted, err := biz.Submit(rm.ID, 50000)
+		submitted, err := biz.Submit(rm.ID)
 		if err != nil {
 			t.Fatalf("Submit 失败: %v", err)
 		}
@@ -417,8 +422,8 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 		if err := data.DB.Where("department_id = ?", dept.ID).First(&budget).Error; err != nil {
 			t.Fatalf("查询预算失败: %v", err)
 		}
-		if budget.SpentAmount != 50000 {
-			t.Errorf("期望已结算金额为 50000，实际为 %d", budget.SpentAmount)
+		if budget.SpentAmount != 100000 {
+			t.Errorf("期望已结算金额为 100000，实际为 %d", budget.SpentAmount)
 		}
 		if budget.FrozenAmount != 0 {
 			t.Errorf("期望冻结金额被释放为 0，实际为 %d", budget.FrozenAmount)
@@ -502,11 +507,11 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 		testutil.SeedBudget(data, dept.ID, 2026, 100000)
 		testutil.SeedEmployee(data, "APPR01", "审批人甲", dept.ID, true)
 
-		rm, err := biz.Create("EMP001", "张三", dept.ID, "测试驳回")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: dept.ID, SubmitNote: "测试驳回", Items: []ItemInput{{Category: "差旅-交通", Amount: 100000, Description: "测试"}}})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
-		submitted, err := biz.Submit(rm.ID, 30000)
+		submitted, err := biz.Submit(rm.ID)
 		if err != nil {
 			t.Fatalf("Submit 失败: %v", err)
 		}
@@ -592,7 +597,7 @@ func TestReimbursementBiz_GetByID(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		rm, err := biz.Create("EMP001", "张三", 1, "测试查询")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: 1, SubmitNote: "测试查询"})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}
@@ -631,7 +636,7 @@ func TestReimbursementBiz_GetByNo(t *testing.T) {
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
-		rm, err := biz.Create("EMP001", "张三", 1, "测试单号查询")
+		rm, err := biz.Create(&CreateReimbInput{EmployeeID: "EMP001", EmployeeName: "张三", DepartmentID: 1, SubmitNote: "测试单号查询"})
 		if err != nil {
 			t.Fatalf("Create 失败: %v", err)
 		}

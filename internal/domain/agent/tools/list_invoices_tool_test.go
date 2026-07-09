@@ -89,8 +89,9 @@ func TestListInvoices_Empty(t *testing.T) {
 
 	// 注入空状态
 	_ = store.SaveState(context.Background(), "test-session", infra.StateKeyReimbursement, &types.ReimbursementState{
-		Invoices:    []types.InvoiceState{},
-		TotalAmount: 0,
+		Items:           []types.ItemState{},
+		PendingReceipts: []types.ReceiptState{},
+		TotalAmount:     0,
 	})
 
 	ctx := tools.WithSessionID(context.Background(), "test-session")
@@ -104,11 +105,11 @@ func TestListInvoices_Empty(t *testing.T) {
 		t.Fatalf("解析输出失败: %v", err)
 	}
 
-	if result.Count != 0 {
-		t.Errorf("期望 Count=0, 实际=%d", result.Count)
+	if result.TotalCount != 0 {
+		t.Errorf("期望 TotalCount=0, 实际=%d", result.TotalCount)
 	}
-	if len(result.Invoices) != 0 {
-		t.Errorf("期望 Invoices 为空, 实际长度=%d", len(result.Invoices))
+	if len(result.Items) != 0 {
+		t.Errorf("期望 Items 为空, 实际长度=%d", len(result.Items))
 	}
 }
 
@@ -130,11 +131,11 @@ func TestListInvoices_NoSession(t *testing.T) {
 		t.Fatalf("解析输出失败: %v", err)
 	}
 
-	if result.Count != 0 {
-		t.Errorf("期望 Count=0, 实际=%d", result.Count)
+	if result.TotalCount != 0 {
+		t.Errorf("期望 TotalCount=0, 实际=%d", result.TotalCount)
 	}
-	if len(result.Invoices) != 0 {
-		t.Errorf("期望 Invoices 为空, 实际长度=%d", len(result.Invoices))
+	if len(result.Items) != 0 {
+		t.Errorf("期望 Items 为空, 实际长度=%d", len(result.Items))
 	}
 }
 
@@ -142,20 +143,28 @@ func TestListInvoices_WithInvoices(t *testing.T) {
 	store := newFakeStateStore()
 	logger := &log.Logger{Logger: zap.NewNop()}
 
-	// 预置两条票据，金额以分为单位
+	// 预置两条票据（分属两个明细），金额以分为单位
 	state := &types.ReimbursementState{
-		Invoices: []types.InvoiceState{
+		Items: []types.ItemState{
 			{
-				ImagePath: "/images/invoice1.jpg",
-				Amount:    15000, // 150.00 元
-				Category:  "差旅费",
-				Date:      "2026-07-01",
+				Category: "差旅费",
+				Amount:   15000,
+				Receipts: []types.ReceiptState{{
+					ImagePath: "/images/invoice1.jpg",
+					Amount:    15000, // 150.00 元
+					Category:  "差旅费",
+					Date:      "2026-07-01",
+				}},
 			},
 			{
-				ImagePath: "/images/invoice2.jpg",
-				Amount:    8500, // 85.00 元
-				Category:  "办公用品",
-				Date:      "2026-07-03",
+				Category: "办公用品",
+				Amount:   8500,
+				Receipts: []types.ReceiptState{{
+					ImagePath: "/images/invoice2.jpg",
+					Amount:    8500, // 85.00 元
+					Category:  "办公用品",
+					Date:      "2026-07-03",
+				}},
 			},
 		},
 		TotalAmount: 23500, // 235.00 元
@@ -188,9 +197,9 @@ func TestListInvoices_WithInvoices(t *testing.T) {
 		t.Fatalf("解析输出失败: %v", err)
 	}
 
-	// 验证 Count
-	if result.Count != 2 {
-		t.Fatalf("期望 Count=2, 实际=%d", result.Count)
+	// 验证 TotalCount
+	if result.TotalCount != 2 {
+		t.Fatalf("期望 TotalCount=2, 实际=%d", result.TotalCount)
 	}
 
 	// 验证 TotalAmount（分转元）
@@ -200,11 +209,11 @@ func TestListInvoices_WithInvoices(t *testing.T) {
 	}
 
 	// 验证第一张票据
-	if len(result.Invoices) < 2 {
-		t.Fatalf("期望 2 条票据, 实际=%d", len(result.Invoices))
+	if len(result.Items) < 2 {
+		t.Fatalf("期望 2 条票据, 实际=%d", len(result.Items))
 	}
 
-	inv1 := result.Invoices[0]
+	inv1 := result.Items[0]
 	if inv1.Index != 1 {
 		t.Errorf("票据1 期望 Index=1, 实际=%d", inv1.Index)
 	}
@@ -214,15 +223,15 @@ func TestListInvoices_WithInvoices(t *testing.T) {
 	if inv1.Amount != 150.0 {
 		t.Errorf("票据1 期望 Amount=150.00, 实际=%.2f", inv1.Amount)
 	}
-	if inv1.Date != "2026-07-01" {
-		t.Errorf("票据1 期望 Date='2026-07-01', 实际='%s'", inv1.Date)
+	if inv1.Receipts[0].Date != "2026-07-01" {
+		t.Errorf("票据1 期望 Date='2026-07-01', 实际='%s'", inv1.Receipts[0].Date)
 	}
-	if inv1.ImagePath != "/images/invoice1.jpg" {
-		t.Errorf("票据1 期望 ImagePath='/images/invoice1.jpg', 实际='%s'", inv1.ImagePath)
+	if inv1.Receipts[0].ImagePath != "/images/invoice1.jpg" {
+		t.Errorf("票据1 期望 ImagePath='/images/invoice1.jpg', 实际='%s'", inv1.Receipts[0].ImagePath)
 	}
 
 	// 验证第二张票据
-	inv2 := result.Invoices[1]
+	inv2 := result.Items[1]
 	if inv2.Index != 2 {
 		t.Errorf("票据2 期望 Index=2, 实际=%d", inv2.Index)
 	}
@@ -232,11 +241,11 @@ func TestListInvoices_WithInvoices(t *testing.T) {
 	if inv2.Amount != 85.0 {
 		t.Errorf("票据2 期望 Amount=85.00, 实际=%.2f", inv2.Amount)
 	}
-	if inv2.Date != "2026-07-03" {
-		t.Errorf("票据2 期望 Date='2026-07-03', 实际='%s'", inv2.Date)
+	if inv2.Receipts[0].Date != "2026-07-03" {
+		t.Errorf("票据2 期望 Date='2026-07-03', 实际='%s'", inv2.Receipts[0].Date)
 	}
-	if inv2.ImagePath != "/images/invoice2.jpg" {
-		t.Errorf("票据2 期望 ImagePath='/images/invoice2.jpg', 实际='%s'", inv2.ImagePath)
+	if inv2.Receipts[0].ImagePath != "/images/invoice2.jpg" {
+		t.Errorf("票据2 期望 ImagePath='/images/invoice2.jpg', 实际='%s'", inv2.Receipts[0].ImagePath)
 	}
 }
 

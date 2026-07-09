@@ -13,7 +13,7 @@ type Reimbursement struct {
 	TotalAmount     int64          `gorm:"not null;default:0;comment:报销总金额(分)" json:"total_amount"`
 	Status          string         `gorm:"type:varchar(20);default:draft;index;comment:draft/pending/reviewing/approved/rejected" json:"status"`
 	SubmitNote      string         `gorm:"type:text;comment:报销事由" json:"submit_note"`
-	NeedSpecialApproval bool       `gorm:"default:false;comment:是否需要特殊审批" json:"need_special_approval"`
-	Invoices        []InvoiceItem  `gorm:"foreignKey:ReimbursementID;constraint:OnDelete:CASCADE" json:"invoices,omitempty"`
-	Approvals       []ApprovalRecord `gorm:"foreignKey:ReimbursementID;constraint:OnDelete:CASCADE" json:"approvals,omitempty"`
+	NeedSpecialApproval bool                `gorm:"default:false;comment:是否需要特殊审批" json:"need_special_approval"`
+	Items               []ReimbursementItem `gorm:"foreignKey:ReimbursementID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	Approvals           []ApprovalRecord    `gorm:"foreignKey:ReimbursementID;constraint:OnDelete:CASCADE" json:"approvals,omitempty"`
 }

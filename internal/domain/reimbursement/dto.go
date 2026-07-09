@@ -1,46 +1,97 @@
 package reimbursement
 
-// CreateReimbursementRequest 创建报销单请求
+// ============================================
+// CreateReimbInput — 创建报销单的内部输入（供 biz 层使用）
+// ============================================
+
+// CreateReimbInput 创建报销单的内部输入参数
+type CreateReimbInput struct {
+	EmployeeID   string      // 工号
+	EmployeeName string      // 申请人姓名
+	DepartmentID uint        // 部门ID
+	SubmitNote   string      // 报销事由
+	Items        []ItemInput // 报销明细列表
+}
+
+// ItemInput 报销明细输入
+type ItemInput struct {
+	Category    string         // 费用类别
+	Amount      int64          // 申请报销金额(分)
+	Description string         // 事由说明
+	Receipts    []ReceiptInput // 关联票据列表
+}
+
+// ReceiptInput 票据输入
+type ReceiptInput struct {
+	ImagePath      string  // 票据图片路径
+	Amount         int64   // 票面金额(分)
+	InvoiceDate    string  // 开票日期 YYYY-MM-DD
+	InvoiceCode    string  // 发票代码
+	InvoiceNumber  string  // 发票号码
+	SellerName     string  // 销售方名称
+	OCRRawAmount   int64   // OCR原始金额(分)
+	OCRRawDate     string  // OCR原始日期
+	OCRRawCategory string  // OCR原始类别
+	OCRConfidence  float64 // OCR置信度
+}
+
+// ============================================
+// HTTP 请求/响应 DTO
+// ============================================
+
+// CreateReimbursementRequest 创建报销单 HTTP 请求
 type CreateReimbursementRequest struct {
-	EmployeeID   string `json:"employee_id" binding:"required"`   // 工号
-	EmployeeName string `json:"employee_name" binding:"required"`  // 申请人姓名
-	DepartmentID uint   `json:"department_id" binding:"required"`  // 部门ID
-	SubmitNote   string `json:"submit_note"`                       // 报销事由
+	EmployeeID   string `json:"employee_id" binding:"required"`
+	EmployeeName string `json:"employee_name" binding:"required"`
+	DepartmentID uint   `json:"department_id" binding:"required"`
+	SubmitNote   string `json:"submit_note"`
 }
 
-// SubmitReimbursementRequest 提交报销单请求
+// SubmitReimbursementRequest 提交报销单 HTTP 请求
 type SubmitReimbursementRequest struct {
-	TotalAmount int64 `json:"total_amount" binding:"required"` // 报销总金额(分)
+	TotalAmount int64 `json:"total_amount" binding:"required"` // 保留兼容旧 API
 }
 
-// ReimbursementResponse 报销单响应
+// ReimbursementResponse 报销单 HTTP 响应
 type ReimbursementResponse struct {
-	ID                  uint                        `json:"id"`
-	ReimbursementNo     string                      `json:"reimbursement_no"`
-	EmployeeID          string                      `json:"employee_id"`
-	EmployeeName        string                      `json:"employee_name"`
-	DepartmentID        uint                        `json:"department_id"`
-	Department          string                      `json:"department,omitempty"`
-	TotalAmount         int64                       `json:"total_amount"`
-	Status              string                      `json:"status"`
-	SubmitNote          string                      `json:"submit_note"`
-	NeedSpecialApproval bool                        `json:"need_special_approval"`
-	Invoices            []*InvoiceItemResponse      `json:"invoices,omitempty"`
-	Approvals           []*ApprovalInfoResponse     `json:"approvals,omitempty"`
-	CreatedAt           string                      `json:"created_at"`
-	UpdatedAt           string                      `json:"updated_at"`
+	ID                  uint                     `json:"id"`
+	ReimbursementNo     string                   `json:"reimbursement_no"`
+	EmployeeID          string                   `json:"employee_id"`
+	EmployeeName        string                   `json:"employee_name"`
+	DepartmentID        uint                     `json:"department_id"`
+	Department          string                   `json:"department,omitempty"`
+	TotalAmount         int64                    `json:"total_amount"`
+	Status              string                   `json:"status"`
+	SubmitNote          string                   `json:"submit_note"`
+	NeedSpecialApproval bool                     `json:"need_special_approval"`
+	Items               []*ItemResponse          `json:"items,omitempty"`
+	Approvals           []*ApprovalInfoResponse  `json:"approvals,omitempty"`
+	CreatedAt           string                   `json:"created_at"`
+	UpdatedAt           string                   `json:"updated_at"`
 }
 
-// InvoiceItemResponse 票据明细响应
-type InvoiceItemResponse struct {
-	ID         uint   `json:"id"`
-	Amount     int64  `json:"amount"`
-	InvoiceDate string `json:"invoice_date"`
-	Category   string `json:"category"`
-	CheckResult string `json:"check_result"`
+// ItemResponse 报销明细 HTTP 响应
+type ItemResponse struct {
+	ID          uint               `json:"id"`
+	Category    string             `json:"category"`
+	Amount      int64              `json:"amount"`
+	Description string             `json:"description"`
+	Receipts    []*ReceiptResponse `json:"receipts,omitempty"`
 }
 
-// ApprovalInfoResponse 审批信息响应（报销单详情中展示）
+// ReceiptResponse 票据 HTTP 响应
+type ReceiptResponse struct {
+	ID            uint   `json:"id"`
+	Amount        int64  `json:"amount"`
+	InvoiceDate   string `json:"invoice_date"`
+	InvoiceCode   string `json:"invoice_code,omitempty"`
+	InvoiceNumber string `json:"invoice_number,omitempty"`
+	ImagePath     string `json:"image_path,omitempty"`
+	Category      string `json:"category"`
+	CheckResult   string `json:"check_result"`
+}
+
+// ApprovalInfoResponse 审批信息响应
 type ApprovalInfoResponse struct {
 	ID           uint   `json:"id"`
 	ApproverName string `json:"approver_name"`
@@ -57,11 +108,10 @@ type ListReimbursementResponse struct {
 }
 
 // UploadInvoiceResponse 票据上传响应
-// FilePath 是关键字段——前端将此值传给 Agent 对话，LLM 调用 recognize_invoice 工具时作为 image_path 参数
 type UploadInvoiceResponse struct {
-	FileID   string `json:"file_id"`   // 文件唯一标识（UUID）
-	FileName string `json:"file_name"` // 原始文件名
-	FilePath string `json:"file_path"` // 存储路径（供 Agent OCR 工具使用）
-	URL      string `json:"url"`       // 可访问 URL（用于前端预览）
-	Size     int64  `json:"size"`      // 文件大小（字节）
+	FileID   string `json:"file_id"`
+	FileName string `json:"file_name"`
+	FilePath string `json:"file_path"`
+	URL      string `json:"url"`
+	Size     int64  `json:"size"`
 }

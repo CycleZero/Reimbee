@@ -94,6 +94,17 @@ func RegisterRouter(root gin.IRouter, hub *domain.ServiceHub) {
 	}
 
 	// ==========================================
+	// 管理员路由（知识库管理）
+	admin = api.Group("", middleware.AuthMiddleWire(false), middleware.RequireAdmin())
+	{
+		admin.GET("/admin/policies", hub.ComplianceService.ListDocuments)
+		admin.GET("/admin/policies/status", hub.ComplianceService.GetStatus)
+		admin.GET("/admin/policies/search", hub.ComplianceService.SearchTest)
+		admin.GET("/admin/policies/:id", hub.ComplianceService.GetDocument)
+		admin.PUT("/admin/policies/:id", hub.ComplianceService.UpdateDocument)
+		admin.DELETE("/admin/policies/:id", hub.ComplianceService.DeleteDocument)
+	}
+
 	// 通用路由（所有已认证用户可访问）
 	// ==========================================
 

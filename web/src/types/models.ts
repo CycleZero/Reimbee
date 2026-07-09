@@ -229,3 +229,67 @@ export interface UploadInvoiceResponse {
   url: string;
   size: number;
 }
+
+// ============================================
+// 知识库管理
+// ============================================
+
+export interface PolicyDocument {
+  id: number;
+  title: string;
+  version: string;
+  effective_date: string;
+  status: string;
+  chunk_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PolicyDocumentDetail extends PolicyDocument {
+  content: string;
+  chunks: PolicyChunk[];
+}
+
+export interface PolicyChunk {
+  id: number;
+  chunk_index: number;
+  content: string;
+}
+
+export interface CreatePolicyRequest {
+  title: string;
+  content: string;
+  version?: string;
+  effective_date?: string;
+}
+
+export interface UpdatePolicyRequest {
+  title: string;
+  content: string;
+  version: string;
+  effective_date: string;
+  status: string;
+}
+
+export interface KnowledgeBaseStatus {
+  document_count: number;
+  chunk_count: number;
+  search_mode: string;
+  embedder_model?: string;
+  vector_store?: string;
+  healthy: boolean;
+}
+
+export interface SearchTestResult {
+  query: string;
+  mode: string;
+  chunks: SearchTestChunk[];
+}
+
+export interface SearchTestChunk {
+  document_id: number;
+  document_title: string;
+  chunk_index: number;
+  content: string;
+  score?: number;
+}

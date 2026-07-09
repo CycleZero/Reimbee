@@ -34,7 +34,8 @@ func NewTestData() *infra.Data {
 		&model.Employee{},
 		&model.DepartmentBudget{},
 		&model.Reimbursement{},
-		&model.InvoiceItem{},
+		&model.ReimbursementItem{},
+		&model.Receipt{},
 		&model.ApprovalRecord{},
 		&model.PolicyDocument{},
 		&model.PolicyChunk{},
@@ -53,7 +54,8 @@ func CleanDB(data *infra.Data) {
 	data.DB.Exec("DELETE FROM policy_chunks")
 	data.DB.Exec("DELETE FROM policy_documents")
 	data.DB.Exec("DELETE FROM approval_records")
-	data.DB.Exec("DELETE FROM invoice_items")
+	data.DB.Exec("DELETE FROM receipts")
+	data.DB.Exec("DELETE FROM reimbursement_items")
 	data.DB.Exec("DELETE FROM reimbursements")
 	data.DB.Exec("DELETE FROM department_budgets")
 	data.DB.Exec("DELETE FROM employees")

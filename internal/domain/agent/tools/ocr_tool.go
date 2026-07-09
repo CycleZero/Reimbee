@@ -71,23 +71,39 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 
 			amountInCents := int64(result.Amount * 100)
 
-			// 读取报销状态，防重复 + 更新
+			// 读取报销状态，防重复识别
 			var state types.ReimbursementState
 			store.GetState(ctx, sid, infra.StateKeyReimbursement, &state)
 
-			for _, inv := range state.Invoices {
-				if inv.ImagePath == input.ImagePath {
+			// 检查 PendingReceipts 中是否已有同一路径的票据
+			for _, rct := range state.PendingReceipts {
+				if rct.ImagePath == input.ImagePath {
 					logger.Warn("跳过重复OCR", zap.String("路径", input.ImagePath))
 					return OCROutput{Error: "该票据已识别过，请勿重复上传", Retry: false}, nil
 				}
 			}
+			// 同时检查已归类的 Items 中是否已有
+			for _, item := range state.Items {
+				for _, rct := range item.Receipts {
+					if rct.ImagePath == input.ImagePath {
+						logger.Warn("跳过重复OCR（已在明细中）", zap.String("路径", input.ImagePath))
+						return OCROutput{Error: "该票据已识别并归入明细，请勿重复上传", Retry: false}, nil
+					}
+				}
+			}
 
-			state.Invoices = append(state.Invoices, types.InvoiceState{
-				ImagePath: input.ImagePath,
-				Amount:    amountInCents,
-				Category:  result.Category,
+			// OCR 结果存入 PendingReceipts，保留完整字段待用户归类
+			state.PendingReceipts = append(state.PendingReceipts, types.ReceiptState{
+				ImagePath:    input.ImagePath,
+				Amount:       amountInCents,
+				Category:     result.Category,
+				Date:         result.Date,
+				InvoiceCode:  result.InvoiceCode,
+				InvoiceNo:    result.InvoiceNumber,
+				SellerName:   result.SellerName,
+				OCRRawAmount: amountInCents,
+				OCRConfidence: result.Confidence,
 			})
-			state.TotalAmount += amountInCents
 			if state.CurrentPhase == "" {
 				state.CurrentPhase = "phase1_collect"
 			}

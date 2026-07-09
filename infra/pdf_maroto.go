@@ -81,30 +81,34 @@ func (g *GofpdfPDFGenerator) GenerateReimbursementPDF(rm *model.Reimbursement) (
 	}
 	pdf.Ln(3)
 
-	// 票据明细表
-	g.drawSectionTitle(pdf, fontName, "票据明细")
+	// 报销明细表（按明细分组，每项下列出其票据）
+	g.drawSectionTitle(pdf, fontName, "报销明细")
 	pdf.Ln(2)
 
 	colW := []float64{12, 36, 28, 26, 36, 32}
 	drawHeader(pdf, fontName, colW, []string{"序号", "费用类别", "开票日期", "金额(元)", "OCR原始值/修正", "合规"})
 
 	total := int64(0)
-	for i, inv := range rm.Invoices {
-		ocr := "-"
-		if inv.IsUserModified {
-			ocr = fmt.Sprintf("OCR:%.2f元->%.2f元", float64(inv.OCRRawAmount)/100.0, float64(inv.Amount)/100.0)
-		} else if inv.OCRRawAmount > 0 {
-			ocr = fmt.Sprintf("OCR:%.2f元", float64(inv.OCRRawAmount)/100.0)
+	seq := 0
+	for _, item := range rm.Items {
+		for _, rct := range item.Receipts {
+			seq++
+			ocr := "-"
+			if rct.IsUserModified {
+				ocr = fmt.Sprintf("OCR:%.2f元->%.2f元", float64(rct.OCRRawAmount)/100.0, float64(rct.Amount)/100.0)
+			} else if rct.OCRRawAmount > 0 {
+				ocr = fmt.Sprintf("OCR:%.2f元", float64(rct.OCRRawAmount)/100.0)
+			}
+			drawRow(pdf, fontName, colW, []string{
+				fmt.Sprintf("%d", seq),
+				rct.Category,
+				rct.InvoiceDate,
+				fmt.Sprintf("%.2f元", float64(rct.Amount)/100.0),
+				ocr,
+				rct.CheckResult,
+			}, seq%2 == 0)
+			total += rct.Amount
 		}
-		drawRow(pdf, fontName, colW, []string{
-			fmt.Sprintf("%d", i+1),
-			inv.Category,
-			inv.InvoiceDate,
-			fmt.Sprintf("%.2f元", float64(inv.Amount)/100.0),
-			ocr,
-			inv.CheckResult,
-		}, i%2 == 0)
-		total += inv.Amount
 	}
 
 	// 合计

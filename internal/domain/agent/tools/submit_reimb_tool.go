@@ -39,7 +39,7 @@ func NewSubmitReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, store 
 				zap.Uint("报销单ID", input.ReimbursementID),
 				zap.Int64("总金额(分)", state.TotalAmount))
 
-			rm, err := reimbursementBiz.Submit(input.ReimbursementID, state.TotalAmount)
+			rm, err := reimbursementBiz.Submit(input.ReimbursementID)
 			if err != nil {
 				return SubmitReimbOutput{}, fmt.Errorf("提交失败: %w", err)
 			}

@@ -259,3 +259,44 @@ export function getSessionMessages(sessionId: string, beforeSeq?: number) {
     params: { before_seq: beforeSeq },
   });
 }
+
+// ============================================
+// 知识库管理
+// ============================================
+
+import type {
+  PolicyDocument,
+  PolicyDocumentDetail,
+  CreatePolicyRequest,
+  UpdatePolicyRequest,
+  KnowledgeBaseStatus,
+  SearchTestResult,
+} from '@/types/models';
+
+export function listPolicies(params?: { page?: number; page_size?: number }) {
+  return api.get<PaginatedResponse<PolicyDocument>>('/admin/policies', { params });
+}
+
+export function getPolicy(id: number) {
+  return api.get<PolicyDocumentDetail>(`/admin/policies/${id}`);
+}
+
+export function createPolicy(data: CreatePolicyRequest) {
+  return api.post<{ id: string; message: string }>('/api/policies/ingest', data);
+}
+
+export function updatePolicy(id: number, data: UpdatePolicyRequest) {
+  return api.put<{ message: string }>(`/admin/policies/${id}`, data);
+}
+
+export function deletePolicy(id: number) {
+  return api.delete<{ message: string }>(`/admin/policies/${id}`);
+}
+
+export function getKBStatus() {
+  return api.get<KnowledgeBaseStatus>('/admin/policies/status');
+}
+
+export function searchPolicies(query: string, limit?: number) {
+  return api.get<SearchTestResult>('/admin/policies/search', { params: { query, limit } });
+}
