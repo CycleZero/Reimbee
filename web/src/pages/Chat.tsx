@@ -33,7 +33,9 @@ export default function Chat() {
     ? { payload: approveSignal.payload, version: approveSignal.version }
     : null;
 
-  useChatStream(sessionId, pendingMessage, undefined, approveTrigger);
+  useChatStream(sessionId, pendingMessage, {
+    onDone: () => setPendingMessage(null),
+  }, approveTrigger);
 
   const handleSend = useCallback(
     (msg: string) => {
