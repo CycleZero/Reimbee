@@ -2,7 +2,6 @@ package reimbursement
 
 import (
 	"fmt"
-	"sync/atomic"
 	"testing"
 
 	"github.com/CycleZero/Reimbee/infra"
@@ -27,10 +26,6 @@ func createTestReimbursement(db *infra.Data, no, employeeID, employeeName string
 	return rm
 }
 
-// resetSeq 重置全局流水号，避免跨用例干扰（仅测试用）
-func resetSeq() {
-	atomic.StoreUint64(&reimbursementSeq, 0)
-}
 
 // ============================================================
 // Create 测试

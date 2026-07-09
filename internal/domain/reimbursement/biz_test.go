@@ -2,7 +2,6 @@ package reimbursement
 
 import (
 	"regexp"
-	"sync/atomic"
 	"testing"
 
 	zaplog "github.com/CycleZero/Reimbee/log"
@@ -49,10 +48,6 @@ func setupBizTest() (*ReimbursementBiz, *infra.Data, func()) {
 	return biz, data, cleanup
 }
 
-// resetBizSeq 重置报销单全局流水号，避免跨测试干扰
-func resetBizSeq() {
-	atomic.StoreUint64(&reimbursementSeq, 0)
-}
 
 // ============================================================
 // Create 测试
@@ -60,7 +55,6 @@ func resetBizSeq() {
 
 func TestReimbursementBiz_Create(t *testing.T) {
 	t.Run("创建报销单成功-验证草稿状态和单号格式", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -98,7 +92,6 @@ func TestReimbursementBiz_Create(t *testing.T) {
 	})
 
 	t.Run("创建第二张报销单-单号递增不重复", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -128,7 +121,6 @@ func TestReimbursementBiz_Create(t *testing.T) {
 
 func TestReimbursementBiz_Submit(t *testing.T) {
 	t.Run("成功提交草稿单-验证状态、预算冻结、审批链创建", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -184,7 +176,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("从已驳回状态重新提交", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -214,7 +205,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("状态为pending时提交应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -231,7 +221,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("状态为approved时提交应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -248,7 +237,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("金额为0时提交应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -268,7 +256,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("金额为负数时提交应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -288,7 +275,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("报销单不存在时提交应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -299,7 +285,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("无预算记录时提交应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -319,7 +304,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("无审批人时提交应失败-验证预算回滚解冻", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -346,7 +330,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 	})
 
 	t.Run("预算不足时设置need_special_approval为true", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -387,7 +370,6 @@ func TestReimbursementBiz_Submit(t *testing.T) {
 
 func TestReimbursementBiz_Approve(t *testing.T) {
 	t.Run("审批通过-状态变为approved且预算已扣减", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -440,7 +422,6 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 	})
 
 	t.Run("报销单不存在时审批应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -451,7 +432,6 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 	})
 
 	t.Run("草稿状态不可审批", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -465,7 +445,6 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 	})
 
 	t.Run("已通过状态不可重复审批", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -479,7 +458,6 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 	})
 
 	t.Run("已驳回状态不可审批", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -499,7 +477,6 @@ func TestReimbursementBiz_Approve(t *testing.T) {
 
 func TestReimbursementBiz_Reject(t *testing.T) {
 	t.Run("驳回成功-状态变为rejected且预算已解冻", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -534,7 +511,6 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 	})
 
 	t.Run("报销单不存在时驳回应失败", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -545,7 +521,6 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 	})
 
 	t.Run("草稿状态不可驳回", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -559,7 +534,6 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 	})
 
 	t.Run("已通过状态不可驳回", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -573,7 +547,6 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 	})
 
 	t.Run("已驳回状态不可重复驳回", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -593,7 +566,6 @@ func TestReimbursementBiz_Reject(t *testing.T) {
 
 func TestReimbursementBiz_GetByID(t *testing.T) {
 	t.Run("查询存在的报销单", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -615,7 +587,6 @@ func TestReimbursementBiz_GetByID(t *testing.T) {
 	})
 
 	t.Run("查询不存在的报销单", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -632,7 +603,6 @@ func TestReimbursementBiz_GetByID(t *testing.T) {
 
 func TestReimbursementBiz_GetByNo(t *testing.T) {
 	t.Run("按单号查询存在", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -651,7 +621,6 @@ func TestReimbursementBiz_GetByNo(t *testing.T) {
 	})
 
 	t.Run("按单号查询不存在", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -668,7 +637,6 @@ func TestReimbursementBiz_GetByNo(t *testing.T) {
 
 func TestReimbursementBiz_List(t *testing.T) {
 	t.Run("空列表查询", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -685,7 +653,6 @@ func TestReimbursementBiz_List(t *testing.T) {
 	})
 
 	t.Run("不带筛选返回所有数据", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -706,7 +673,6 @@ func TestReimbursementBiz_List(t *testing.T) {
 	})
 
 	t.Run("按工号筛选", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -736,7 +702,6 @@ func TestReimbursementBiz_List(t *testing.T) {
 
 func TestReimbursementBiz_ListPending(t *testing.T) {
 	t.Run("无待审批单时返回空列表", func(t *testing.T) {
-		resetBizSeq()
 		biz, _, cleanup := setupBizTest()
 		defer cleanup()
 
@@ -750,7 +715,6 @@ func TestReimbursementBiz_ListPending(t *testing.T) {
 	})
 
 	t.Run("有待审批单时正常返回", func(t *testing.T) {
-		resetBizSeq()
 		biz, data, cleanup := setupBizTest()
 		defer cleanup()
 

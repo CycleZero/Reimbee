@@ -2,7 +2,7 @@ package reimbursement
 
 import (
 	"fmt"
-	"sync/atomic"
+	"strconv"
 	"time"
 
 	"github.com/CycleZero/Reimbee/internal/domain/approval"
@@ -14,15 +14,25 @@ import (
 	"gorm.io/gorm"
 )
 
-// 报销单流水号计数器（全局原子递增，保证并发安全）
-var reimbursementSeq uint64
-
-// generateReimbursementNo 生成报销单号 REIMB-YYYY-NNNN
-// 年份动态取当前时间，解决服务器跨年时年份不更新的问题
-func generateReimbursementNo() string {
-	seq := atomic.AddUint64(&reimbursementSeq, 1)
+// generateReimbursementNo 从数据库查询当前年度最大序号，原子递增生成报销单号
+// 必须在事务内调用：唯一索引兜底防并发冲突
+func (b *ReimbursementBiz) generateReimbursementNo(tx *gorm.DB) (string, error) {
 	year := time.Now().Year()
-	return fmt.Sprintf("REIMB-%d-%04d", year, seq)
+	var lastNo string
+	tx.Model(&model.Reimbursement{}).
+		Select("reimbursement_no").
+		Where("reimbursement_no LIKE ?", fmt.Sprintf("REIMB-%d-%%", year)).
+		Order("reimbursement_no DESC").
+		Limit(1).
+		Scan(&lastNo)
+
+	seq := uint64(1)
+	if lastNo != "" && len(lastNo) >= 4 {
+		if n, err := strconv.ParseUint(lastNo[len(lastNo)-4:], 10, 64); err == nil && n > 0 {
+			seq = n + 1
+		}
+	}
+	return fmt.Sprintf("REIMB-%d-%04d", year, seq), nil
 }
 
 // 报销单状态常量（引用 model 统一定义）
@@ -76,16 +86,20 @@ func (b *ReimbursementBiz) Create(input *CreateReimbInput) (*model.Reimbursement
 		zap.Int("明细数", len(input.Items)))
 
 	rm := &model.Reimbursement{
-		ReimbursementNo: generateReimbursementNo(),
-		EmployeeID:      input.EmployeeID,
-		EmployeeName:    input.EmployeeName,
-		DepartmentID:    input.DepartmentID,
-		Status:          StatusDraft,
-		SubmitNote:      input.SubmitNote,
+		EmployeeID:   input.EmployeeID,
+		EmployeeName: input.EmployeeName,
+		DepartmentID: input.DepartmentID,
+		Status:       StatusDraft,
+		SubmitNote:   input.SubmitNote,
 	}
 
-	// 事务：创建报销单 → 创建明细 → 创建票据
+	// 事务：生成单号 → 创建报销单 → 创建明细 → 创建票据
 	err := b.repo.db.Transaction(func(tx *gorm.DB) error {
+		reimbNo, err := b.generateReimbursementNo(tx)
+		if err != nil {
+			return fmt.Errorf("生成报销单号失败: %w", err)
+		}
+		rm.ReimbursementNo = reimbNo
 		if err := tx.Create(rm).Error; err != nil {
 			return fmt.Errorf("创建报销单记录失败: %w", err)
 		}
