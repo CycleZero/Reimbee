@@ -1,0 +1,78 @@
+/* Reimbee Defense PPT — adapted from pitch-deck */
+.tpl-reimbee-defense{
+  --bg:#ffffff;--bg-soft:#f6f7fb;--surface:#ffffff;--surface-2:#f2f4fa;
+  --border:rgba(20,25,60,.08);--border-strong:rgba(20,25,60,.18);
+  --text-1:#0d1130;--text-2:#4a5070;--text-3:#8a90ad;
+  --accent:#3b5bff;--accent-2:#7a46ff;--accent-3:#d94cff;
+  --grad:linear-gradient(135deg,#3b5bff 0%,#7a46ff 55%,#d94cff 100%);
+  --grad-soft:linear-gradient(135deg,#eef1ff,#f4edff 55%,#fbedff);
+  --radius:16px;--radius-lg:24px;
+  --shadow:0 10px 30px rgba(20,25,60,.08),0 2px 6px rgba(20,25,60,.04);
+  font-family:'Inter','Noto Sans SC',sans-serif;
+}
+
+.tpl-reimbee-defense .slide{padding:50px 80px}
+.tpl-reimbee-defense .kicker{color:var(--accent);font-weight:700;font-size:16px}
+.tpl-reimbee-defense .h1{font-size:92px;line-height:1.05;font-weight:900;letter-spacing:-.035em}
+.tpl-reimbee-defense .h2{font-size:62px;font-weight:800;letter-spacing:-.03em}
+.tpl-reimbee-defense .h3{font-size:42px;font-weight:700;letter-spacing:-.02em}
+.tpl-reimbee-defense .cover-bg{position:absolute;inset:0;background:var(--grad-soft);z-index:-1}
+.tpl-reimbee-defense .cover-blob{position:absolute;right:-140px;top:-140px;width:560px;height:560px;border-radius:50%;background:var(--grad);filter:blur(8px);opacity:.35;z-index:-1}
+.tpl-reimbee-defense .brand-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--grad);margin-right:10px;vertical-align:middle}
+.tpl-reimbee-defense .brand{font-weight:800;font-size:22px;letter-spacing:-.02em}
+.tpl-reimbee-defense .card{border-radius:var(--radius)}
+.tpl-reimbee-defense .card{padding:20px 24px}
+.tpl-reimbee-defense .num-tag{font-family:'Inter',sans-serif;font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.12em}
+/* section watermark — 底层纹样，零布局影响 */
+.tpl-reimbee-defense .section-num{display:none}
+.slide[data-section]::after{
+  content:attr(data-section);
+  font-size:160px;font-weight:900;line-height:.9;color:var(--border);
+  position:absolute;right:50px;bottom:10px;z-index:0;
+  letter-spacing:-.05em;pointer-events:none;user-select:none;
+}
+.tpl-reimbee-defense .slide > *{position:relative;z-index:1}
+.tpl-reimbee-defense .deck-footer{color:var(--text-3);font-size:14px}
+.tpl-reimbee-defense .big-num{font-size:88px;font-weight:900;letter-spacing:-.035em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
+.tpl-reimbee-defense .big-num-label{color:var(--text-2);font-size:18px}
+.tpl-reimbee-defense .lede{font-size:24px;line-height:1.55;color:var(--text-2);font-weight:300;max-width:62ch}
+
+/* tables */
+.tpl-reimbee-defense table{width:100%;border-collapse:collapse;font-size:17px}
+.tpl-reimbee-defense th{background:var(--surface-2);font-weight:700;text-align:left;padding:12px 16px;border-bottom:2px solid var(--border-strong);font-size:15px;color:var(--text-2)}
+.tpl-reimbee-defense td{padding:10px 16px;border-bottom:1px solid var(--border);font-size:16px;line-height:1.5}
+.tpl-reimbee-defense tr:hover td{background:var(--bg-soft)}
+
+/* image placeholder */
+.tpl-reimbee-defense .img-placeholder{
+  background:var(--surface-2);border:2px dashed var(--border-strong);
+  border-radius:var(--radius);display:flex;align-items:center;justify-content:center;
+  color:var(--text-3);font-size:18px;min-height:180px;text-align:center;
+  flex-direction:column;gap:8px;line-height:1.6;
+}
+.tpl-reimbee-defense .img-placeholder.lg{min-height:260px}
+
+/* metric card */
+.tpl-reimbee-defense .metric{display:flex;flex-direction:column;gap:6px;text-align:center}
+.tpl-reimbee-defense .metric .n{font-size:64px;font-weight:900;letter-spacing:-.035em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
+.tpl-reimbee-defense .metric .l{color:var(--text-2);font-size:17px}
+
+/* pain card */
+.tpl-reimbee-defense .pain-card{text-align:center;padding:28px 20px}
+.tpl-reimbee-defense .pain-card h3{font-size:52px;margin:0 0 6px}
+.tpl-reimbee-defense .pain-card p{font-size:17px;color:var(--text-2);margin:0}
+
+/* agenda */
+.tpl-reimbee-defense .agenda-row{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)}
+.tpl-reimbee-defense .agenda-num{font-size:28px;font-weight:900;color:var(--accent);min-width:50px}
+.tpl-reimbee-defense .agenda-title{font-size:22px;font-weight:600}
+.tpl-reimbee-defense .agenda-time{font-size:16px;color:var(--text-3);margin-left:auto}
+
+/* flow arrows */
+.tpl-reimbee-defense .flow-step{display:flex;align-items:center;gap:8px;font-size:17px;padding:10px 16px;background:var(--surface-2);border-radius:var(--radius-sm)}
+.tpl-reimbee-defense .flow-arrow{font-size:22px;color:var(--accent);font-weight:bold}
+
+/* inn-card */
+.tpl-reimbee-defense .inn-card{border-left:4px solid var(--accent);padding:14px 20px;background:var(--bg-soft);border-radius:0 var(--radius) var(--radius) 0)}
+.tpl-reimbee-defense .inn-card h4{margin:0 0 4px;font-size:19px}
+.tpl-reimbee-defense .inn-card p{margin:0;font-size:15px;color:var(--text-2)}
