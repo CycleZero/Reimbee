@@ -455,7 +455,12 @@ func splitContent(content string, chunkSize, overlap int) []string {
 		for i := 1; i < len(chunks); i++ {
 			prev := chunks[i-1]
 			if len(prev) > overlap {
-				overlapText := prev[len(prev)-overlap:]
+				// 从目标位置回退到有效 UTF-8 起始字节，防止切在中文中间
+				start := len(prev) - overlap
+				for start > 0 && (prev[start]&0xC0) == 0x80 {
+					start--
+				}
+				overlapText := prev[start:]
 				chunks[i] = overlapText + "\n" + chunks[i]
 			}
 		}
