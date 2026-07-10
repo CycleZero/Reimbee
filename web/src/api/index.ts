@@ -279,11 +279,11 @@ import type {
 } from '@/types/models';
 
 export function listPolicies(params?: { page?: number; page_size?: number }) {
-  return api.get<PaginatedResponse<PolicyDocument>>('/admin/policies', { params });
+  return api.get<PaginatedResponse<PolicyDocument>>('/api/admin/policies', { params });
 }
 
 export function getPolicy(id: number) {
-  return api.get<PolicyDocumentDetail>(`/admin/policies/${id}`);
+  return api.get<PolicyDocumentDetail>(`/api/admin/policies/${id}`);
 }
 
 export function createPolicy(data: CreatePolicyRequest) {
@@ -291,19 +291,19 @@ export function createPolicy(data: CreatePolicyRequest) {
 }
 
 export function updatePolicy(id: number, data: UpdatePolicyRequest) {
-  return api.put<{ message: string }>(`/admin/policies/${id}`, data);
+  return api.put<{ message: string }>(`/api/admin/policies/${id}`, data);
 }
 
 export function deletePolicy(id: number) {
-  return api.delete<{ message: string }>(`/admin/policies/${id}`);
+  return api.delete<{ message: string }>(`/api/admin/policies/${id}`);
 }
 
 export function getKBStatus() {
-  return api.get<KnowledgeBaseStatus>('/admin/policies/status');
+  return api.get<KnowledgeBaseStatus>('/api/admin/policies/status');
 }
 
 export function searchPolicies(query: string, limit?: number) {
-  return api.get<SearchTestResult>('/admin/policies/search', { params: { query, limit } });
+  return api.get<SearchTestResult>('/api/admin/policies/search', { params: { query, limit } });
 }
 
 // ============================================
