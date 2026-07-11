@@ -31,6 +31,7 @@
 <div style="text-align:center"><div style="font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">xxx</div><div style="font-size:14px;color:var(--text-3)">xx% · 测试部署</div></div>
 </div>
 <div class="deck-footer"><span>github.com/CycleZero/Reimbee</span><span class="slide-number" data-current="1" data-total="16"></span></div>
+<aside class="notes">各位老师好，我们小组做的是一个基于大语言模型 Agent 的企业智能报销系统，叫做 Reimbee。先简单说一下这个项目是干什么的——在传统的企业报销流程里面，员工要手动填报销单、贴发票、找领导签字，整个过程耗时很长，合规退回率也高。我们做的事情，就是把这些步骤全部用 AI 对话的方式来替代。员工只需要在聊天窗口里跟 AI 说"帮我报销这张发票"，系统就会自动帮你做 OCR 识别、合规审核、预算检查，然后生成报销单、提交审批，最后审批人也是通过对话来完成审批的。整个流程从一个多星期压缩到几分钟。后端用的是 Go 语言，前端是 React，AI 引擎用的是 DeepSeek 大模型加上 RAG 知识库做合规审核，整个系统打成单个二进制部署，一条命令就能跑起来。接下来我会从业务需求、系统设计、核心技术实现和测试效果四个方面，完整地给大家介绍这个项目。</aside>
 </section>
 
 <!-- 2. AGENDA -->
@@ -63,6 +64,7 @@
 </div>
 </div>
 <p class="dim" style="margin-top:32px;font-size:16px">总时长约 10 分钟 · 共 15 页</p>
+<aside class="notes">这是整体的汇报结构。我把它分成三段：第一段是背景铺垫，大概一分半钟，讲为什么要做这个系统和需求分析；第二段是技术核心，大概九分钟，这是今天的重点，会讲系统架构、数据库设计、Agent 的两大设计模式、报销的完整流程、中断确认机制、工具矩阵，还有前端 SSE 流式卡片渲染；最后一段是收尾总结，大概五分钟，包括测试效果、运行截图、核心创新点和未来展望。整个汇报大概十五分钟左右。</aside>
 </section>
 
 <!-- 3. PAIN + GOAL -->
@@ -127,6 +129,7 @@
 </div>
 
 </div>
+<aside class="notes">先讲为什么要做这个项目。传统企业报销有三个最大的痛点。第一个是效率低，大家可能都有体会，一次报销从填单、贴发票到各级签字，平均要花十五分钟，如果一个月报销量大，几个小时就搭进去了。第二个是合规退回率高，差不多百分之三十的报销因为政策理解偏差或者审核疏漏被退回来重新改，反复折腾。第三个问题是流程完全不可见，提交之后进度在哪、谁在审批完全不知道。我们的目标很明确：第一，用 AI 替代百分之八十的传统流程，让员工只需要在对话中说几句话就能完成整条链路；第二，把单次报销压缩到三分钟左右；第三，合规退回率降到百分之五以下；第四，流程全程可追踪。核心思路就是从现在的"人去适应系统"变成"AI 主动为人服务"。</aside>
 </section>
 
 <!-- 4. REQUIREMENTS -->
@@ -221,9 +224,10 @@
   <strong>🔌 REST API</strong><br><span style="color:var(--text-3);font-size:13px">43 端点 · JWT · RBAC · Swagger</span>
 </div>
 <div class="card card-soft" style="flex:1;padding:10px 14px;font-size:14px;line-height:1.5">
-  <strong>⏱ 非功能需求：</strong>对话首字延迟 &lt;3s · 合规审核向量+关键词双降级 · Agent 思考过程透明可解释 · 审批操作 ApprovalState 单次消费防重放
+   <strong>⏱ 非功能需求：</strong>对话首字延迟 &lt;3s · 合规审核向量+关键词双降级 · Agent 思考过程透明可解释 · 审批操作 ApprovalState 单次消费防重放
 </div>
 </div>
+<aside class="notes">需求分析这里我重点讲三个方面。首先是角色设计：我们定义了三种角色，普通员工是核心使用者，通过对话发起报销，给他配了十六个 Agent 工具；审批人也是通过对话操作的，十四个工具，能查看待审批列表、批准或驳回；管理员则通过传统的 REST 管理页面来维护组织架构、预算和政策知识库。然后是六个功能域：票据采集用多模态大模型做 OCR 识别，合规审核用 RAG 向量检索加上规则引擎双重保障，预算管控实时检查部门余额，报销提交通过后台自动生成审批链，审批流转支持多级审批，知识库管理支持政策文档的上传和向量化索引。非功能需求上，我们特别重视三点：对话服务必须稳定；合规审核在向量 API 不可用的时候自动降级到关键词匹配，保证流程不中断；Agent 的思考过程要对用户透明可见。交互方式上，员工和审批人用的是纯对话式的 SSE 流式交互，管理员则是传统的表单页面。</aside>
 </section>
 
 <!-- 5. USE CASE DIAGRAM -->
@@ -242,9 +246,10 @@
 </div>
 <div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
   <strong style="font-size:17px;color:#D94CFF;margin-bottom:4px">管理员</strong>
-  <img src="assets/pics/用例图-管理员.png" style="width:100%;max-height:560px;object-fit:contain" alt="管理员用例图">
+   <img src="assets/pics/用例图-管理员.png" style="width:100%;max-height:560px;object-fit:contain" alt="管理员用例图">
 </div>
 </div>
+<aside class="notes">这是系统的用例图。三种角色各有一张独立的用例图，清晰地展示了他们各自能做什么。员工这边有十二个用例，是完整的上传、创建、提交、审核、输出的全流程；审批人除了审批操作外，还能查询所有报销记录和进度；管理员在前两者的基础上，多了组织架构管理和政策知识库维护的权限。我们有十九个 Agent 工具，就是按照这三类角色的权限来动态分配的，最短权限原则，不是你角色的工具你根本看不到。</aside>
 </section>
 
 <!-- 6. ARCHITECTURE -->
@@ -260,6 +265,7 @@
 <strong style="color:var(--accent-2)">设计规范：</strong>DDD-lite五层(model→repo→biz→service→router) · Service不持Repo · 金额DB存分API传元 · 全中文注释/日志
 </div>
 </div>
+<aside class="notes">这是我们的系统总体架构图。自下往上看：最底层是数据层，MySQL、Redis、MinIO，还有一个 pgvector 做向量存储；往上是基础设施层，我们做了大量可插拔的接口设计，OCR 支持千问 VL、Paddle 两种后端，向量嵌入支持千问和 OpenAI，向量库支持 pgvector 和 Milvus 随时切换，不改业务代码；再往上是领域层，这是我们投入最大的地方，八个业务域加上一个 Agent 引擎，全部用 Google Wire 在编译时注入，零反射、全部类型安全；最顶层是前端，React 加 Zustand，用 Ant Design 做 UI，核心交互是通过 SSE 接收 Agent 的流式事件实时渲染卡片。技术选型上，后端选 Go 是因为它的并发模型天然适合处理大量 SSE 长连接，而且编译成单个二进制部署极其方便；LLM 选 DeepSeek 是因为它在中文推理上性价比最优；前端选 Zustand 做状态管理，比 Redux 轻量很多，适合高频流式更新的场景。</aside>
 </section>
 
 <!-- 7. ER DIAGRAM -->
@@ -276,6 +282,7 @@
 <div style="font-size:15px;color:var(--text-2);text-align:center;margin-top:2px">知识库 + 会话 ER 图</div>
 </div>
 </div>
+<aside class="notes">数据库这里我快速过一下。左边是核心业务的 ER 图，七个实体，从部门到员工到报销单再到审批记录，最关键的亮点在票据表——我们设计了 OCR 审计链，有 OCR 的原始值、用户手动修正的值，以及审批人最终裁决选择哪一个，这样每一步都有据可查。金额全部用分为单位存储在数据库里，避免浮点精度问题，API 层再转成元。预算表采用三态模型，年度总额减去已结算、再减去冻结中的金额，才是真正可用的。右边是知识库和会话的 ER 图，政策文档被切成五百字符的块做向量嵌入，会话消息通过 Blades JSON 做完整序列化存储，支持任意轮次的上下文恢复。</aside>
 </section>
 
 <!-- 8. AGENT DESIGN PATTERNS -->
@@ -394,6 +401,7 @@
 <div style="text-align:center;margin-top:10px;font-size:17px;color:var(--text-2)" data-anim="fade-up">
 <strong style="color:var(--accent)">设计哲学</strong>：关注点分离 · 零侵入扩展 · Agent 组合复用 · 人机协同确认
 </div>
+<aside class="notes">这一页是今天最核心的一页。我们 Agent 有两大设计模式。第一个是装饰器模式——我们做了两个零侵入的包装器，一个是 Interruptable，一个是 RoleGuard。任何工具只要在外面包一层 Interruptable，就自动获得了暂停等待用户确认的能力；包一层 RoleGuard，就自动获得了角色鉴权。你可以随时给新工具加上确认或鉴权，完全不改工具本身的代码。第二个是子 Agent 嵌套模式。合规审核不是一个简单的 if-else，而是一个独立的子 Agent。它内部有自己的 ReAct 推理循环，会先去向量库里检索相关政策文档，然后把政策文本和票据信息一起分析，最终给主 Agent 返回一个结构化的 JSON 结果。主 Agent 完全不需要知道子 Agent 内部是怎么推理的，实现了真正的关注点分离。这两种模式结合起来，让我们的 Agent 既安全又可扩展。</aside>
 </section>
 
 <!-- 9. REIMBURSEMENT FLOW -->
@@ -507,6 +515,7 @@
 <p style="margin-top:8px;font-size:18px;color:var(--accent);text-align:center;font-weight:700" data-anim="fade-up">
 ⚠️ 提交确认：唯一需人工介入 · 其余 7 步全部 Agent 自主完成（替代率 87.5%）
 </p>
+<aside class="notes">这里是员工报销的完整流程，一共四个阶段八步。第一阶段是信息采集，员工上传发票图片，Agent 自动调用多模态大模型做 OCR 识别，提取出发票上的金额、日期、类别、销售方这些信息。第二阶段是智能审核，Agent 先把识别出来的票据汇总展示给用户确认，然后自动去做合规审核——它会去向量库里检索公司报销政策，对每张票据做合规判断，同时检查部门预算是否充足。第三阶段是提交，合规和预算都通过之后，Agent 创建报销单草稿，这时候唯一需要人工介入的就是点击确认提交，触发了我们后面要讲的中断机制。用户确认后，系统生成审批链、冻结预算。第四阶段是自动归档，审批通过后系统生成 PDF 报销单、发送邮件通知。八步里面有七步是 Agent 自主完成的，人工替代率接近百分之八十八。</aside>
 </section>
 
 <!-- 10. INTERRUPT MECHANISM -->
@@ -592,7 +601,7 @@
 </div>
 </div>
 </div>
-</div>
+<aside class="notes">中断确认是我们 Agent 最核心的安全机制。当 LLM 决定要执行提交报销或者审批通过这种不可逆操作的时候，我们的 Interruptable 包装器会先把 Agent 暂停住，而不是直接执行。具体流程分两步：第一步，Agent 调用 submit_reimbursement，Interruptable 检测到这是首次调用，就把这个工具的信息存到会话状态里，然后给前端推送一个 interrupted 事件，Agent 暂停，前端弹出一个确认框。第二步，用户点了确认之后，浏览器发一个 POST 请求到 approve 接口，后端从会话状态里把这个工具拿出来重新执行一遍，这次 Interruptable 发现 Approved 是 true 而且没有被消费过，就真正去执行业务逻辑，同时把 Consumed 标记为 true。这个 Consumed 字段的妙处在于它是单次消费的——如果你试图重复提交同一个 approve 请求，第二次就会因为 Consumed 已经是 true 而被拒绝。这样就防止了重放攻击。对比一下，如果没有这个机制，LLM 理解偏差就直接误操作了，有了这个机制就是人机协同，既高效又安全。</aside>
 </section>
 
 <!-- 11. TOOL MATRIX -->
@@ -667,6 +676,7 @@
 <div style="flex:1;text-align:center"><strong style="color:var(--text-1)">4</strong> 需确认 ⏸️ · <strong style="color:var(--accent)">两阶段中断</strong></div>
 <div style="flex:1;text-align:center"><strong style="color:var(--text-1)">Resolver</strong> 运行时分配 · <strong style="color:var(--accent)">RoleGuard</strong> fail-closed</div>
 </div>
+<aside class="notes">这是我们的工具矩阵，一共二十二个工具。按角色来分的话，员工专属的有 OCR 识别、预算检查、创建提交报销、生成 PDF、发邮件等八个；审批人专属的有审批通过、驳回和待审批列表三个；剩下的十一个是共享的，包括政策检索、合规审核、查询报销记录、查进度等等。这二十二个工具不是一股脑全给大模型的，而是通过 Resolver 在运行时根据当前用户的角色动态分配——员工只能看到他的十六个工具，审批人只能看到他的十四个。每个工具还包了 RoleGuard，就算 LLM 试图调用一个不属于当前角色的工具，也会在运行时被直接拒绝。四个需要确认的工具用了 Interruptable 包装，触发两阶段中断。这种设计让我们的 Agent 既功能完备又权限严格。</aside>
 </section>
 
 <!-- 12. SSE CARD RENDERING -->
@@ -761,9 +771,10 @@
   <strong>类型切换弹新</strong> · 自动分卡 · 时间顺序即视觉顺序
 </div>
 <div class="card card-soft" style="flex:1;text-align:center;padding:10px;font-size:15px">
-  <strong>3个原子操作</strong> · appendCard · updateLastCard · finish
+   <strong>3个原子操作</strong> · appendCard · updateLastCard · finish
 </div>
 </div>
+<aside class="notes">前端这里我们做了一套很有意思的卡片渲染系统。后端通过 SSE 推送八种事件类型，前端把这些事件映射成四种可视化卡片。Thinking 和 Reasoning 事件合并成一张思考卡片，默认折叠的，用户点开可以看到 LLM 的推理过程，思考完成之后会有个动画效果。Tool Call 和 Tool Result 映射成工具卡片，每个工具独立一张，执行中用黄色标记，完成后变绿色——特别说一下 OCR 工具卡片里面还内嵌了一个可编辑的修正表单，用户可以手动修改识别结果。Message 事件是 LLM 的文字输出，用流式增量更新，支持 Markdown 表格渲染。Interrupted 事件触发一个黄色警告栏，用户点确认或者取消。整个过程通过 Zustand 的三个原子操作 appendCard、updateLastCard 和 finish 来控制，同一个类型连续来就追加到同一张卡片，类型切换就弹新卡片。这样 LLM 的推理过程对用户是完全透明的，而不是一个黑盒。</aside>
 </section>
 
 <!-- 13. TESTING -->
@@ -818,6 +829,7 @@
 </table>
 </div>
 </div>
+<aside class="notes">测试这边我们覆盖了五个核心场景。正常全流程就不用说了；边界场景我们重点测了三个：过期票据——上传超过九十天的发票，合规审核会返回 error 并给出具体建议，右边就是实际的截图，可以看到它明确指出了日期过久和类别模糊两个问题；预算超额预警——超过可用预算的时候自动标记为需要特殊审批；票据重复上传会被防重复检测拦截。还有中断确认的三个分支——确认、取消、不操作——全部覆盖。测试结果上，后端 go test 十个包全部通过，前端 TypeScript 编译零错误，五个场景全部跑通。业务目标达成方面，流程替代率超过百分之八十——只有提交和审批这两个环节需要人工点击确认，其余全部 Agent 自动完成；单次报销大约两到三轮对话就能走完；我们上线以来还没有因为合规问题被退回的案例；流程进度通过 SSE 实时推送，完全透明。</aside>
 </section>
 
 <!-- 14. SCREENSHOTS -->
@@ -842,6 +854,7 @@
 <span style="font-size:13px;color:var(--text-2);margin-top:2px">Phase 4 审批流转 — list_pending + approve</span>
 </div>
 </div>
+<aside class="notes">这是四张实际的运行截图，按报销的四个阶段展示：左边是聊天界面全貌，可以看到左侧的会话列表和中间的对话区域；右边是 OCR 识别结果，票据信息被准确提取出来，用户可以在工具卡片里直接修改；左下是中断确认弹窗，提交报销前弹出确认框；右下是审批人的对话界面，可以看到待审批列表和审批通过的操作。整个交互完全是通过对话来驱动的。</aside>
 </section>
 
 <!-- 15. INNOVATIONS -->
@@ -900,6 +913,7 @@
 </div>
 
 </div>
+<aside class="notes">最后总结一下我们的八个核心创新点，分成两大类。智能体设计上有四个：装饰器模式让任何工具都可以零侵入地加上确认和鉴权；子 Agent 嵌套让合规审核成为一个独立的推理单元；两阶段中断用 ApprovalState 的一次性消费保证了安全；SSE 卡片渲染把 Agent 的黑盒推理变成了可视化。工程和数据处理上也有四个：角色感知 Agent 通过 Resolver 动态分配工具集；金额分层消除精度问题——数据库存分、API 传元、Agent 工具层自动转换；三层审计链让每一张票据从 OCR 原始值到最后审批人的裁决都有据可查；向量加关键词双降级保证了合规服务在任何情况下都不会中断。</aside>
 </section>
 
 <!-- 16. SUMMARY -->
@@ -959,6 +973,7 @@
 <div style="text-align:center;margin-top:10px;font-size:20px;font-weight:700;color:var(--text-2)" data-anim="fade-up">
 感谢聆听
 </div>
+<aside class="notes">简单总结一下。我们实现了一个完整的对话式报销系统，二十二个 Agent 工具覆盖了三种角色的全部场景。装饰器加子 Agent 的设计模式让系统安全又可扩展。技术上采用了 DDD 五层架构加编译时依赖注入，整个系统打包成单个二进制文件，一条命令就能部署运行。后续我们打算做几件事：对接真实的 ERP 或者财务系统，让合规规则变成可视化的表单配置而不是硬编码，支持更多类型的票据识别，以及给审批流程加一个时间线可视化的页面。我的汇报到此结束，谢谢各位老师。</aside>
 </section>
 
 </div>
