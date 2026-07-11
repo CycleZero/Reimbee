@@ -85,8 +85,13 @@ func (s *SMTPEmailSender) SendReimbursementNotification(
 	// 发送
 	err := e.Send(addr, auth)
 	if err != nil {
+		// 防御：to 可能为空，避免取 to[0] panic
+		recipient := "(无收件人)"
+		if len(to) > 0 {
+			recipient = to[0]
+		}
 		s.logger.Error("邮件发送失败",
-			zap.String("收件人", to[0]),
+			zap.String("收件人", recipient),
 			zap.String("主题", subject),
 			zap.Error(err))
 		return fmt.Errorf("邮件发送失败: %w", err)

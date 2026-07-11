@@ -54,7 +54,7 @@ func initApp(vc *viper.Viper, logger *log.Logger) *MainApp {
 	reimbursementBiz := reimbursement.NewReimbursementBiz(logger, reimbursementRepo, itemBiz, receiptRepo, budgetBiz, approvalBiz, employeeBiz)
 	pdfTool := tools.NewPDFTool(gofpdfPDFGenerator, fileStorage, reimbursementBiz, logger)
 	smtpEmailSender := infra.NewSMTPEmailSender(vc, logger)
-	emailTool := tools.NewEmailTool(smtpEmailSender, logger)
+	emailTool := tools.NewEmailTool(smtpEmailSender, reimbursementBiz, logger)
 	progressTool := tools.NewProgressTool(reimbursementBiz, approvalBiz, logger)
 	queryTool := tools.NewQueryTool(reimbursementBiz, logger)
 	departmentRepo := department.NewDepartmentRepo(data)
