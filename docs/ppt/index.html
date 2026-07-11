@@ -25,10 +25,13 @@
 <span class="pill pill-accent" style="font-size:15px;padding:6px 16px">SSE 流式交互</span>
 <span class="pill pill-accent" style="font-size:15px;padding:6px 16px">DDD 架构</span>
 </div>
-<div style="position:absolute;bottom:56px;left:50%;transform:translateX(-50%);display:flex;gap:48px" data-anim="fade-up">
-<div style="text-align:center"><div style="font-size:38px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">钟伯轩</div><div style="font-size:28px;font-weight:900;color:var(--accent);margin-top:4px">33%</div></div>
-<div style="text-align:center"><div style="font-size:38px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">江雨乐</div><div style="font-size:28px;font-weight:900;color:var(--accent-2);margin-top:4px">33%</div></div>
-<div style="text-align:center"><div style="font-size:38px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">柴佳为</div><div style="font-size:28px;font-weight:900;color:var(--accent-3);margin-top:4px">33%</div></div>
+<div style="position:absolute;bottom:48px;left:80px;right:80px" data-anim="fade-up">
+<div style="text-align:center;font-size:17px;font-weight:700;color:var(--text-3);letter-spacing:.12em;margin-bottom:14px">成员及贡献度</div>
+<div style="display:flex;justify-content:center;gap:64px">
+<div style="text-align:center"><div style="font-size:40px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">钟伯轩</div><div style="font-size:30px;font-weight:900;color:var(--accent);margin-top:4px">33%</div></div>
+<div style="text-align:center"><div style="font-size:40px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">江雨乐</div><div style="font-size:30px;font-weight:900;color:var(--accent-2);margin-top:4px">33%</div></div>
+<div style="text-align:center"><div style="font-size:40px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">柴佳为</div><div style="font-size:30px;font-weight:900;color:var(--accent-3);margin-top:4px">33%</div></div>
+</div>
 </div>
 <aside class="notes">各位老师好，我们小组做的是一个基于大语言模型 Agent 的企业智能报销系统，叫做 Reimbee。先简单说一下这个项目是干什么的——在传统的企业报销流程里面，员工要手动填报销单、贴发票、找领导签字，整个过程耗时很长，合规退回率也高。我们做的事情，就是把这些步骤全部用 AI 对话的方式来替代。员工只需要在聊天窗口里跟 AI 说"帮我报销这张发票"，系统就会自动帮你做 OCR 识别、合规审核、预算检查，然后生成报销单、提交审批，最后审批人也是通过对话来完成审批的。整个流程从一个多星期压缩到几分钟。后端用的是 Go 语言，前端是 React，AI 引擎用的是 DeepSeek 大模型加上 RAG 知识库做合规审核，整个系统打成单个二进制部署，一条命令就能跑起来。接下来我会从业务需求、系统设计、核心技术实现和测试效果四个方面，完整地给大家介绍这个项目。</aside>
 </section>
