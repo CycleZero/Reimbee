@@ -30,6 +30,10 @@ definitions:
         type: string
       seq:
         type: integer
+      tool_calls:
+        items:
+          $ref: '#/definitions/agent.ToolCall'
+        type: array
       tool_name:
         type: string
     type: object
@@ -46,6 +50,15 @@ definitions:
       summary:
         type: string
       updated_at:
+        type: string
+    type: object
+  agent.ToolCall:
+    properties:
+      arguments:
+        type: string
+      name:
+        type: string
+      result:
         type: string
     type: object
   approval.ApprovalRecordResponse:
@@ -71,15 +84,15 @@ definitions:
     type: object
   auth.LoginRequest:
     properties:
-      employee_id:
-        description: 工号
-        type: string
       password:
         description: 密码
         type: string
+      username:
+        description: 工号或姓名
+        type: string
     required:
-    - employee_id
     - password
+    - username
     type: object
   auth.LoginResponse:
     properties:
@@ -211,6 +224,164 @@ definitions:
         type: integer
     required:
     - annual_budget
+    type: object
+  compliance.ChunkResponse:
+    properties:
+      chunk_index:
+        type: integer
+      content:
+        type: string
+      id:
+        type: integer
+    type: object
+  compliance.ComplianceInput:
+    properties:
+      amount:
+        description: 单张模式（兼容旧调用）— 转为 Items[0] 含单张票据
+        type: integer
+      category:
+        type: string
+      invoice_date:
+        type: string
+      items:
+        description: 多明细模式 — 每条明细含多张票据
+        items:
+          $ref: '#/definitions/compliance.ComplianceItemInput'
+        type: array
+    type: object
+  compliance.ComplianceItemInput:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      receipts:
+        items:
+          $ref: '#/definitions/compliance.ComplianceReceiptItem'
+        type: array
+    type: object
+  compliance.ComplianceItemResult:
+    properties:
+      amount:
+        description: 票据金额(分)
+        type: integer
+      category:
+        description: 费用类别
+        type: string
+      message:
+        description: 检查结果描述
+        type: string
+      result:
+        description: pass/warning/error
+        type: string
+      rule_id:
+        description: 触发的规则ID
+        type: string
+    type: object
+  compliance.ComplianceOutput:
+    properties:
+      items:
+        description: 逐票据结果（多张模式时填充）
+        items:
+          $ref: '#/definitions/compliance.ComplianceItemResult'
+        type: array
+      message:
+        description: 聚合描述
+        type: string
+      result:
+        description: 聚合结果（取最严重的）
+        type: string
+      rule_id:
+        description: 触发的规则ID
+        type: string
+    type: object
+  compliance.ComplianceReceiptItem:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      description:
+        type: string
+      invoice_date:
+        type: string
+    type: object
+  compliance.KnowledgeBaseStatus:
+    properties:
+      chunk_count:
+        type: integer
+      document_count:
+        type: integer
+      embedder_model:
+        type: string
+      healthy:
+        type: boolean
+      search_mode:
+        type: string
+      vector_store:
+        type: string
+    type: object
+  compliance.PolicyDocumentDetailResponse:
+    properties:
+      chunk_count:
+        type: integer
+      chunks:
+        items:
+          $ref: '#/definitions/compliance.ChunkResponse'
+        type: array
+      content:
+        type: string
+      created_at:
+        type: string
+      effective_date:
+        type: string
+      id:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  compliance.SearchTestChunk:
+    properties:
+      chunk_index:
+        type: integer
+      content:
+        type: string
+      document_id:
+        type: integer
+      document_title:
+        type: string
+      score:
+        type: number
+    type: object
+  compliance.SearchTestResponse:
+    properties:
+      chunks:
+        items:
+          $ref: '#/definitions/compliance.SearchTestChunk'
+        type: array
+      mode:
+        type: string
+      query:
+        type: string
+    type: object
+  compliance.UpdatePolicyRequest:
+    properties:
+      content:
+        type: string
+      effective_date:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      version:
+        type: string
     type: object
   department.CreateDepartmentRequest:
     properties:
@@ -349,34 +520,32 @@ definitions:
   reimbursement.CreateReimbursementRequest:
     properties:
       department_id:
-        description: 部门ID
         type: integer
       employee_id:
-        description: 工号
         type: string
       employee_name:
-        description: 申请人姓名
         type: string
       submit_note:
-        description: 报销事由
         type: string
     required:
     - department_id
     - employee_id
     - employee_name
     type: object
-  reimbursement.InvoiceItemResponse:
+  reimbursement.ItemResponse:
     properties:
       amount:
         type: integer
       category:
         type: string
-      check_result:
+      description:
         type: string
       id:
         type: integer
-      invoice_date:
-        type: string
+      receipts:
+        items:
+          $ref: '#/definitions/reimbursement.ReceiptResponse'
+        type: array
     type: object
   reimbursement.ListReimbursementResponse:
     properties:
@@ -388,6 +557,25 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  reimbursement.ReceiptResponse:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      check_result:
+        type: string
+      id:
+        type: integer
+      image_path:
+        type: string
+      invoice_code:
+        type: string
+      invoice_date:
+        type: string
+      invoice_number:
+        type: string
     type: object
   reimbursement.ReimbursementResponse:
     properties:
@@ -407,9 +595,9 @@ definitions:
         type: string
       id:
         type: integer
-      invoices:
+      items:
         items:
-          $ref: '#/definitions/reimbursement.InvoiceItemResponse'
+          $ref: '#/definitions/reimbursement.ItemResponse'
         type: array
       need_special_approval:
         type: boolean
@@ -427,7 +615,7 @@ definitions:
   reimbursement.SubmitReimbursementRequest:
     properties:
       total_amount:
-        description: 报销总金额(分)
+        description: 保留兼容旧 API
         type: integer
     required:
     - total_amount
@@ -435,24 +623,234 @@ definitions:
   reimbursement.UploadInvoiceResponse:
     properties:
       file_id:
-        description: 文件唯一标识（UUID）
         type: string
       file_name:
-        description: 原始文件名
         type: string
       file_path:
-        description: 存储路径（供 Agent OCR 工具使用）
         type: string
       size:
-        description: 文件大小（字节）
         type: integer
       url:
-        description: 可访问 URL（用于前端预览）
         type: string
     type: object
 info:
   contact: {}
 paths:
+  /api/admin/policies:
+    get:
+      consumes:
+      - application/json
+      description: 按分页查询所有已索引的政策文档，返回文档基本信息（不含正文和分块）。
+      parameters:
+      - description: 页码（默认1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认10）
+        in: query
+        name: page_size
+        type: integer
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 文档列表（list/total/page）
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 查询失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 分页查询知识库文档列表
+      tags:
+      - 知识库管理
+  /api/admin/policies/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定文档及其所有分块和向量索引。
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID格式错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 删除失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 删除知识库文档
+      tags:
+      - 知识库管理
+    get:
+      consumes:
+      - application/json
+      description: 根据文档 ID 获取完整内容、分块列表和元数据。
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 文档详情
+          schema:
+            $ref: '#/definitions/compliance.PolicyDocumentDetailResponse'
+        "400":
+          description: ID格式错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 文档不存在
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取单个文档详情（含分块）
+      tags:
+      - 知识库管理
+    put:
+      consumes:
+      - application/json
+      description: 修改文档标题、内容、版本号等元数据，内容变更时自动重建向量索引。
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求体：title/content/version/effective_date/status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/compliance.UpdatePolicyRequest'
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID格式错误或请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 文档不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 更新失败或重建索引失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 更新知识库文档
+      tags:
+      - 知识库管理
+  /api/admin/policies/search:
+    get:
+      consumes:
+      - application/json
+      description: 对已索引的政策文档执行搜索，返回匹配的分块及来源文档信息。用于验证知识库检索效果。
+      parameters:
+      - description: 搜索关键词或自然语言问题
+        in: query
+        name: query
+        required: true
+        type: string
+      - description: 返回结果数（默认5）
+        in: query
+        name: limit
+        type: integer
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 搜索结果
+          schema:
+            $ref: '#/definitions/compliance.SearchTestResponse'
+        "400":
+          description: 缺少 query 参数
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 搜索执行失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 知识库搜索测试
+      tags:
+      - 知识库管理
+  /api/admin/policies/status:
+    get:
+      consumes:
+      - application/json
+      description: 返回文档总数、分块总数、当前检索模式（向量/关键词）、嵌入模型和向量库信息。
+      parameters:
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 知识库状态
+          schema:
+            $ref: '#/definitions/compliance.KnowledgeBaseStatus'
+      summary: 查看知识库运行状态
+      tags:
+      - 知识库管理
   /api/approvals/{id}/approve:
     post:
       consumes:
@@ -1241,6 +1639,96 @@ paths:
       summary: 获取审批人列表
       tags:
       - 员工管理
+  /api/policies/check:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        对报销票据进行合规审核，支持单张票据和多明细两种模式。
+        检查内容包括：费用类别匹配、金额限额校验、发票有效期检查。
+        检查结果分为 pass(通过)、warning(警告)、error(违规) 三级。
+      parameters:
+      - description: 合规检查输入（单张模式传 amount/category/invoice_date，多明细模式传 items[]）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/compliance.ComplianceInput'
+      - description: Bearer JWT Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 检查通过或有警告/违规
+          schema:
+            $ref: '#/definitions/compliance.ComplianceOutput'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 合规检查执行失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 执行合规检查
+      tags:
+      - 合规审核
+  /api/policies/ingest:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        将政策/合规文档上传到知识库，自动分块并建立向量索引。
+        文档内容支持 Markdown 格式，按段落自动分块，每块 500 字节，相邻块重叠 50 字节。
+        向量化依赖 embedding 配置（Qwen DashScope / Ollama），不可用时降级为关键词匹配。
+      parameters:
+      - description: 文档信息：title=标题 content=Markdown正文 version=版本号(默认v1) effective_date=生效日期
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            content:
+              type: string
+            effective_date:
+              type: string
+            title:
+              type: string
+            version:
+              type: string
+          type: object
+      - description: Bearer JWT Token（需要管理员权限）
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 索引成功，返回文档ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误（缺少 title 或 content）
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 索引失败（Embedding API 不可用且分块写入异常）
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 索引政策文档（上传并向量化）
+      tags:
+      - 知识库管理
   /api/reimbursements:
     get:
       consumes:

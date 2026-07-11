@@ -14,19 +14,22 @@ export default function Chat() {
 
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const store = useChatStore();
-
-  const sessionId = store.currentSessionId;
-  const connectionStatus = store.connectionStatus;
-  const approveSignal = store.approveSignal;
+  const sessionId = useChatStore((s) => s.currentSessionId);
+  const connectionStatus = useChatStore((s) => s.connectionStatus);
+  const approveSignal = useChatStore((s) => s.approveSignal);
+  const switchSession = useChatStore((s) => s.switchSession);
+  const initSession = useChatStore((s) => s.initSession);
+  const addUserMessage = useChatStore((s) => s.addUserMessage);
+  const loadSessions = useChatStore((s) => s.loadSessions);
 
   useEffect(() => {
     if (urlSessionId) {
-      if (urlSessionId !== store.currentSessionId) {
-        store.switchSession(urlSessionId);
+      const curId = useChatStore.getState().currentSessionId;
+      if (urlSessionId !== curId) {
+        switchSession(urlSessionId);
       }
     }
-    store.loadSessions();
+    loadSessions();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const approveTrigger = approveSignal
@@ -46,7 +49,7 @@ export default function Chat() {
 
       let sid = sessionId;
       if (!sid) {
-        sid = store.initSession();
+        sid = initSession();
         navigate(`/chat/${sid}`, { replace: true });
       }
 
@@ -56,11 +59,11 @@ export default function Chat() {
         .join('\n');
       const fullMsg = imageLines ? `${msg}\n${imageLines}` : msg;
 
-      store.addUserMessage(fullMsg);
+      addUserMessage(fullMsg);
       setPendingMessage(fullMsg);
       setUploadedFiles([]);
     },
-    [sessionId, connectionStatus, uploadedFiles, store, navigate, antMsg],
+    [sessionId, connectionStatus, uploadedFiles, initSession, addUserMessage, navigate, antMsg],
   );
 
   const isDisabled = connectionStatus === 'connecting' || connectionStatus === 'connected';

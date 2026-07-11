@@ -254,15 +254,19 @@ function ToolCard({ card, isStreaming }: { card: MessageCard; isStreaming: boole
   const confidence = (ocrData?.confidence as number) ?? 0;
   const isLowConf = confidence < 0.7;
 
-  // 初始化编辑字段
-  if (isOCR && editAmount === '' && ocrData) {
-    setEditAmount(formatAmount(ocrData.amount));
-    setEditCategory((ocrData.category as string) ?? '');
-    setEditDate((ocrData.date as string) ?? '');
-    setEditCode((ocrData.invoice_code as string) ?? '');
-    setEditNumber((ocrData.invoice_number as string) ?? '');
-    setEditSeller((ocrData.seller_name as string) ?? '');
-  }
+  // 初始化编辑字段（使用 useEffect 避免 render 期 setState，防止 React #301 无限重渲染）
+  const [ocrInitialized, setOcrInitialized] = useState(false);
+  useEffect(() => {
+    if (isOCR && !ocrInitialized && ocrData) {
+      setEditAmount(formatAmount(ocrData.amount));
+      setEditCategory((ocrData.category as string) ?? '');
+      setEditDate((ocrData.date as string) ?? '');
+      setEditCode((ocrData.invoice_code as string) ?? '');
+      setEditNumber((ocrData.invoice_number as string) ?? '');
+      setEditSeller((ocrData.seller_name as string) ?? '');
+      setOcrInitialized(true);
+    }
+  }, [isOCR, ocrInitialized, ocrData]);
 
   const handleOCRConfirm = async () => {
     if (!sessionId || !ocrData) return;

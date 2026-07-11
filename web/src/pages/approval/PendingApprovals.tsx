@@ -29,6 +29,8 @@ export default function PendingApprovals() {
   const [expandedLoadingKeys, setExpandedLoadingKeys] = useState<Set<number>>(new Set());
   const [form] = Form.useForm();
   const { message, modal } = App.useApp();
+  const messageRef = useRef(message);
+  messageRef.current = message;
 
   // ---------- 加载待审批列表 ----------
 
@@ -39,12 +41,12 @@ export default function PendingApprovals() {
         const result = await listPendingReimbursements();
         setData(result);
       } catch (err) {
-        message.error(err instanceof Error ? err.message : '加载失败');
+        messageRef.current.error(err instanceof Error ? err.message : '加载失败');
       } finally {
         setLoading(false);
       }
     })();
-  }, [refreshKey, message]);
+  }, [refreshKey]);
 
   // ---------- 审批操作 ----------
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"time"
 
@@ -74,12 +75,18 @@ func (s *MinIOFileStorage) Save(ctx context.Context, fileName string, mimeType s
 		return nil, fmt.Errorf("上传文件到 MinIO 失败: %w", err)
 	}
 
+	u, err := s.client.PresignedGetObject(ctx, s.bucketName, objectName, 24*time.Hour, url.Values{})
+	if err != nil {
+		return nil, fmt.Errorf("生成预签名 URL 失败: %w", err)
+	}
+
 	return &UploadedFile{
-		FileID:    fileID,
-		FileName:  fileName,
-		MimeType:  mimeType,
-		Size:      int64(len(data)),
-		URL:       fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, objectName),
+		FileID:   fileID,
+		FileName: fileName,
+		MimeType: mimeType,
+		Size:     int64(len(data)),
+		//URL:       fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, objectName),
+		URL:       u.String(),
 		Path:      objectName,
 		CreatedAt: now.Format(time.RFC3339),
 	}, nil

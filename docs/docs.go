@@ -15,6 +15,322 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/admin/policies": {
+            "get": {
+                "description": "按分页查询所有已索引的政策文档，返回文档基本信息（不含正文和分块）。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "分页查询知识库文档列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码（默认1）",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量（默认10）",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "文档列表（list/total/page）",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "查询失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/policies/search": {
+            "get": {
+                "description": "对已索引的政策文档执行搜索，返回匹配的分块及来源文档信息。用于验证知识库检索效果。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "知识库搜索测试",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "搜索关键词或自然语言问题",
+                        "name": "query",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回结果数（默认5）",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "搜索结果",
+                        "schema": {
+                            "$ref": "#/definitions/compliance.SearchTestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "缺少 query 参数",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "搜索执行失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/policies/status": {
+            "get": {
+                "description": "返回文档总数、分块总数、当前检索模式（向量/关键词）、嵌入模型和向量库信息。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "查看知识库运行状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "知识库状态",
+                        "schema": {
+                            "$ref": "#/definitions/compliance.KnowledgeBaseStatus"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/policies/{id}": {
+            "get": {
+                "description": "根据文档 ID 获取完整内容、分块列表和元数据。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "获取单个文档详情（含分块）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "文档详情",
+                        "schema": {
+                            "$ref": "#/definitions/compliance.PolicyDocumentDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "文档不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "修改文档标题、内容、版本号等元数据，内容变更时自动重建向量索引。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "更新知识库文档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求体：title/content/version/effective_date/status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/compliance.UpdatePolicyRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ID格式错误或请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "文档不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "更新失败或重建索引失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定文档及其所有分块和向量索引。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "删除知识库文档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ID格式错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "删除失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/approvals/{id}/approve": {
             "post": {
                 "description": "审批人对指定审批记录进行通过操作，可附带审批意见",
@@ -1159,6 +1475,131 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/policies/check": {
+            "post": {
+                "description": "对报销票据进行合规审核，支持单张票据和多明细两种模式。\n检查内容包括：费用类别匹配、金额限额校验、发票有效期检查。\n检查结果分为 pass(通过)、warning(警告)、error(违规) 三级。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合规审核"
+                ],
+                "summary": "执行合规检查",
+                "parameters": [
+                    {
+                        "description": "合规检查输入（单张模式传 amount/category/invoice_date，多明细模式传 items[]）",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/compliance.ComplianceInput"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "检查通过或有警告/违规",
+                        "schema": {
+                            "$ref": "#/definitions/compliance.ComplianceOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "合规检查执行失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/policies/ingest": {
+            "post": {
+                "description": "将政策/合规文档上传到知识库，自动分块并建立向量索引。\n文档内容支持 Markdown 格式，按段落自动分块，每块 500 字节，相邻块重叠 50 字节。\n向量化依赖 embedding 配置（Qwen DashScope / Ollama），不可用时降级为关键词匹配。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识库管理"
+                ],
+                "summary": "索引政策文档（上传并向量化）",
+                "parameters": [
+                    {
+                        "description": "文档信息：title=标题 content=Markdown正文 version=版本号(默认v1) effective_date=生效日期",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "content": {
+                                    "type": "string"
+                                },
+                                "effective_date": {
+                                    "type": "string"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "version": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT Token（需要管理员权限）",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "索引成功，返回文档ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误（缺少 title 或 content）",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "索引失败（Embedding API 不可用且分块写入异常）",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/reimbursements": {
             "get": {
                 "description": "分页查询报销单，可按员工工号筛选",
@@ -1671,6 +2112,12 @@ const docTemplate = `{
                 "seq": {
                     "type": "integer"
                 },
+                "tool_calls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/agent.ToolCall"
+                    }
+                },
                 "tool_name": {
                     "type": "string"
                 }
@@ -1695,6 +2142,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "agent.ToolCall": {
+            "type": "object",
+            "properties": {
+                "arguments": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "result": {
                     "type": "string"
                 }
             }
@@ -1734,16 +2195,16 @@ const docTemplate = `{
         "auth.LoginRequest": {
             "type": "object",
             "required": [
-                "employee_id",
-                "password"
+                "password",
+                "username"
             ],
             "properties": {
-                "employee_id": {
-                    "description": "工号",
-                    "type": "string"
-                },
                 "password": {
                     "description": "密码",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "工号或姓名",
                     "type": "string"
                 }
             }
@@ -1930,6 +2391,243 @@ const docTemplate = `{
                 "annual_budget": {
                     "description": "年度预算(分)",
                     "type": "integer"
+                }
+            }
+        },
+        "compliance.ChunkResponse": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "compliance.ComplianceInput": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "单张模式（兼容旧调用）— 转为 Items[0] 含单张票据",
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "invoice_date": {
+                    "type": "string"
+                },
+                "items": {
+                    "description": "多明细模式 — 每条明细含多张票据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/compliance.ComplianceItemInput"
+                    }
+                }
+            }
+        },
+        "compliance.ComplianceItemInput": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "receipts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/compliance.ComplianceReceiptItem"
+                    }
+                }
+            }
+        },
+        "compliance.ComplianceItemResult": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "票据金额(分)",
+                    "type": "integer"
+                },
+                "category": {
+                    "description": "费用类别",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "检查结果描述",
+                    "type": "string"
+                },
+                "result": {
+                    "description": "pass/warning/error",
+                    "type": "string"
+                },
+                "rule_id": {
+                    "description": "触发的规则ID",
+                    "type": "string"
+                }
+            }
+        },
+        "compliance.ComplianceOutput": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "逐票据结果（多张模式时填充）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/compliance.ComplianceItemResult"
+                    }
+                },
+                "message": {
+                    "description": "聚合描述",
+                    "type": "string"
+                },
+                "result": {
+                    "description": "聚合结果（取最严重的）",
+                    "type": "string"
+                },
+                "rule_id": {
+                    "description": "触发的规则ID",
+                    "type": "string"
+                }
+            }
+        },
+        "compliance.ComplianceReceiptItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "invoice_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "compliance.KnowledgeBaseStatus": {
+            "type": "object",
+            "properties": {
+                "chunk_count": {
+                    "type": "integer"
+                },
+                "document_count": {
+                    "type": "integer"
+                },
+                "embedder_model": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "type": "boolean"
+                },
+                "search_mode": {
+                    "type": "string"
+                },
+                "vector_store": {
+                    "type": "string"
+                }
+            }
+        },
+        "compliance.PolicyDocumentDetailResponse": {
+            "type": "object",
+            "properties": {
+                "chunk_count": {
+                    "type": "integer"
+                },
+                "chunks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/compliance.ChunkResponse"
+                    }
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "effective_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "compliance.SearchTestChunk": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "document_id": {
+                    "type": "integer"
+                },
+                "document_title": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "number"
+                }
+            }
+        },
+        "compliance.SearchTestResponse": {
+            "type": "object",
+            "properties": {
+                "chunks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/compliance.SearchTestChunk"
+                    }
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "compliance.UpdatePolicyRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "effective_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
                 }
             }
         },
@@ -2139,24 +2837,20 @@ const docTemplate = `{
             ],
             "properties": {
                 "department_id": {
-                    "description": "部门ID",
                     "type": "integer"
                 },
                 "employee_id": {
-                    "description": "工号",
                     "type": "string"
                 },
                 "employee_name": {
-                    "description": "申请人姓名",
                     "type": "string"
                 },
                 "submit_note": {
-                    "description": "报销事由",
                     "type": "string"
                 }
             }
         },
-        "reimbursement.InvoiceItemResponse": {
+        "reimbursement.ItemResponse": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -2165,14 +2859,17 @@ const docTemplate = `{
                 "category": {
                     "type": "string"
                 },
-                "check_result": {
+                "description": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "invoice_date": {
-                    "type": "string"
+                "receipts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reimbursement.ReceiptResponse"
+                    }
                 }
             }
         },
@@ -2190,6 +2887,35 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "reimbursement.ReceiptResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "check_result": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_path": {
+                    "type": "string"
+                },
+                "invoice_code": {
+                    "type": "string"
+                },
+                "invoice_date": {
+                    "type": "string"
+                },
+                "invoice_number": {
+                    "type": "string"
                 }
             }
         },
@@ -2220,10 +2946,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "invoices": {
+                "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/reimbursement.InvoiceItemResponse"
+                        "$ref": "#/definitions/reimbursement.ItemResponse"
                     }
                 },
                 "need_special_approval": {
@@ -2253,7 +2979,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "total_amount": {
-                    "description": "报销总金额(分)",
+                    "description": "保留兼容旧 API",
                     "type": "integer"
                 }
             }
@@ -2262,23 +2988,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "file_id": {
-                    "description": "文件唯一标识（UUID）",
                     "type": "string"
                 },
                 "file_name": {
-                    "description": "原始文件名",
                     "type": "string"
                 },
                 "file_path": {
-                    "description": "存储路径（供 Agent OCR 工具使用）",
                     "type": "string"
                 },
                 "size": {
-                    "description": "文件大小（字节）",
                     "type": "integer"
                 },
                 "url": {
-                    "description": "可访问 URL（用于前端预览）",
                     "type": "string"
                 }
             }
