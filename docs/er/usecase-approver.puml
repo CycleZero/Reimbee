@@ -1,30 +1,32 @@
 @startuml
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam defaultFontSize 14
-left to right direction
+skinparam defaultFontSize 13
 
 actor "审批人" as App
 actor "管理员" as Adm
 
 Adm -|> App
 
-rectangle "审批与系统管理" {
-  usecase (查看待审批) as UC1
-  usecase (审批通过\n需确认) as UC2
-  usecase (驳回报销) as UC3
-  usecase (查看员工列表) as UC4
-  usecase (查看组织信息\n部门·预算·看板) as UC5
-  usecase (合规查询\n政策检索·合规检查) as UC6
-  usecase (AI 对话) as UC7
-  usecase (查看报销\n列表·详情·进度) as UC8
+package "审批管理" {
+  usecase "查看待审批" as UC1
+  usecase "审批通过\n需确认" as UC2
+  usecase "驳回报销" as UC3
+  usecase "查看员工列表" as UC4
 }
 
-rectangle "管理员专属" {
-  usecase (管理部门\nCRUD) as UC9
-  usecase (管理员工\nCRUD) as UC10
-  usecase (管理预算\nCRUD) as UC11
-  usecase (管理知识库\n文档·索引) as UC12
+package "公共查询" {
+  usecase "查看报销\n列表·详情·进度" as UC5
+  usecase "查看组织信息\n部门·预算·看板" as UC6
+  usecase "合规查询\n政策检索·合规检查" as UC7
+  usecase "AI 对话" as UC8
+}
+
+package "管理员专属" {
+  usecase "管理部门\nCRUD" as UC9
+  usecase "管理员工\nCRUD" as UC10
+  usecase "管理预算\nCRUD" as UC11
+  usecase "管理知识库\n文档·索引" as UC12
 }
 
 App --> UC1
@@ -40,16 +42,5 @@ Adm --> UC9
 Adm --> UC10
 Adm --> UC11
 Adm --> UC12
-
-UC1 -[hidden]right- UC2
-UC2 -[hidden]right- UC3
-UC3 -[hidden]right- UC4
-UC4 -[hidden]right- UC5
-UC5 -[hidden]right- UC6
-UC6 -[hidden]right- UC7
-UC7 -[hidden]right- UC8
-UC9 -[hidden]right- UC10
-UC10 -[hidden]right- UC11
-UC11 -[hidden]right- UC12
 
 @enduml
