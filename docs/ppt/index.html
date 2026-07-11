@@ -221,12 +221,12 @@
 <div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
   <strong style="font-size:19px;color:var(--accent);margin-bottom:4px">员工 — 报销全流程</strong>
   <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">上传→创建→提交→审核→输出 12 个用例</p>
-  <img src="../er/usecase-employee.svg" style="width:100%;max-height:420px;object-fit:contain" alt="员工用例图">
+  <img src="assets/pics/usecase-employee.svg" style="width:100%;max-height:420px;object-fit:contain" alt="员工用例图">
 </div>
 <div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
   <strong style="font-size:19px;color:var(--accent-2);margin-bottom:4px">审批人 · 管理员 — 审批与管理</strong>
   <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">8 共享用例 + 4 管理员独占 · Admin 继承 Approver</p>
-  <img src="../er/usecase-approver.svg" style="width:100%;max-height:420px;object-fit:contain" alt="审批人用例图">
+  <img src="assets/pics/usecase-approver.svg" style="width:100%;max-height:420px;object-fit:contain" alt="审批人用例图">
 </div>
 </div>
 </section>
@@ -234,37 +234,22 @@
 <!-- 6. ARCHITECTURE -->
 <section class="slide" data-section="03" data-title="系统架构">
 <p class="num-tag">ARCHITECTURE</p>
-<h2 class="h2 mt-s" style="margin-bottom:8px">系统总体架构</h2>
-<div class="img-placeholder" style="flex:1;min-height:460px;margin-bottom:10px" data-anim="fade-up">
-📸 图片 5：系统总体架构图<br>
-<span style="font-size:16px">五层架构：前端层 → 服务层 → Biz层 → 基础设施层 → 数据层</span><br>
-<span style="font-size:14px">底部标注技术选型标签：Go · Gin · Wire · GORM · Blades · DeepSeek · React · Zustand · SSE · pgvector · MinIO · Redis · MySQL</span>
-</div>
+<h2 class="h2 mt-s" style="margin-bottom:6px">系统总体架构</h2>
+<img src="assets/pics/架构图.png" style="width:100%;height:470px;object-fit:contain;margin-top:4px" data-anim="fade-up" alt="系统架构图">
 </section>
 
 <!-- 7. ER DIAGRAM -->
 <section class="slide" data-section="04" data-title="数据库设计">
 <p class="num-tag">DATABASE</p>
-<h2 class="h2 mt-s" style="margin-bottom:8px">数据库设计</h2>
-<div style="display:flex;gap:20px;flex:1">
+<h2 class="h2 mt-s" style="margin-bottom:6px">数据库设计</h2>
+<div style="display:flex;gap:16px;flex:1">
 <div style="flex:1;display:flex;flex-direction:column">
-<div class="img-placeholder" style="flex:1" data-anim="fade-up">
-📸 图片 6a：核心业务 ER 图<br>
-<span style="font-size:16px">Department → Employee → Reimbursement</span><br>
-<span style="font-size:14px">Reimbursement → ReimbursementItem → Receipt (三层实体)</span><br>
-<span style="font-size:14px">Reimbursement → ApprovalRecord (审批记录)</span><br>
-<span style="font-size:14px">Department → DepartmentBudget (预算)</span>
-</div>
-<div style="font-size:17px;color:var(--text-2);text-align:center;margin-top:6px">核心业务 ER 图</div>
+<img src="assets/pics/core-er.svg" style="flex:1;width:100%;object-fit:contain" data-anim="fade-up" alt="核心业务ER图">
+<div style="font-size:17px;color:var(--text-2);text-align:center;margin-top:4px">核心业务 ER 图</div>
 </div>
 <div style="flex:1;display:flex;flex-direction:column">
-<div class="img-placeholder" style="flex:1" data-anim="fade-up">
-📸 图片 6b：RAG 知识库 ER 图<br>
-<span style="font-size:16px">PolicyDocument → PolicyChunk (向量嵌入)</span><br>
-<span style="font-size:14px">SessionMeta → SessionMessage (对话持久化)</span><br>
-<span style="font-size:14px">Employee → SessionMeta (用户关联)</span>
-</div>
-<div style="font-size:17px;color:var(--text-2);text-align:center;margin-top:6px">知识库 + 会话 ER 图</div>
+<img src="assets/pics/knowledge-session-er.svg" style="flex:1;width:100%;object-fit:contain" data-anim="fade-up" alt="知识库+会话ER图">
+<div style="font-size:17px;color:var(--text-2);text-align:center;margin-top:4px">知识库 + 会话 ER 图</div>
 </div>
 </div>
 </section>
