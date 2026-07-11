@@ -223,7 +223,7 @@ func (e *QwenEmbedder) embedViaDashScope(ctx context.Context, texts []string) ([
 	}
 
 	// DashScope Text Embedding API 端点
-	url := "https://dashscope-intl.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding"
+	url := "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		e.logger.Error("构建 DashScope 请求失败", zap.Error(err))
