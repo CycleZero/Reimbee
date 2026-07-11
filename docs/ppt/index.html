@@ -30,7 +30,7 @@
 <div style="text-align:center"><div style="font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">xxx</div><div style="font-size:14px;color:var(--text-3)">xx% · 前端开发</div></div>
 <div style="text-align:center"><div style="font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">xxx</div><div style="font-size:14px;color:var(--text-3)">xx% · 测试部署</div></div>
 </div>
-<div class="deck-footer"><span>github.com/CycleZero/Reimbee</span><span class="slide-number" data-current="1" data-total="15"></span></div>
+<div class="deck-footer"><span>github.com/CycleZero/Reimbee</span><span class="slide-number" data-current="1" data-total="16"></span></div>
 </section>
 
 <!-- 2. AGENDA -->
@@ -212,7 +212,26 @@
 </div>
 </section>
 
-<!-- 5. ARCHITECTURE -->
+<!-- 5. USE CASE DIAGRAM -->
+<section class="slide" data-title="用例图" data-section="用例">
+<p class="num-tag">USE CASE</p>
+<h2 class="h2 mt-s" style="margin-bottom:6px">系统用例图</h2>
+
+<div style="display:flex;gap:20px;flex:1;margin-top:4px">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
+  <strong style="font-size:19px;color:var(--accent);margin-bottom:4px">员工 — 报销全流程</strong>
+  <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">上传→创建→提交→审核→输出 12 个用例</p>
+  <img src="../er/usecase-employee.svg" style="width:100%;max-height:420px;object-fit:contain" alt="员工用例图">
+</div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
+  <strong style="font-size:19px;color:var(--accent-2);margin-bottom:4px">审批人 · 管理员 — 审批与管理</strong>
+  <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">8 共享用例 + 4 管理员独占 · Admin 继承 Approver</p>
+  <img src="../er/usecase-approver.svg" style="width:100%;max-height:420px;object-fit:contain" alt="审批人用例图">
+</div>
+</div>
+</section>
+
+<!-- 6. ARCHITECTURE -->
 <section class="slide" data-section="03" data-title="系统架构">
 <p class="num-tag">ARCHITECTURE</p>
 <h2 class="h2 mt-s" style="margin-bottom:8px">系统总体架构</h2>
@@ -223,7 +242,7 @@
 </div>
 </section>
 
-<!-- 6. ER DIAGRAM -->
+<!-- 7. ER DIAGRAM -->
 <section class="slide" data-section="04" data-title="数据库设计">
 <p class="num-tag">DATABASE</p>
 <h2 class="h2 mt-s" style="margin-bottom:8px">数据库设计</h2>
@@ -250,7 +269,7 @@
 </div>
 </section>
 
-<!-- 7. AGENT DESIGN PATTERNS -->
+<!-- 8. AGENT DESIGN PATTERNS -->
 <section class="slide" data-title="Agent 设计模式" data-section="05">
 <p class="num-tag">AGENT DESIGN</p>
 <h2 class="h2 mt-s" style="margin-bottom:8px">Agent 两大设计模式</h2>
@@ -368,7 +387,7 @@
 </div>
 </section>
 
-<!-- 8. REIMBURSEMENT FLOW -->
+<!-- 9. REIMBURSEMENT FLOW -->
 <section class="slide" data-title="报销全流程" data-section="06">
 <p class="num-tag">WORKFLOW</p>
 <h2 class="h2 mt-s" style="margin-bottom:6px">员工报销 Agent 全流程</h2>
@@ -481,7 +500,7 @@
 </p>
 </section>
 
-<!-- 9. INTERRUPT MECHANISM -->
+<!-- 10. INTERRUPT MECHANISM -->
 <section class="slide" data-title="中断确认机制" data-section="07">
 <p class="num-tag">INTERRUPT</p>
 <h2 class="h2 mt-s" style="margin-bottom:6px">两阶段中断确认机制</h2>
@@ -567,7 +586,7 @@
 </div>
 </section>
 
-<!-- 10. TOOL MATRIX -->
+<!-- 11. TOOL MATRIX -->
 <section class="slide" data-title="工具矩阵" data-section="08">
 <p class="num-tag">TOOLS</p>
 <h2 class="h2 mt-s" style="margin-bottom:8px">Agent 工具矩阵（22个）</h2>
@@ -641,7 +660,7 @@
 </div>
 </section>
 
-<!-- 11. SSE CARD RENDERING -->
+<!-- 12. SSE CARD RENDERING -->
 <section class="slide" data-title="SSE 卡片渲染" data-section="09">
 <p class="num-tag">FRONTEND</p>
 <h2 class="h2 mt-s" style="margin-bottom:4px">SSE 流式卡片渲染</h2>
@@ -738,7 +757,7 @@
 </div>
 </section>
 
-<!-- 12. TESTING -->
+<!-- 13. TESTING -->
 <section class="slide" data-section="10" data-title="测试与效果">
 <p class="num-tag">TESTING</p>
 <h2 class="h2 mt-s">测试场景与业务效果</h2>
@@ -774,7 +793,7 @@
 </div>
 </section>
 
-<!-- 13. SCREENSHOTS -->
+<!-- 14. SCREENSHOTS -->
 <section class="slide" data-section="11" data-title="运行截图">
 <p class="num-tag">DEMO</p>
 <h2 class="h2 mt-s">项目运行效果预览</h2>
@@ -794,7 +813,7 @@
 </div>
 </section>
 
-<!-- 14. INNOVATIONS -->
+<!-- 15. INNOVATIONS -->
 <section class="slide" data-title="创新点" data-section="12">
 <p class="num-tag">INNOVATION</p>
 <h2 class="h2 mt-s" style="margin-bottom:6px">核心技术创新点</h2>
@@ -852,7 +871,7 @@
 </div>
 </section>
 
-<!-- 15. SUMMARY -->
+<!-- 16. SUMMARY -->
 <section class="slide" data-title="总结展望" data-section="13">
 <p class="num-tag">SUMMARY</p>
 <h2 class="h2 mt-s" style="margin-bottom:6px">总结与展望</h2>
