@@ -108,18 +108,33 @@ func NewOrganizeItemsTool(
 					return OrganizeItemsOutput{}, fmt.Errorf("创建报销明细失败: %w", err)
 				}
 
-				// 更新对应票据的 ItemID
-				for _, rct := range itemReceipts {
-					if rct.DBID != 0 {
-						if err := receiptRepo.UpdateItemID(rct.DBID, dbItem.ID); err != nil {
-							logger.Error("更新票据归属失败",
-								zap.Uint("票据ID", rct.DBID),
-								zap.Uint("明细ID", dbItem.ID),
-								zap.Error(err))
-							return OrganizeItemsOutput{}, fmt.Errorf("更新票据归属失败: %w", err)
-						}
+			// 更新对应票据的 ItemID，同时同步用户可能修正过的字段到 DB
+			for _, rct := range itemReceipts {
+				if rct.DBID != 0 {
+					if err := receiptRepo.UpdateItemID(rct.DBID, dbItem.ID); err != nil {
+						logger.Error("更新票据归属失败",
+							zap.Uint("票据ID", rct.DBID),
+							zap.Uint("明细ID", dbItem.ID),
+							zap.Error(err))
+						return OrganizeItemsOutput{}, fmt.Errorf("更新票据归属失败: %w", err)
+					}
+					// 同步 state 中的值到 DB（用户可能已通过 OCR 修正界面修改）
+					modified := rct.Amount != rct.OCRRawAmount
+					if err := receiptRepo.Update(&model.Receipt{
+						Model:           gorm.Model{ID: rct.DBID},
+						ItemID:          dbItem.ID,
+						Amount:          rct.Amount,
+						InvoiceDate:     rct.Date,
+						Category:        rct.Category,
+						InvoiceCode:     rct.InvoiceCode,
+						InvoiceNumber:   rct.InvoiceNo,
+						SellerName:      rct.SellerName,
+						IsUserModified:  modified,
+					}); err != nil {
+						logger.Error("同步票据修正到DB失败", zap.Uint("票据ID", rct.DBID), zap.Error(err))
 					}
 				}
+			}
 
 				// 写入会话状态
 				state.Items = append(state.Items, types.ItemState{
