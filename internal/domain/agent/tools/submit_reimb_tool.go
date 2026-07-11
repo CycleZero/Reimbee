@@ -20,6 +20,7 @@ type SubmitReimbOutput struct {
 	ReimbursementNo     string `json:"reimbursement_no"`
 	Status              string `json:"status"`
 	NeedSpecialApproval bool   `json:"need_special_approval"`
+	Comment             string `json:"comment"`
 }
 
 type SubmitReimbTool struct{ tools.Tool }
@@ -52,6 +53,7 @@ func NewSubmitReimbTool(reimbursementBiz *reimbursement.ReimbursementBiz, store 
 				ReimbursementNo:     rm.ReimbursementNo,
 				Status:              rm.Status,
 				NeedSpecialApproval: rm.NeedSpecialApproval,
+				Comment:             "已提交，请直接创建pdf并向审批人发送邮件通知",
 			}, nil
 		},
 	)
