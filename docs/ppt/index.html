@@ -235,12 +235,12 @@
 <div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
   <strong style="font-size:19px;color:var(--accent);margin-bottom:4px">员工 — 报销全流程</strong>
   <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">上传→创建→提交→审核→输出 12 个用例</p>
-  <img src="assets/pics/usecase-employee.svg" style="width:100%;max-height:420px;object-fit:contain" alt="员工用例图">
+  <img src="assets/pics/用例图-员工.png" style="width:100%;max-height:400px;object-fit:contain" alt="员工用例图">
 </div>
 <div style="flex:1;display:flex;flex-direction:column;align-items:center" data-anim="fade-up">
   <strong style="font-size:19px;color:var(--accent-2);margin-bottom:4px">审批人 · 管理员 — 审批与管理</strong>
-  <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">8 共享用例 + 4 管理员独占 · Admin 继承 Approver</p>
-  <img src="assets/pics/usecase-approver.svg" style="width:100%;max-height:420px;object-fit:contain" alt="审批人用例图">
+  <p style="font-size:13px;color:var(--text-3);margin:0 0 6px">Admin 继承 Approver · 组织架构 + 知识库管理</p>
+  <img src="assets/pics/用例图-审批人.png" style="width:100%;max-height:400px;object-fit:contain" alt="审批人用例图">
 </div>
 </div>
 </section>
@@ -266,11 +266,11 @@
 <h2 class="h2 mt-s" style="margin-bottom:6px">数据库设计</h2>
 <div style="display:flex;gap:16px;flex:1">
 <div style="flex:1;display:flex;flex-direction:column">
-<img src="assets/pics/core-er.svg" style="flex:1;width:100%;object-fit:contain" data-anim="fade-up" alt="核心业务ER图">
+<img src="assets/pics/ER1.png" style="flex:1;width:100%;object-fit:contain" data-anim="fade-up" alt="核心业务ER图">
 <div style="font-size:17px;color:var(--text-2);text-align:center;margin-top:4px">核心业务 ER 图</div>
 </div>
 <div style="flex:1;display:flex;flex-direction:column">
-<img src="assets/pics/knowledge-session-er.svg" style="flex:1;width:100%;object-fit:contain" data-anim="fade-up" alt="知识库+会话ER图">
+<img src="assets/pics/ER2.png" style="flex:1;width:100%;object-fit:contain" data-anim="fade-up" alt="知识库+会话ER图">
 <div style="font-size:17px;color:var(--text-2);text-align:center;margin-top:4px">知识库 + 会话 ER 图</div>
 </div>
 </div>
@@ -804,18 +804,22 @@
 <section class="slide" data-section="11" data-title="运行截图">
 <p class="num-tag">DEMO</p>
 <h2 class="h2 mt-s">项目运行效果预览</h2>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
-<div>
-<div class="img-placeholder lg">📸 图片 1：聊天界面全貌<br><span style="font-size:15px">Phase 1 信息采集 — SessionList + 对话区</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+<div style="display:flex;flex-direction:column;align-items:center">
+<img src="assets/pics/聊天界面全貌.png" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="聊天界面全貌">
+<span style="font-size:14px;color:var(--text-2);margin-top:4px">Phase 1 信息采集 — SessionList + 对话区</span>
 </div>
-<div>
-<div class="img-placeholder lg">📸 图片 2：OCR 识别结果<br><span style="font-size:15px">Phase 2 智能审核 — 票据识别 + 可编辑修正表单</span></div>
+<div style="display:flex;flex-direction:column;align-items:center">
+<img src="assets/pics/OCR识别结果.png" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="OCR识别结果">
+<span style="font-size:14px;color:var(--text-2);margin-top:4px">Phase 2 智能审核 — 票据识别 + 可编辑修正表单</span>
 </div>
-<div>
-<div class="img-placeholder lg">📸 图片 3：中断确认弹窗<br><span style="font-size:15px">Phase 3 提交确认 — InterruptBar 确认/取消</span></div>
+<div style="display:flex;flex-direction:column;align-items:center">
+<img src="assets/pics/中断确认弹窗.png" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="中断确认弹窗">
+<span style="font-size:14px;color:var(--text-2);margin-top:4px">Phase 3 提交确认 — InterruptBar 确认/取消</span>
 </div>
-<div>
-<div class="img-placeholder lg">📸 图片 4：审批人对话审批<br><span style="font-size:15px">Phase 4 审批流转 — list_pending + approve</span></div>
+<div style="display:flex;flex-direction:column;align-items:center">
+<img src="assets/pics/审批人对话审批.png" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="审批人对话审批">
+<span style="font-size:14px;color:var(--text-2);margin-top:4px">Phase 4 审批流转 — list_pending + approve</span>
 </div>
 </div>
 </section>
