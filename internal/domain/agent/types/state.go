@@ -24,6 +24,8 @@ type ReimbursementState struct {
 	ReimbursementID uint `json:"reimbursement_id"`
 	// EmployeeID 操作员工工号
 	EmployeeID string `json:"employee_id"`
+	// GeneratedPDF base64 编码的 PDF 字节（generate_pdf 写入，send_email 读取后清除）
+	GeneratedPDF string `json:"generated_pdf,omitempty"`
 }
 
 // ItemState 一条报销明细的会话状态
