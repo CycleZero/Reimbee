@@ -1,0 +1,79 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+left to right direction
+skinparam packageStyle rectangle
+
+actor "员工" as Emp
+actor "审批人" as App
+actor "管理员" as Adm
+
+Adm -|> App
+
+rectangle "Reimbee 智能报销系统" {
+
+  together {
+    usecase "登录注册" as Auth
+
+    usecase "上传票据\nOCR识别" as UC1
+    usecase "创建报销单" as UC2
+    usecase "提交报销单\n⏸需确认" as UC3
+    usecase "取消报销单" as UC4
+    usecase "检查预算" as UC5
+    usecase "生成PDF\n发送邮件" as UC6
+
+    usecase "查看报销信息\n列表·详情·进度" as UC7
+    usecase "票据汇总\n有效期校验" as UC8
+
+    usecase "审批处理\n查看·通过·驳回" as UC9
+
+    usecase "组织信息\n部门·预算·仪表盘" as UC10
+    usecase "员工管理" as UC11
+
+    usecase "系统配置\n部门·员工·预算CRUD" as UC12
+
+    usecase "合规查询\n政策检索·合规检查" as UC13
+    usecase "知识库管理\n文档·索引" as UC14
+
+    usecase "AI 对话" as UC15
+  }
+}
+
+' Employee
+Emp --> Auth
+Emp --> UC1
+Emp --> UC2
+Emp --> UC3
+Emp --> UC4
+Emp --> UC5
+Emp --> UC6
+Emp --> UC7
+Emp --> UC8
+Emp --> UC10
+Emp --> UC13
+Emp --> UC15
+
+' Approver
+App --> UC7
+App --> UC8
+App --> UC9
+App --> UC10
+App --> UC11
+App --> UC13
+App --> UC15
+
+' Admin exclusive
+Adm --> UC12
+Adm --> UC14
+
+' Layout hints
+Auth -[hidden]right- UC1
+UC1 -[hidden]right- UC2
+UC2 -[hidden]right- UC3
+UC7 -[hidden]right- UC9
+UC9 -[hidden]right- UC12
+UC10 -[hidden]right- UC11
+UC13 -[hidden]right- UC14
+
+@enduml
