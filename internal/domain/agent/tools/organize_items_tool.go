@@ -111,10 +111,7 @@ func NewOrganizeItemsTool(
 				// 更新对应票据的 ItemID
 				for _, rct := range itemReceipts {
 					if rct.DBID != 0 {
-						if err := receiptRepo.Update(&model.Receipt{
-							Model:  gormModel(rct.DBID),
-							ItemID: dbItem.ID,
-						}); err != nil {
+						if err := receiptRepo.UpdateItemID(rct.DBID, dbItem.ID); err != nil {
 							logger.Error("更新票据归属失败",
 								zap.Uint("票据ID", rct.DBID),
 								zap.Uint("明细ID", dbItem.ID),

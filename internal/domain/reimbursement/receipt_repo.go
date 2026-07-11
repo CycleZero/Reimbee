@@ -41,6 +41,11 @@ func (r *ReceiptRepo) Update(receipt *model.Receipt) error {
 	return r.db.Save(receipt).Error
 }
 
+// UpdateItemID 仅更新票据归属的明细ID
+func (r *ReceiptRepo) UpdateItemID(receiptID uint, itemID uint) error {
+	return r.db.Model(&model.Receipt{}).Where("id = ?", receiptID).Update("item_id", itemID).Error
+}
+
 // UpdateCheckResult 更新单张票据的合规检查结果
 func (r *ReceiptRepo) UpdateCheckResult(id uint, result, message string) error {
 	return r.db.Model(&model.Receipt{}).Where("id = ?", id).
