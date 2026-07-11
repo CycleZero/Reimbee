@@ -1,0 +1,216 @@
+<mxfile host="app.diagrams.net" modified="2026-07-11T00:00:00.000Z" agent="drawio" version="24.0.0">
+  <diagram id="reimbee-arch" name="Reimbee 系统层次架构">
+    <mxGraphModel dx="1300" dy="900" grid="1" gridSize="1" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="750">
+
+      <!-- ===== LEFT SIDEBAR BG ===== -->
+      <mxCell id="sidebar-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4EDFF;strokeColor=#7A46FF;strokeWidth=1.5;arcSize=10;opacity=60;" vertex="1" parent="1">
+        <mxGeometry x="0" y="128" width="88" height="507" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 1: FRONTEND ===== -->
+      <mxCell id="layer-frontend" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1FF;strokeColor=#3B5BFF;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+        <mxGeometry x="95" y="8" width="1198" height="112" as="geometry"/>
+      </mxCell>
+      <mxCell id="frontend-title" value="🌐 前端层 — React 19 · Ant Design 6 · Zustand 5" style="text;html=1;align=left;verticalAlign=top;fontSize=16;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="105" y="14" width="600" height="24" as="geometry"/>
+      </mxCell>
+      <!-- FE subcards -->
+      <mxCell id="fe-think" value="🧠" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=28;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="115" y="48" width="90" height="56" as="geometry"/>
+      </mxCell>
+      <mxCell id="fe-tool" value="🔧" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=28;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="215" y="48" width="90" height="56" as="geometry"/>
+      </mxCell>
+      <mxCell id="fe-msg" value="💬" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=28;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="315" y="48" width="90" height="56" as="geometry"/>
+      </mxCell>
+      <mxCell id="fe-intr" value="⚠️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=28;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="415" y="48" width="90" height="56" as="geometry"/>
+      </mxCell>
+      <mxCell id="fe-bottom" value="SSE Stream · REST API · 卡片式渲染" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3B5BFF;fillOpacity=12;strokeColor=none;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="530" y="48" width="360" height="28" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 2: SERVICE ===== -->
+      <mxCell id="layer-service" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0F4FF;strokeColor=#5B8CFF;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+        <mxGeometry x="95" y="128" width="1198" height="68" as="geometry"/>
+      </mxCell>
+      <mxCell id="service-title" value="🔌 服务层 Service / HTTP — Gin · 8 个领域服务" style="text;html=1;align=left;verticalAlign=top;fontSize=16;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="105" y="134" width="500" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-auth" value="Auth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="115" y="164" width="90" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-agent" value="Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=2;fontSize=13;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="212" y="164" width="90" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-emp" value="Emp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="309" y="164" width="72" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-dept" value="Dept" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="388" y="164" width="72" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-bgt" value="Bgt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="467" y="164" width="72" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-rmb" value="Rmb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="546" y="164" width="72" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-apr" value="Apr" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="625" y="164" width="72" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="svc-cmp" value="Cmp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="704" y="164" width="72" height="24" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 3A: AGENT (upper-left) ===== -->
+      <mxCell id="layer-agent" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4EDFF;strokeColor=#7A46FF;strokeWidth=3;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="95" y="204" width="560" height="150" as="geometry"/>
+      </mxCell>
+      <mxCell id="agent-title" value="🧠 智能体层 Agent ★ 核心 — Blades 框架 · 22 工具 · ReAct" style="text;html=1;align=left;verticalAlign=top;fontSize=17;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="108" y="212" width="530" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="ag-tools" value="🔧&#xa;22 工具" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=2;fontSize=13;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="120" y="250" width="115" height="88" as="geometry"/>
+      </mxCell>
+      <mxCell id="ag-react" value="🔄&#xa;ReAct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=2;fontSize=13;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="250" y="250" width="115" height="88" as="geometry"/>
+      </mxCell>
+      <mxCell id="ag-intr" value="⏸️&#xa;中断" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=2;fontSize=13;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="380" y="250" width="115" height="88" as="geometry"/>
+      </mxCell>
+      <mxCell id="ag-sub" value="🤖&#xa;子Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=2;fontSize=13;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="510" y="250" width="115" height="88" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 3B: BIZ RIGHT WING (extends up beside Agent) ===== -->
+      <mxCell id="biz-right-wing" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F2FF;strokeColor=#9B6CFF;strokeWidth=2;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="663" y="204" width="630" height="150" as="geometry"/>
+      </mxCell>
+      <mxCell id="biz-wing-tag" value="↖ Biz 色块向上延伸包裹 Agent" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontColor=#9B6CFF;fontFamily=Inter;fontStyle=2;rotation=-90;" vertex="1" parent="1">
+        <mxGeometry x="1210" y="230" width="16" height="100" as="geometry"/>
+      </mxCell>
+      <!-- Biz wing subcards (row 1) -->
+      <mxCell id="bw-sm" value="📊&#xa;状态机" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="680" y="238" width="120" height="50" as="geometry"/>
+      </mxCell>
+      <mxCell id="bw-ap" value="👔&#xa;审批链" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="812" y="238" width="120" height="50" as="geometry"/>
+      </mxCell>
+      <mxCell id="bw-bg" value="💰&#xa;预算" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="944" y="238" width="100" height="50" as="geometry"/>
+      </mxCell>
+      <mxCell id="bw-cp" value="✅&#xa;合规" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="1056" y="238" width="100" height="50" as="geometry"/>
+      </mxCell>
+      <!-- Biz wing subcards (row 2) -->
+      <mxCell id="bw-emp" value="👥&#xa;员工" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="680" y="296" width="120" height="50" as="geometry"/>
+      </mxCell>
+      <mxCell id="bw-dpt" value="🏢&#xa;部门" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="812" y="296" width="120" height="50" as="geometry"/>
+      </mxCell>
+      <mxCell id="bw-mail" value="📧&#xa;邮件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="944" y="296" width="100" height="50" as="geometry"/>
+      </mxCell>
+      <mxCell id="bw-pdf" value="📄&#xa;PDF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#5B3FCC;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="1056" y="296" width="100" height="50" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 3C: BIZ BOTTOM (full width below Agent) ===== -->
+      <mxCell id="layer-biz-bottom" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F2FF;strokeColor=#9B6CFF;strokeWidth=2;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="95" y="362" width="1198" height="90" as="geometry"/>
+      </mxCell>
+      <mxCell id="biz-bottom-title" value="⚙️ 业务逻辑层 Biz — 状态机 · 审批链 · 预算冻结/结算 · 合规审核 · 员工/部门管理 · PDF/邮件" style="text;html=1;align=left;verticalAlign=top;fontSize=16;fontColor=#5B3FCC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="105" y="370" width="1100" height="24" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 4: INFRA ===== -->
+      <mxCell id="layer-infra" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4EDFF;strokeColor=#7A46FF;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+        <mxGeometry x="95" y="460" width="1198" height="70" as="geometry"/>
+      </mxCell>
+      <mxCell id="infra-title" value="🧱 基础设施层 — 全配置可插拔" style="text;html=1;align=left;verticalAlign=top;fontSize=16;fontColor=#7A46FF;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="105" y="466" width="400" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-emb" value="Emb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="115" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-vs" value="VS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="196" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-ocr" value="OCR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="277" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-stor" value="Stor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="358" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-ses" value="Ses" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="439" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-pdf" value="PDF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="520" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-mail" value="Mail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="601" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+      <mxCell id="inf-smtp" value="SMTP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.5;fontSize=12;fontColor=#6A5ACD;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="682" y="496" width="72" height="26" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== LAYER 5: DATA ===== -->
+      <mxCell id="layer-data" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1FF;strokeColor=#3B5BFF;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+        <mxGeometry x="95" y="538" width="1198" height="62" as="geometry"/>
+      </mxCell>
+      <mxCell id="data-title" value="💾 数据层 — MySQL · Redis · MinIO · pgvector" style="text;html=1;align=left;verticalAlign=top;fontSize=16;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="105" y="544" width="500" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="data-mysql" value="MySQL 8" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="115" y="572" width="120" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="data-redis" value="Redis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="248" y="572" width="100" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="data-minio" value="MinIO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="361" y="572" width="100" height="24" as="geometry"/>
+      </mxCell>
+      <mxCell id="data-pgv" value="pgvector" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B5BFF;strokeWidth=1.5;fontSize=13;fontColor=#3B5BFF;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+        <mxGeometry x="474" y="572" width="120" height="24" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== SIDEBAR ITEMS ===== -->
+      <mxCell id="side-wire" value="🔌 Wire DI&#xa;编译时注入" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.2;fontSize=10;fontColor=#7A46FF;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="8" y="138" width="76" height="46" as="geometry"/>
+      </mxCell>
+      <mxCell id="side-viper" value="⚙️ Viper&#xa;配置管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.2;fontSize=10;fontColor=#7A46FF;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="8" y="214" width="76" height="46" as="geometry"/>
+      </mxCell>
+      <mxCell id="side-zap" value="📝 Zap&#xa;结构化日志" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.2;fontSize=10;fontColor=#7A46FF;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="8" y="278" width="76" height="46" as="geometry"/>
+      </mxCell>
+      <mxCell id="side-jwt" value="🔐 JWT·RBAC&#xa;认证授权" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.2;fontSize=10;fontColor=#7A46FF;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="8" y="342" width="76" height="46" as="geometry"/>
+      </mxCell>
+      <mxCell id="side-cors" value="🌍 CORS&#xa;跨域中间件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.2;fontSize=10;fontColor=#7A46FF;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="8" y="406" width="76" height="46" as="geometry"/>
+      </mxCell>
+      <mxCell id="side-log" value="📋 Log&#xa;请求日志" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7A46FF;strokeWidth=1.2;fontSize=10;fontColor=#7A46FF;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="8" y="470" width="76" height="46" as="geometry"/>
+      </mxCell>
+
+      <!-- ===== CONNECTING ARROWS (layer separators) ===== -->
+      <mxCell id="arrow-fe-svc" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#3B5BFF;strokeWidth=1.5;dashed=1;dashPattern=4 4;" edge="1" parent="1">
+        <mxGeometry width="50" height="50" relative="1" as="geometry">
+          <mxPoint x="694" y="120" as="sourcePoint"/>
+          <mxPoint x="694" y="128" as="targetPoint"/>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="arrow-svc-agent" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#7A46FF;strokeWidth=2;dashed=1;dashPattern=4 4;" edge="1" parent="1">
+        <mxGeometry width="50" height="50" relative="1" as="geometry">
+          <mxPoint x="694" y="196" as="sourcePoint"/>
+          <mxPoint x="375" y="204" as="targetPoint"/>
+        </mxGeometry>
+      </mxCell>
+
+    </mxGraphModel>
+  </diagram>
+</mxfile>
