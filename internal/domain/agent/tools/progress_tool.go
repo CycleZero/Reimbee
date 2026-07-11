@@ -27,9 +27,10 @@ type ProgressOutput struct {
 type ProgressItem struct {
 	No          string           `json:"no"`           // 报销单号
 	Status      string           `json:"status"`       // 整体状态（pending/reviewing/approved/rejected）
-	TotalAmount int64            `json:"total_amount"`  // 报销总金额（分）
+	TotalAmount int64            `json:"total_amount"` // 报销总金额（分）
 	SubmitNote  string           `json:"submit_note"`  // 报销事由
 	Approvals   []ApprovalStatus `json:"approvals"`    // 各审批人的审批状态
+	Comment     string           `json:"comment"`      // 金额单位提示
 }
 
 // ApprovalStatus 审批人的审批状态
@@ -104,6 +105,7 @@ func buildProgressItem(rm *model.Reimbursement, records []*model.ApprovalRecord)
 		Status:      rm.Status,
 		TotalAmount: rm.TotalAmount,
 		SubmitNote:  rm.SubmitNote,
+		Comment:     "TotalAmount金额单位为分，呈现时建议转换为元",
 	}
 
 	for _, r := range records {

@@ -22,6 +22,7 @@ type BudgetOutput struct {
 	Remaining           int64   `json:"remaining"`
 	NeedSpecialApproval bool    `json:"need_special_approval"`
 	UsageRate           float64 `json:"usage_rate"`
+	Comment             string  `json:"comment"`
 }
 
 type BudgetTool struct{ tools.Tool }
@@ -54,11 +55,12 @@ func NewBudgetTool(budgetBiz *budget.BudgetBiz, store infra.StateStore, logger *
 			}
 			store.SaveState(ctx, sid, infra.StateKeyReimbursement, &state)
 
-			return BudgetOutput{
-				Remaining:           remaining,
-				NeedSpecialApproval: needSpecial,
-				UsageRate:           usageRate,
-			}, nil
+		return BudgetOutput{
+			Remaining:           remaining,
+			NeedSpecialApproval: needSpecial,
+			UsageRate:           usageRate,
+			Comment:             "Remaining金额单位为分，呈现时建议转换为元",
+		}, nil
 		},
 	)
 	if err != nil {

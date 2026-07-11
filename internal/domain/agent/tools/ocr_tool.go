@@ -33,6 +33,7 @@ type OCROutput struct {
 	RawText       string  `json:"raw_text"`
 	Error         string  `json:"error,omitempty"`
 	Retry         bool    `json:"retry"`
+	Comment       string  `json:"comment"`
 }
 
 type OCRTool struct{ tools.Tool }
@@ -134,18 +135,19 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 
 			logger.Info("OCR识别成功", zap.Float64("金额(元)", result.Amount), zap.String("类别", result.Category))
 
-			return OCROutput{
-				InvoiceCode:   result.InvoiceCode,
-				InvoiceNumber: result.InvoiceNumber,
-				Amount:        amountInCents,
-				Date:          result.Date,
-				SellerName:    result.SellerName,
-				SellerTaxID:   result.SellerTaxID,
-				BuyerName:     result.BuyerName,
-				Category:      result.Category,
-				Confidence:    result.Confidence,
-				RawText:       result.RawText,
-			}, nil
+		return OCROutput{
+			InvoiceCode:   result.InvoiceCode,
+			InvoiceNumber: result.InvoiceNumber,
+			Amount:        amountInCents,
+			Date:          result.Date,
+			SellerName:    result.SellerName,
+			SellerTaxID:   result.SellerTaxID,
+			BuyerName:     result.BuyerName,
+			Category:      result.Category,
+			Confidence:    result.Confidence,
+			RawText:       result.RawText,
+			Comment:       "Amount金额单位为分，呈现时建议转换为元",
+		}, nil
 		},
 	)
 	if err != nil {

@@ -27,8 +27,9 @@ type QueryOutput struct {
 type ReimbursementSummary struct {
 	No          string `json:"no"`           // 报销单号
 	Status      string `json:"status"`       // 状态
-	TotalAmount int64  `json:"total_amount"`  // 报销总金额（分）
+	TotalAmount int64  `json:"total_amount"` // 报销总金额（分）
 	CreatedAt   string `json:"created_at"`   // 创建时间
+	Comment     string `json:"comment"`      // 金额单位提示
 }
 
 // QueryTool Wire 命名类型（Blades tools.Tool）
@@ -60,15 +61,16 @@ func NewQueryTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *log.
 			}
 
 			// 转换为摘要结构
-			items := make([]ReimbursementSummary, 0, len(rms))
-			for _, rm := range rms {
-				items = append(items, ReimbursementSummary{
-					No:          rm.ReimbursementNo,
-					Status:      rm.Status,
-					TotalAmount: rm.TotalAmount,
-					CreatedAt:   rm.CreatedAt.Format("2006-01-02 15:04:05"),
-				})
-			}
+		items := make([]ReimbursementSummary, 0, len(rms))
+		for _, rm := range rms {
+			items = append(items, ReimbursementSummary{
+				No:          rm.ReimbursementNo,
+				Status:      rm.Status,
+				TotalAmount: rm.TotalAmount,
+				CreatedAt:   rm.CreatedAt.Format("2006-01-02 15:04:05"),
+				Comment:     "TotalAmount金额单位为分，呈现时建议转换为元",
+			})
+		}
 
 			logger.Info("报销记录查询完成",
 				zap.Int64("总数", total),

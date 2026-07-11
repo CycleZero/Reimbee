@@ -18,6 +18,7 @@ type PendingItem struct {
 	SubmitNote  string `json:"submit_note"`
 	TotalAmount int64  `json:"total_amount"`
 	CreatedAt   string `json:"created_at"`
+	Comment     string `json:"comment"`
 }
 
 type PendingOutput struct {
@@ -39,25 +40,27 @@ func NewPendingTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger *lo
 				if err != nil {
 					return PendingOutput{}, fmt.Errorf("查询待审批列表失败: %w", err)
 				}
-				items = make([]PendingItem, 0, len(rms))
-				for _, rm := range rms {
-					items = append(items, PendingItem{
-						ID: rm.ID, No: rm.ReimbursementNo, SubmitNote: rm.SubmitNote,
-						TotalAmount: rm.TotalAmount, CreatedAt: rm.CreatedAt.Format("2006-01-02 15:04:05"),
-					})
-				}
-			} else {
-				rms, err := reimbursementBiz.ListPending()
-				if err != nil {
-					return PendingOutput{}, fmt.Errorf("查询待审批列表失败: %w", err)
-				}
-				items = make([]PendingItem, 0, len(rms))
-				for _, rm := range rms {
-					items = append(items, PendingItem{
-						ID: rm.ID, No: rm.ReimbursementNo, SubmitNote: rm.SubmitNote,
-						TotalAmount: rm.TotalAmount, CreatedAt: rm.CreatedAt.Format("2006-01-02 15:04:05"),
-					})
-				}
+			items = make([]PendingItem, 0, len(rms))
+			for _, rm := range rms {
+				items = append(items, PendingItem{
+					ID: rm.ID, No: rm.ReimbursementNo, SubmitNote: rm.SubmitNote,
+					TotalAmount: rm.TotalAmount, CreatedAt: rm.CreatedAt.Format("2006-01-02 15:04:05"),
+					Comment: "TotalAmount金额单位为分，呈现时建议转换为元",
+				})
+			}
+		} else {
+			rms, err := reimbursementBiz.ListPending()
+			if err != nil {
+				return PendingOutput{}, fmt.Errorf("查询待审批列表失败: %w", err)
+			}
+			items = make([]PendingItem, 0, len(rms))
+			for _, rm := range rms {
+				items = append(items, PendingItem{
+					ID: rm.ID, No: rm.ReimbursementNo, SubmitNote: rm.SubmitNote,
+					TotalAmount: rm.TotalAmount, CreatedAt: rm.CreatedAt.Format("2006-01-02 15:04:05"),
+					Comment: "TotalAmount金额单位为分，呈现时建议转换为元",
+				})
+			}
 			}
 			logger.Info("待审批列表查询完成", zap.Int("数量", len(items)))
 			return PendingOutput{List: items}, nil
