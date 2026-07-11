@@ -1,0 +1,77 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+left to right direction
+
+actor "员工" as Emp
+actor "审批人" as App
+actor "管理员" as Adm
+
+Adm -|> App
+
+rectangle "认证" {
+  usecase (登录) as L
+  usecase (注册) as R
+}
+
+rectangle "报销管理" {
+  usecase (上传票据) as U1
+  usecase (创建报销单) as U2
+  usecase (提交报销单\n⏸需确认) as U3
+  usecase (取消报销单) as U4
+  usecase (检查预算) as U5
+  usecase (生成PDF) as U6
+  usecase (发送邮件) as U7
+  usecase (查看报销列表) as U8
+  usecase (查看报销详情) as U9
+  usecase (查看审批进度) as U10
+  usecase (汇总票据) as U11
+  usecase (校验有效期) as U12
+}
+
+rectangle "审批管理" {
+  usecase (查看待审批) as U13
+  usecase (审批通过\n⏸需确认) as U14
+  usecase (驳回报销) as U15
+}
+
+rectangle "AI对话" {
+  usecase (发起AI对话) as U16
+  usecase (会话历史) as U17
+  usecase (确认操作) as U18
+}
+
+Emp --> L
+Emp --> R
+Emp --> U1
+Emp --> U2
+Emp --> U3
+Emp --> U4
+Emp --> U5
+Emp --> U6
+Emp --> U7
+Emp --> U8
+Emp --> U9
+Emp --> U10
+Emp --> U11
+Emp --> U12
+Emp --> U16
+Emp --> U17
+Emp --> U18
+
+App --> L
+App --> R
+App --> U8
+App --> U9
+App --> U10
+App --> U11
+App --> U12
+App --> U13
+App --> U14
+App --> U15
+App --> U16
+App --> U17
+App --> U18
+
+@enduml

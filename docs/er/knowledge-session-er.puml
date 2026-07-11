@@ -1,0 +1,67 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+
+entity "Employee 员工" as e {
+  * id : BIGINT <<PK>>
+  * employee_id : VARCHAR(20)
+  * name : VARCHAR(50)
+}
+
+entity "PolicyDocument 政策文档" as pd {
+  * id : BIGINT <<PK>>
+  * title : VARCHAR(200)
+  * content : LONGTEXT
+  version : VARCHAR(20)
+  effective_date : VARCHAR(20)
+  status : active|archived
+}
+
+entity "PolicyChunk 文档分块" as pc {
+  * id : BIGINT <<PK>>
+  * document_id : BIGINT <<FK>>
+  * chunk_index : INT
+  * content : TEXT
+  embedding : MEDIUMTEXT
+}
+
+entity "SessionMeta 会话元数据" as sm {
+  * id : BIGINT <<PK>>
+  * session_id : VARCHAR(36)
+  * user_id : BIGINT
+  employee_id : VARCHAR(32)
+  employee_name : VARCHAR(64)
+  role : VARCHAR(20)
+  status : active|completed|expired
+  summary : VARCHAR(512)
+  message_count : BIGINT
+  expires_at : DATETIME
+}
+
+entity "SessionMessage 会话消息" as sg {
+  * id : BIGINT <<PK>>
+  * session_id : VARCHAR(36) <<FK>>
+  * seq : BIGINT
+  * role : user|assistant|tool|system
+  content : TEXT
+  tool_name : VARCHAR(64)
+  tool_call_id : VARCHAR(64)
+  tool_request : TEXT
+  tool_output : TEXT
+  blades_json : MEDIUMTEXT
+}
+
+e ||--o{ sm
+pd ||--o{ pc
+sm ||--o{ sg
+
+legend right
+  PolicyChunk.embedding 存1024维向量JSON
+  支持 Milvus / pgvector / Chroma
+  --
+  SessionMessage.blades_json 存完整
+  blades.Message (Parts/Actions/Token)
+endlegend
+@enduml

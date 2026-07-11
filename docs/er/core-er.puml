@@ -1,0 +1,95 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+
+entity "Department 部门" as d {
+  * id : BIGINT <<PK>>
+  * name : VARCHAR(100)
+  manager_id : BIGINT <<FK>>
+}
+
+entity "Employee 员工" as e {
+  * id : BIGINT <<PK>>
+  * employee_id : VARCHAR(20)
+  * name : VARCHAR(50)
+  password_hash : VARCHAR(255)
+  department_id : BIGINT <<FK>>
+  email : VARCHAR(100)
+  * role : employee|approver|admin
+  is_approver : BOOL
+}
+
+entity "DepartmentBudget 部门预算" as b {
+  * id : BIGINT <<PK>>
+  * department_id : BIGINT <<FK>>
+  * fiscal_year : INT
+  annual_budget : BIGINT
+  spent_amount : BIGINT
+  frozen_amount : BIGINT
+}
+
+entity "Reimbursement 报销单" as r {
+  * id : BIGINT <<PK>>
+  * reimbursement_no : VARCHAR(20)
+  employee_id : VARCHAR(20)
+  employee_name : VARCHAR(50)
+  department_id : BIGINT <<FK>>
+  total_amount : BIGINT
+  * status : draft|pending|reviewing|approved|rejected
+  submit_note : TEXT
+  need_special_approval : BOOL
+}
+
+entity "ReimbursementItem 报销明细" as ri {
+  * id : BIGINT <<PK>>
+  * reimbursement_id : BIGINT <<FK>>
+  * category : VARCHAR(50)
+  amount : BIGINT
+  description : VARCHAR(500)
+}
+
+entity "Receipt 票据凭证" as rc {
+  * id : BIGINT <<PK>>
+  item_id : BIGINT <<FK>>
+  invoice_code : VARCHAR(50)
+  invoice_number : VARCHAR(50)
+  amount : BIGINT
+  invoice_date : VARCHAR(20)
+  seller_name : VARCHAR(200)
+  category : VARCHAR(50)
+  image_path : VARCHAR(500)
+  ..
+  ocr_raw_amount : BIGINT
+  ocr_confid : FLOAT
+  is_modified : BOOL
+  approver_choice : ocr|user
+  check_result : pass|warning|error
+}
+
+entity "ApprovalRecord 审批记录" as ar {
+  * id : BIGINT <<PK>>
+  * reimbursement_id : BIGINT <<FK>>
+  * approver_name : VARCHAR(50)
+  approver_email : VARCHAR(100)
+  * action : pending|approved|rejected
+  comment : TEXT
+  action_at : DATETIME
+}
+
+d ||--o{ e
+d ||--o{ b
+e ||--o{ r
+d ||--o{ r
+r ||--o{ ri
+r ||--o{ ar
+ri ||--o{ rc
+
+legend right
+  * = NOT NULL
+  <<PK>> = 主键  <<FK>> = 外键
+  DB存分(int64) API传元(float64)
+  Receipt含OCR审计链
+endlegend
+@enduml

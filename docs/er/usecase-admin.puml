@@ -1,0 +1,49 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+left to right direction
+
+actor "员工" as Emp
+actor "审批人" as App
+actor "管理员" as Adm
+
+Adm -|> App
+
+rectangle "系统管理" {
+  usecase (管理部门\nCRUD) as U1
+  usecase (管理员工\nCRUD) as U2
+  usecase (管理预算\nCRUD) as U3
+  usecase (查看部门列表) as U4
+  usecase (查看预算看板) as U5
+  usecase (查看仪表盘) as U6
+  usecase (查看员工列表) as U7
+}
+
+rectangle "知识库管理" {
+  usecase (检索政策) as U8
+  usecase (合规检查) as U9
+  usecase (管理政策文档) as U10
+  usecase (索引政策文档) as U11
+}
+
+Emp --> U4
+Emp --> U5
+Emp --> U6
+Emp --> U8
+Emp --> U9
+
+App --> U4
+App --> U5
+App --> U6
+App --> U7
+App --> U8
+App --> U9
+
+Adm --> U1
+Adm --> U2
+Adm --> U3
+Adm --> U10
+Adm --> U11
+
+@enduml
