@@ -107,8 +107,12 @@ func (s *MinIOFileStorage) Delete(ctx context.Context, objectName string) error 
 }
 
 // URL 返回 MinIO 文件访问 URL
-func (s *MinIOFileStorage) URL(_ context.Context, objectName string) string {
-	return fmt.Sprintf("%s/%s/%s", s.baseURL, s.bucketName, objectName)
+func (s *MinIOFileStorage) URL(ctx context.Context, objectName string) string {
+	u, err := s.client.PresignedGetObject(ctx, s.bucketName, objectName, 24*time.Hour, url.Values{})
+	if err != nil {
+		return ""
+	}
+	return u.String()
 }
 
 // Client 返回原始 MinIO Client（供测试使用）
