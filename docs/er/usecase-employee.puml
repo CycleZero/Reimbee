@@ -3,26 +3,26 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
 skinparam defaultFontSize 13
 
-actor "员工" as Emp
+actor "员工\nEmployee" as Emp
 
-package "核心流程" {
-  usecase "登录注册" as UC0
-  usecase "上传票据" as UC1
+package "📋 报销流程" {
+  usecase "登录" as UC0
+  usecase "上传票据\nOCR识别" as UC1
   usecase "创建报销单" as UC2
-  usecase "提交报销单\n需确认" as UC3
-  usecase "取消报销单" as UC4
+  usecase "提交报销单\n⏸需确认" as UC3
 }
 
-package "审核与输出" {
-  usecase "检查预算" as UC5
-  usecase "合规查询\n检索政策·合规检查" as UC6
-  usecase "生成PDF\n发送邮件" as UC7
+package "🔍 审核查询" {
+  usecase "检查预算" as UC4
+  usecase "合规检查\n政策检索·合规审核" as UC5
+  usecase "查看报销\n列表·详情·进度" as UC6
+  usecase "票据汇总\n有效期校验" as UC7
 }
 
-package "查询与交互" {
-  usecase "查看报销\n列表·详情·进度" as UC8
-  usecase "票据汇总\n有效期校验" as UC9
-  usecase "查看组织信息\n部门·预算·看板" as UC10
+package "📤 输出交互" {
+  usecase "取消报销单" as UC8
+  usecase "生成PDF\n发送邮件" as UC9
+  usecase "组织信息\n部门·预算·看板" as UC10
   usecase "AI 对话" as UC11
 }
 
@@ -38,5 +38,15 @@ Emp --> UC8
 Emp --> UC9
 Emp --> UC10
 Emp --> UC11
+
+UC0 -[hidden]down- UC1
+UC1 -[hidden]down- UC2
+UC2 -[hidden]down- UC3
+UC4 -[hidden]down- UC5
+UC5 -[hidden]down- UC6
+UC6 -[hidden]down- UC7
+UC8 -[hidden]down- UC9
+UC9 -[hidden]down- UC10
+UC10 -[hidden]down- UC11
 
 @enduml
