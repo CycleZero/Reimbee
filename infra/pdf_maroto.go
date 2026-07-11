@@ -49,6 +49,7 @@ func (g *GofpdfPDFGenerator) GenerateReimbursementPDF(rm *model.Reimbursement) (
 	g.logger.Debug("开始生成报销单 PDF", zap.String("报销单号", rm.ReimbursementNo))
 
 	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetFontLocation("") // fontpath 置空：避免 gofpdf 内部 path.Join(".", absolutePath) 清掉前导 /
 	pdf.SetAutoPageBreak(true, 15)
 
 	// 注册中文字体（SimHei 只有常规体，粗体通过字号模拟）
