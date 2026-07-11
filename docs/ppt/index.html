@@ -769,39 +769,53 @@
 <!-- 13. TESTING -->
 <section class="slide" data-section="10" data-title="测试与效果">
 <p class="num-tag">TESTING</p>
-<h2 class="h2 mt-s" style="margin-bottom:4px">测试场景与业务效果</h2>
+<h2 class="h2 mt-s" style="margin-bottom:6px">测试场景与业务效果</h2>
+
+<div style="display:flex;gap:10px;margin-bottom:8px">
+<div class="card" data-anim="fade-up" style="flex:1;padding:10px 14px;border-left:4px solid var(--good);font-size:14px">
+  <strong style="color:var(--good);font-size:16px">正常全流程</strong>
+  <p style="margin:4px 0 0;color:var(--text-2)">上传有效发票 → 8 步串联 → 审批通过</p>
+</div>
+<div class="card" data-anim="fade-up" style="flex:1;padding:10px 14px;border-left:4px solid var(--warn);font-size:14px">
+  <strong style="color:var(--warn);font-size:16px">过期票据拦截</strong>
+  <p style="margin:4px 0 0;color:var(--text-2)">超过 90 天 → 合规 error + 建议</p>
+</div>
+<div class="card" data-anim="fade-up" style="flex:1;padding:10px 14px;border-left:4px solid var(--warn);font-size:14px">
+  <strong style="color:var(--warn);font-size:16px">预算超额预警</strong>
+  <p style="margin:4px 0 0;color:var(--text-2)">超出可用预算 → 标记特批</p>
+</div>
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:8px">
+<div class="card" data-anim="fade-up" style="flex:1;padding:10px 14px;border-left:4px solid var(--accent);font-size:14px">
+  <strong style="color:var(--accent);font-size:16px">中断确认恢复</strong>
+  <p style="margin:4px 0 0;color:var(--text-2)">确认→继续执行 / 取消→保持草稿</p>
+</div>
+<div class="card" data-anim="fade-up" style="flex:1;padding:10px 14px;border-left:4px solid var(--good);font-size:14px">
+  <strong style="color:var(--good);font-size:16px">票据重复检测</strong>
+  <p style="margin:4px 0 0;color:var(--text-2)">同图二次上传 → 自动拦截提示</p>
+</div>
+<div class="card" data-anim="fade-up" style="flex:1;padding:10px 14px;border-left:4px solid var(--accent);font-size:14px">
+  <strong style="color:var(--accent);font-size:16px">测试结果</strong>
+  <p style="margin:4px 0 0;color:var(--text-2)">go test 10/10 · tsc 零错误 · 全通过</p>
+</div>
+</div>
 
 <div style="display:flex;gap:14px;flex:1;min-height:0">
-<div style="flex:1.1;display:flex;flex-direction:column;gap:6px">
-<table style="font-size:13px">
-<thead><tr><th>场景</th><th>输入条件</th><th>预期结果</th><th></th></tr></thead>
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+<img src="assets/pics/拦截示例.png" style="width:100%;max-height:340px;object-fit:contain" alt="过期票据拦截">
+<span style="font-size:12px;color:var(--text-3);text-align:center;margin-top:6px">边界测试示例：过期票据 + 模糊类别 → 合规返回 error 并给出建议</span>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+<table style="font-size:14px">
+<thead><tr><th style="font-size:18px;padding-bottom:6px" colspan="2">业务目标达成对照</th></tr></thead>
 <tbody>
-<tr><td>正常全流程</td><td>上传有效发票→对话提交→审批通过</td><td>8步串联无中断，状态 approved</td><td>✅</td></tr>
-<tr><td>过期票据拦截</td><td>上传开票日期超90天的发票</td><td>合规返回 error，提示超期不可报销</td><td>✅</td></tr>
-<tr><td>预算超额预警</td><td>报销金额超过部门可用预算</td><td>标记 need_special_approval</td><td>✅</td></tr>
-<tr><td>中断确认恢复</td><td>提交时弹出确认→分别确认/取消</td><td>确认=继续提交，取消=保持草稿</td><td>✅</td></tr>
-<tr><td>票据重复上传</td><td>同一张图上传两次</td><td>第二次被拦截（防重复检测）</td><td>✅</td></tr>
+<tr><td style="width:40%;color:var(--accent);font-weight:600;padding:6px 8px">80% 流程替代</td><td style="padding:6px 8px">仅提交/审批需人工，其余 Agent 自动编排</td></tr>
+<tr><td style="color:var(--accent-2);font-weight:600;padding:6px 8px">3min 单次耗时</td><td style="padding:6px 8px">对话式 2-3 轮完成全流程</td></tr>
+<tr><td style="color:#52c41a;font-weight:600;padding:6px 8px">&lt;5% 退回率</td><td style="padding:6px 8px">RAG + 子 Agent 双路径审核，上线 0 退回</td></tr>
+<tr><td style="color:#D94CFF;font-weight:600;padding:6px 8px">100% 可追踪</td><td style="padding:6px 8px">SSE 实时推送 + query_progress 工具</td></tr>
 </tbody>
 </table>
-
-<div style="font-size:12px;color:var(--text-2);background:var(--grad-soft);padding:6px 10px;border-radius:6px;line-height:1.5">
-<b style="color:var(--accent)">测试结果汇总：</b>go test 10/10 包通过 · tsc --noEmit 零错误 · 5 条核心场景全部通过
-</div>
-
-<table style="font-size:13px;margin-top:4px">
-<thead><tr><th>业务目标</th><th>达成情况</th><th></th></tr></thead>
-<tbody>
-<tr><td>80% 流程替代率</td><td>仅提交/审批需人工确认，其余 Agent 自动编排</td><td>✅</td></tr>
-<tr><td>3min 单次耗时</td><td>对话式 2-3 轮完成，票据上传到提交约 3 分钟</td><td>✅</td></tr>
-<tr><td>&lt;5% 合规退回率</td><td>RAG 政策检索 + 子 Agent 审核双路径，上线后 0 退回</td><td>✅</td></tr>
-<tr><td>100% 进度可追踪</td><td>SSE 实时推送 + query_progress 工具查询</td><td>✅</td></tr>
-</tbody>
-</table>
-</div>
-
-<div style="flex:0.9;display:flex;flex-direction:column;align-items:center">
-<img src="assets/pics/拦截示例.png" style="width:100%;max-height:500px;object-fit:contain" alt="过期票据+模糊类别拦截">
-<span style="font-size:12px;color:var(--text-3);margin-top:4px">边界测试示例：过期票据+模糊类别 → 合规返回 error 并给出建议</span>
 </div>
 </div>
 </section>
