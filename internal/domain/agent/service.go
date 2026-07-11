@@ -177,7 +177,7 @@ func (s *AgentService) GetHistory(c *gin.Context) {
 func (s *AgentService) HandleOCRConfirm(c *gin.Context) {
 	var req struct {
 		SessionID     string `json:"session_id" binding:"required"`
-		ImagePath     string `json:"image_path" binding:"required"`
+		ImagePath     string `json:"image_path"`
 		Amount        int64  `json:"amount"`
 		Category      string `json:"category"`
 		Date          string `json:"date"`

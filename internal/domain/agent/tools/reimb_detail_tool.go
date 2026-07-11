@@ -20,6 +20,7 @@ type ReimbDetailOutput struct {
 	TotalAmount int64  `json:"total_amount"`
 	SubmitNote  string `json:"submit_note"`
 	CreatedAt   string `json:"created_at"`
+	Comment     string `json:"comment"`
 }
 
 type ReimbDetailTool struct{ tools.Tool }
@@ -40,6 +41,7 @@ func NewReimbDetailTool(reimbursementBiz *reimbursement.ReimbursementBiz, logger
 				TotalAmount: rm.TotalAmount,
 				SubmitNote:  rm.SubmitNote,
 				CreatedAt:   rm.CreatedAt.Format("2006-01-02 15:04:05"),
+				Comment:     "TotalAmount金额单位为分，呈现时建议转换为元",
 			}, nil
 		},
 	)
