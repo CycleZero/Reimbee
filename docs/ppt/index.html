@@ -82,7 +82,7 @@
 <div style="display:flex;gap:30px;flex:1">
 
 <!-- LEFT: Pain points -->
-<div style="flex:1;display:flex;flex-direction:column;gap:10px">
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center">
 <p class="num-tag" style="margin-bottom:4px">传统报销的三大痛点</p>
 
 <div class="card" data-anim="fade-up" style="padding:18px 22px;display:flex;align-items:center;gap:18px;border-left:4px solid var(--bad)">
@@ -106,19 +106,19 @@
 <p class="num-tag" style="margin-bottom:4px">引入智能体的核心业务目标</p>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1">
-<div class="card metric" data-anim="fade-up" style="padding:24px 16px;text-align:center">
+<div class="card metric" data-anim="fade-up" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center">
   <div class="n" style="font-size:60px">80%</div>
   <div class="l" style="font-size:17px;margin-top:4px">传统业务流程<br>替代率</div>
 </div>
-<div class="card metric" data-anim="fade-up" style="padding:24px 16px;text-align:center">
+<div class="card metric" data-anim="fade-up" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center">
   <div class="n" style="font-size:60px">3<span style="font-size:24px">min</span></div>
   <div class="l" style="font-size:17px;margin-top:4px">单次报销耗时<br><span style="font-size:13px;opacity:0.7">从 15min → 3min</span></div>
 </div>
-<div class="card metric" data-anim="fade-up" style="padding:24px 16px;text-align:center">
+<div class="card metric" data-anim="fade-up" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center">
   <div class="n" style="font-size:60px">&lt;5<span style="font-size:24px">%</span></div>
   <div class="l" style="font-size:17px;margin-top:4px">合规退回率<br><span style="font-size:13px;opacity:0.7">从 30% → &lt;5%</span></div>
 </div>
-<div class="card metric" data-anim="fade-up" style="padding:24px 16px;text-align:center">
+<div class="card metric" data-anim="fade-up" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center">
   <div class="n" style="font-size:60px">100<span style="font-size:24px">%</span></div>
   <div class="l" style="font-size:17px;margin-top:4px">进度可追踪<br><span style="font-size:13px;opacity:0.7">实时推送</span></div>
 </div>
@@ -140,31 +140,32 @@
 <h2 class="h2 mt-s" style="margin-bottom:4px">三种角色 · 用户故事</h2>
 
 <!-- User stories -->
-<div style="display:flex;gap:14px;margin:6px 0 10px;font-size:16px" data-anim="fade-up">
-<div class="card card-accent" style="flex:1;padding:10px 16px;border-left:4px solid var(--accent)">
-<strong style="color:var(--accent)">🧑 员工：</strong>我想用自然语言提交报销，让AI自动识别票据、审核合规、检查预算，我只在最后确认一下。
+<div style="display:flex;gap:14px;margin:6px 0 10px;font-size:18px" data-anim="fade-up">
+<div class="card card-accent" style="flex:1;padding:12px 18px;border-left:4px solid var(--accent)">
+<strong style="color:var(--accent);font-size:18px">🧑 员工：</strong>我想用自然语言提交报销，让AI自动识别票据、审核合规、检查预算，我只在最后确认一下。
 </div>
-<div class="card card-accent" style="flex:1;padding:10px 16px;border-left:4px solid var(--accent-2)">
-<strong style="color:var(--accent-2)">👔 审批人：</strong>我想在对话中看到待审批报销的详情和合规结果，一键通过或驳回。
+<div class="card card-accent" style="flex:1;padding:12px 18px;border-left:4px solid var(--accent-2)">
+<strong style="color:var(--accent-2);font-size:18px">👔 审批人：</strong>我想在对话中看到待审批报销的详情和合规结果，一键通过或驳回。
 </div>
-<div class="card card-accent" style="flex:1;padding:10px 16px;border-left:4px solid var(--accent-3)">
-<strong style="color:var(--accent-3)">🔧 管理员：</strong>我想管理组织架构、预算、政策知识库，确保系统合规运行。
+<div class="card card-accent" style="flex:1;padding:12px 18px;border-left:4px solid var(--accent-3)">
+<strong style="color:var(--accent-3);font-size:18px">🔧 管理员：</strong>我想管理组织架构、预算、政策知识库，确保系统合规运行。
 </div>
 </div>
 
 <div style="display:flex;gap:24px;flex:1">
 
 <!-- EMPLOYEE CARD -->
-<div class="card" data-anim="fade-up" style="flex:1;padding:28px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent)">
+<div class="card" data-anim="fade-up" style="flex:1;padding:22px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent)">
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
   <circle cx="32" cy="20" r="12" fill="var(--accent)" opacity="0.15"/>
   <circle cx="32" cy="20" r="8" stroke="var(--accent)" stroke-width="2.5" fill="none"/>
   <path d="M14 52c0-10 8-16 18-16s18 6 18 16" stroke="var(--accent)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
 </svg>
-<h3 class="h3" style="font-size:32px;margin:0">🧑 员工</h3>
-<div style="font-size:48px;font-weight:900;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:4px 0">19</div>
-<div style="font-size:14px;color:var(--text-3);margin-bottom:12px">Agent 工具</div>
-<div style="text-align:left;font-size:16px;line-height:2;width:100%">
+<h3 class="h3" style="font-size:34px;margin:0">🧑 员工</h3>
+<div style="font-size:50px;font-weight:900;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:4px 0">19</div>
+<div style="font-size:15px;color:var(--text-3);margin-bottom:12px">Agent 工具</div>
+<div style="width:60%;height:1px;background:var(--border);opacity:0.25;margin:0 0 10px 0"></div>
+<div style="text-align:center;font-size:17px;line-height:2;width:100%">
   <div>📎 上传票据 · OCR 智能识别</div>
   <div>✅ 合规审核 · 预算检查</div>
   <div>📝 创建提交 · 取消草稿</div>
@@ -174,16 +175,17 @@
 </div>
 
 <!-- APPROVER CARD -->
-<div class="card" data-anim="fade-up" style="flex:1;padding:28px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent-2)">
+<div class="card" data-anim="fade-up" style="flex:1;padding:22px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent-2)">
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
   <rect x="16" y="8" width="32" height="48" rx="4" fill="var(--accent-2)" opacity="0.1"/>
   <rect x="16" y="8" width="32" height="48" rx="4" stroke="var(--accent-2)" stroke-width="2.5" fill="none"/>
   <path d="M24 28l6 6 10-12" stroke="var(--accent-2)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
-<h3 class="h3" style="font-size:32px;margin:0">👔 审批人</h3>
-<div style="font-size:48px;font-weight:900;background:linear-gradient(135deg,var(--accent-2),var(--accent-3));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:4px 0">14</div>
-<div style="font-size:14px;color:var(--text-3);margin-bottom:12px">Agent 工具</div>
-<div style="text-align:left;font-size:16px;line-height:2;width:100%">
+<h3 class="h3" style="font-size:34px;margin:0">👔 审批人</h3>
+<div style="font-size:50px;font-weight:900;background:linear-gradient(135deg,var(--accent-2),var(--accent-3));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:4px 0">14</div>
+<div style="font-size:15px;color:var(--text-3);margin-bottom:12px">Agent 工具</div>
+<div style="width:60%;height:1px;background:var(--border);opacity:0.25;margin:0 0 10px 0"></div>
+<div style="text-align:center;font-size:17px;line-height:2;width:100%">
   <div>📋 查看待审批列表</div>
   <div>✅ 审批通过 · ❌ 驳回</div>
   <div>🔍 查看报销详情 · 进度</div>
@@ -193,7 +195,7 @@
 </div>
 
 <!-- ADMIN CARD -->
-<div class="card" data-anim="fade-up" style="flex:1;padding:28px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent-3)">
+<div class="card" data-anim="fade-up" style="flex:1;padding:22px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent-3)">
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
   <circle cx="32" cy="32" r="4" fill="var(--accent-3)"/>
   <circle cx="32" cy="32" r="22" stroke="var(--accent-3)" stroke-width="2.5" fill="none" opacity="0.3"/>
@@ -203,10 +205,11 @@
   <line x1="10" y1="32" x2="18" y2="32" stroke="var(--accent-3)" stroke-width="2.5" stroke-linecap="round"/>
   <line x1="46" y1="32" x2="54" y2="32" stroke="var(--accent-3)" stroke-width="2.5" stroke-linecap="round"/>
 </svg>
-<h3 class="h3" style="font-size:32px;margin:0">🔧 管理员</h3>
-<div style="font-size:48px;font-weight:900;background:linear-gradient(135deg,var(--accent-3),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:4px 0">14</div>
-<div style="font-size:14px;color:var(--text-3);margin-bottom:12px">Agent 工具 + REST API</div>
-<div style="text-align:left;font-size:16px;line-height:2;width:100%">
+<h3 class="h3" style="font-size:34px;margin:0">🔧 管理员</h3>
+<div style="font-size:50px;font-weight:900;background:linear-gradient(135deg,var(--accent-3),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:4px 0">14</div>
+<div style="font-size:15px;color:var(--text-3);margin-bottom:12px">Agent 工具 + REST API</div>
+<div style="width:60%;height:1px;background:var(--border);opacity:0.25;margin:0 0 10px 0"></div>
+<div style="text-align:center;font-size:17px;line-height:2;width:100%">
   <div>👥 部门 · 员工 CRUD</div>
   <div>💰 预算配置管理</div>
   <div>📚 知识库 · 政策文档</div>
@@ -412,90 +415,90 @@
 <h2 class="h2 mt-s" style="margin-bottom:6px">员工报销 Agent 全流程</h2>
 
 <!-- 3-phase flow diagram -->
-<svg width="100%" height="240" viewBox="0 0 1020 240" style="margin:6px 0" data-anim="fade-up">
+<svg width="100%" height="300" viewBox="0 0 1020 240" style="margin:4px 0" data-anim="fade-up">
   <defs>
     <marker id="fa" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--accent)"/></marker>
     <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
 
   <!-- Phase 1: Collect -->
-  <rect x="6" y="4" width="310" height="232" rx="16" fill="var(--accent)" opacity="0.04" stroke="var(--accent)" stroke-width="1.5"/>
-  <rect x="6" y="4" width="130" height="28" rx="9" fill="var(--accent)" opacity="0.12"/>
-  <text x="71" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent)">Phase 1 · 信息采集</text>
+  <rect x="4" y="4" width="290" height="232" rx="16" fill="var(--accent)" opacity="0.04" stroke="var(--accent)" stroke-width="1.5"/>
+  <rect x="4" y="4" width="130" height="28" rx="9" fill="var(--accent)" opacity="0.12"/>
+  <text x="69" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent)">Phase 1 · 信息采集</text>
 
-  <rect x="22" y="76" width="78" height="64" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="2.2"/>
-  <text x="61" y="105" text-anchor="middle" font-size="22">📎</text>
-  <text x="61" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">上传票据</text>
-  <line x1="100" y1="114" x2="128" y2="114" stroke="var(--accent)" stroke-width="2.2" marker-end="url(#fa)"/>
+  <rect x="14" y="76" width="74" height="64" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="2.2"/>
+  <text x="51" y="105" text-anchor="middle" font-size="22">📎</text>
+  <text x="51" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">上传票据</text>
+  <line x1="88" y1="114" x2="108" y2="114" stroke="var(--accent)" stroke-width="2.2" marker-end="url(#fa)"/>
 
-  <rect x="132" y="76" width="78" height="64" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="2.2"/>
-  <text x="171" y="105" text-anchor="middle" font-size="22">🔍</text>
-  <text x="171" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">OCR 识别</text>
-  <line x1="210" y1="114" x2="238" y2="114" stroke="var(--accent)" stroke-width="2.2" marker-end="url(#fa)"/>
+  <rect x="108" y="76" width="74" height="64" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="2.2"/>
+  <text x="145" y="105" text-anchor="middle" font-size="22">🔍</text>
+  <text x="145" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">OCR 识别</text>
+  <line x1="182" y1="114" x2="202" y2="114" stroke="var(--accent)" stroke-width="2.2" marker-end="url(#fa)"/>
 
-  <rect x="242" y="76" width="78" height="64" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="2.2"/>
-  <text x="281" y="105" text-anchor="middle" font-size="22">📋</text>
-  <text x="281" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">票据汇总</text>
+  <rect x="202" y="76" width="74" height="64" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="2.2"/>
+  <text x="239" y="105" text-anchor="middle" font-size="22">📋</text>
+  <text x="239" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">票据汇总</text>
 
-  <text x="161" y="180" text-anchor="middle" font-size="12" fill="var(--text-3)">recognize_invoice · list_invoices · organize_items</text>
-  <rect x="60" y="192" width="200" height="22" rx="6" fill="var(--accent)" opacity="0.06"/>
-  <text x="160" y="210" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">OCR → 归类 → 汇总展示</text>
+  <text x="147" y="180" text-anchor="middle" font-size="12" fill="var(--text-3)">recognize_invoice · list_invoices · organize_items</text>
+  <rect x="50" y="192" width="194" height="22" rx="6" fill="var(--accent)" opacity="0.06"/>
+  <text x="147" y="210" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">OCR → 归类 → 汇总展示</text>
 
   <!-- arrow P1→P2 -->
-  <line x1="316" y1="114" x2="350" y2="114" stroke="var(--accent-2)" stroke-width="2.5" marker-end="url(#fa)"/>
+  <line x1="294" y1="114" x2="318" y2="114" stroke="var(--accent-2)" stroke-width="2.5" marker-end="url(#fa)"/>
 
   <!-- Phase 2: Review -->
-  <rect x="354" y="4" width="310" height="232" rx="16" fill="var(--accent-2)" opacity="0.04" stroke="var(--accent-2)" stroke-width="1.5"/>
-  <rect x="354" y="4" width="130" height="28" rx="9" fill="var(--accent-2)" opacity="0.12"/>
-  <text x="419" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent-2)">Phase 2 · 智能审核</text>
+  <rect x="318" y="4" width="320" height="232" rx="16" fill="var(--accent-2)" opacity="0.04" stroke="var(--accent-2)" stroke-width="1.5"/>
+  <rect x="318" y="4" width="130" height="28" rx="9" fill="var(--accent-2)" opacity="0.12"/>
+  <text x="383" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent-2)">Phase 2 · 智能审核</text>
 
-  <rect x="370" y="76" width="88" height="64" rx="12" fill="var(--bg)" stroke="var(--accent-2)" stroke-width="2.2"/>
-  <text x="414" y="105" text-anchor="middle" font-size="22">✅</text>
-  <text x="414" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">合规审核</text>
-  <line x1="458" y1="114" x2="484" y2="114" stroke="var(--accent-2)" stroke-width="2.2" marker-end="url(#fa)"/>
+  <rect x="330" y="76" width="86" height="64" rx="12" fill="var(--bg)" stroke="var(--accent-2)" stroke-width="2.2"/>
+  <text x="373" y="105" text-anchor="middle" font-size="22">✅</text>
+  <text x="373" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">合规审核</text>
+  <line x1="416" y1="114" x2="438" y2="114" stroke="var(--accent-2)" stroke-width="2.2" marker-end="url(#fa)"/>
 
-  <rect x="488" y="76" width="88" height="64" rx="12" fill="var(--bg)" stroke="var(--accent-2)" stroke-width="2.2"/>
-  <text x="532" y="105" text-anchor="middle" font-size="22">💰</text>
-  <text x="532" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">预算检查</text>
-  <line x1="576" y1="114" x2="602" y2="114" stroke="var(--accent-2)" stroke-width="2.2" marker-end="url(#fa)"/>
+  <rect x="438" y="76" width="86" height="64" rx="12" fill="var(--bg)" stroke="var(--accent-2)" stroke-width="2.2"/>
+  <text x="481" y="105" text-anchor="middle" font-size="22">💰</text>
+  <text x="481" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">预算检查</text>
+  <line x1="524" y1="114" x2="546" y2="114" stroke="var(--accent-2)" stroke-width="2.2" marker-end="url(#fa)"/>
 
-  <rect x="606" y="76" width="88" height="64" rx="12" fill="var(--bg)" stroke="var(--warn)" stroke-width="2.2"/>
-  <text x="650" y="105" text-anchor="middle" font-size="22">📅</text>
-  <text x="650" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">有效期</text>
+  <rect x="546" y="76" width="86" height="64" rx="12" fill="var(--bg)" stroke="var(--warn)" stroke-width="2.2"/>
+  <text x="589" y="105" text-anchor="middle" font-size="22">📅</text>
+  <text x="589" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">有效期</text>
 
-  <text x="509" y="180" text-anchor="middle" font-size="12" fill="var(--text-3)">check_compliance · check_budget · check_deadline</text>
-  <rect x="390" y="192" width="238" height="22" rx="6" fill="var(--accent-2)" opacity="0.06"/>
-  <text x="509" y="210" text-anchor="middle" font-size="11" fill="var(--accent-2)" font-weight="600">子Agent RAG 审核 · 预算冻结 · 90天校验</text>
+  <text x="479" y="180" text-anchor="middle" font-size="12" fill="var(--text-3)">check_compliance · check_budget · check_deadline</text>
+  <rect x="360" y="192" width="238" height="22" rx="6" fill="var(--accent-2)" opacity="0.06"/>
+  <text x="479" y="210" text-anchor="middle" font-size="11" fill="var(--accent-2)" font-weight="600">子Agent RAG 审核 · 预算冻结 · 90天校验</text>
 
   <!-- arrow P2→P3 -->
-  <line x1="664" y1="114" x2="698" y2="114" stroke="var(--accent-3)" stroke-width="2.5" marker-end="url(#fa)"/>
+  <line x1="638" y1="114" x2="662" y2="114" stroke="var(--accent-3)" stroke-width="2.5" marker-end="url(#fa)"/>
 
   <!-- Phase 3: Submit & Complete -->
-  <rect x="702" y="4" width="314" height="232" rx="16" fill="var(--good)" opacity="0.04" stroke="var(--good)" stroke-width="1.5"/>
-  <rect x="702" y="4" width="130" height="28" rx="9" fill="var(--good)" opacity="0.12"/>
-  <text x="767" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="var(--good)">Phase 3 · 提交完成</text>
+  <rect x="662" y="4" width="358" height="232" rx="16" fill="var(--good)" opacity="0.04" stroke="var(--good)" stroke-width="1.5"/>
+  <rect x="662" y="4" width="130" height="28" rx="9" fill="var(--good)" opacity="0.12"/>
+  <text x="727" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="var(--good)">Phase 3 · 提交完成</text>
 
-  <rect x="718" y="76" width="82" height="64" rx="12" fill="var(--bg)" stroke="var(--good)" stroke-width="2.2"/>
-  <text x="759" y="105" text-anchor="middle" font-size="22">📝</text>
-  <text x="759" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">创建草稿</text>
-  <line x1="800" y1="114" x2="826" y2="114" stroke="var(--good)" stroke-width="2.2" marker-end="url(#fa)"/>
+  <rect x="699" y="76" width="80" height="64" rx="12" fill="var(--bg)" stroke="var(--good)" stroke-width="2.2"/>
+  <text x="739" y="105" text-anchor="middle" font-size="22">📝</text>
+  <text x="739" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">创建草稿</text>
+  <line x1="779" y1="114" x2="801" y2="114" stroke="var(--good)" stroke-width="2.2" marker-end="url(#fa)"/>
 
-  <rect x="830" y="72" width="96" height="64" rx="14" fill="var(--grad-soft)" stroke="var(--accent)" stroke-width="3.5" filter="url(#glow)"/>
-  <text x="878" y="100" text-anchor="middle" font-size="22">⚠️</text>
-  <text x="878" y="120" text-anchor="middle" font-size="14" font-weight="800" fill="var(--accent)">提交确认</text>
-  <line x1="926" y1="114" x2="952" y2="114" stroke="var(--good)" stroke-width="2.2" marker-end="url(#fa)"/>
+  <rect x="801" y="72" width="90" height="64" rx="14" fill="var(--grad-soft)" stroke="var(--accent)" stroke-width="3.5" filter="url(#glow)"/>
+  <text x="846" y="100" text-anchor="middle" font-size="22">⚠️</text>
+  <text x="846" y="120" text-anchor="middle" font-size="14" font-weight="800" fill="var(--accent)">提交确认</text>
+  <line x1="891" y1="114" x2="913" y2="114" stroke="var(--good)" stroke-width="2.2" marker-end="url(#fa)"/>
 
-  <rect x="956" y="76" width="78" height="64" rx="12" fill="var(--bg)" stroke="var(--good)" stroke-width="2.2"/>
-  <text x="995" y="105" text-anchor="middle" font-size="22">📄</text>
-  <text x="995" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">PDF+邮件</text>
+  <rect x="913" y="76" width="76" height="64" rx="12" fill="var(--bg)" stroke="var(--good)" stroke-width="2.2"/>
+  <text x="951" y="105" text-anchor="middle" font-size="22">📄</text>
+  <text x="951" y="122" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-1)">PDF+邮件</text>
 
-  <text x="859" y="180" text-anchor="middle" font-size="12" fill="var(--text-3)">create_reimb → submit_reimb ⏸️ → generate_pdf</text>
-  <rect x="750" y="192" width="218" height="22" rx="6" fill="var(--good)" opacity="0.06"/>
-  <text x="859" y="210" text-anchor="middle" font-size="11" fill="var(--good)" font-weight="600">⏸️ 唯一需人工确认 · 通过后自动归档</text>
+  <text x="841" y="180" text-anchor="middle" font-size="12" fill="var(--text-3)">create_reimb → submit_reimb ⏸️ → generate_pdf</text>
+  <rect x="732" y="192" width="218" height="22" rx="6" fill="var(--good)" opacity="0.06"/>
+  <text x="841" y="210" text-anchor="middle" font-size="11" fill="var(--good)" font-weight="600">⏸️ 唯一需人工确认 · 通过后自动归档</text>
 </svg>
 
 <!-- 4 key technique cards -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-top:6px" data-anim="fade-up">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:4px" data-anim="fade-up">
 <div class="card" style="padding:16px 18px;border-top:3px solid var(--accent)">
   <strong style="font-size:19px">🔍 OCR 智能识别</strong>
   <p style="font-size:14px;color:var(--text-2);margin:4px 0 0">多模态 LLM 识别发票 · 置信度评分 · 支持多票累加</p>
@@ -514,7 +517,7 @@
 </div>
 </div>
 
-<p style="margin-top:8px;font-size:18px;color:var(--accent);text-align:center;font-weight:700" data-anim="fade-up">
+<p style="margin-top:6px;font-size:18px;color:var(--accent);text-align:center;font-weight:700" data-anim="fade-up">
 ⚠️ 提交确认：唯一需人工介入 · 其余 7 步全部 Agent 自主完成（替代率 87.5%）
 </p>
 <aside class="notes">这里是员工报销的完整流程，一共四个阶段八步。第一阶段是信息采集，员工上传发票图片，Agent 自动调用多模态大模型做 OCR 识别，提取出发票上的金额、日期、类别、销售方这些信息。第二阶段是智能审核，Agent 先把识别出来的票据汇总展示给用户确认，然后自动去做合规审核——它会去向量库里检索公司报销政策，对每张票据做合规判断，同时检查部门预算是否充足。第三阶段是提交，合规和预算都通过之后，Agent 创建报销单草稿，这时候唯一需要人工介入的就是点击确认提交，触发了我们后面要讲的中断机制。用户确认后，系统生成审批链、冻结预算。第四阶段是自动归档，审批通过后系统生成 PDF 报销单、发送邮件通知。八步里面有七步是 Agent 自主完成的，人工替代率接近百分之八十八。</aside>
@@ -611,7 +614,7 @@
 <p class="num-tag">TOOLS</p>
 <h2 class="h2 mt-s" style="margin-bottom:8px">Agent 工具矩阵（22个）</h2>
 
-<div style="display:flex;flex-direction:column;gap:16px;flex:1;margin-top:4px">
+<div style="display:flex;flex-direction:column;gap:16px;margin-top:4px">
 
 <!-- EMPLOYEE ROW -->
 <div class="card" data-anim="fade-up" style="padding:20px 24px;border-left:5px solid var(--accent)">
@@ -864,56 +867,72 @@
 <p class="num-tag">INNOVATION</p>
 <h2 class="h2 mt-s" style="margin-bottom:6px">核心技术创新点</h2>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr 1fr;gap:10px;flex:1;margin-top:4px">
+<!-- 智能体设计维度 -->
+<div style="margin-top:2px" data-anim="fade-up">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+<span class="num-tag" style="margin:0;padding:4px 12px;font-size:15px">智能体设计</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px">
 
 <!-- 1. Decorator -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--accent)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">🧩</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--accent)">装饰器模式</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">Interruptable+RoleGuard 零侵入包装 · 任意工具加确认和鉴权</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--accent)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">🧩</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--accent)">装饰器模式</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">Interruptable+RoleGuard 零侵入包装 · 任意工具加确认和鉴权</p></div>
 </div>
 
 <!-- 2. Sub-agent -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--accent-2)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">🤖</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--accent-2)">子 Agent 嵌套</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">合规审核独立Agent · 内部ReAct+RAG · 主Agent无感知</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--accent-2)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">🤖</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--accent-2)">子 Agent 嵌套</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">合规审核独立Agent · 内部ReAct+RAG · 主Agent无感知</p></div>
 </div>
 
 <!-- 3. Interrupt -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--warn)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">⏸️</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--warn)">两阶段中断确认</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">ApprovalState一次性消费 · 防重放 · 人机协同</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--warn)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">⏸️</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--warn)">两阶段中断确认</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">ApprovalState一次性消费 · 防重放 · 人机协同</p></div>
 </div>
 
 <!-- 4. SSE cards -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--good)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">🃏</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--good)">SSE 卡片渲染</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">7事件→4卡片 · 推理可视化 · 类型切换自动弹新</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--good)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">🃏</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--good)">SSE 卡片渲染</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">7事件→4卡片 · 推理可视化 · 类型切换自动弹新</p></div>
 </div>
 
+</div>
+</div>
+
+<!-- 工程与数据维度 -->
+<div style="margin-top:10px" data-anim="fade-up">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+<span class="num-tag" style="margin:0;padding:4px 12px;font-size:15px">工程与数据</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px">
+
 <!-- 5. Role-aware -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--accent)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">🛡️</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--accent)">角色感知 Agent</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">Resolver动态工具注入 · 定制System Prompt · 双层隔离</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--accent)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">🛡️</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--accent)">角色感知 Agent</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">Resolver动态工具注入 · 定制System Prompt · 双层隔离</p></div>
 </div>
 
 <!-- 6. Amount -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--accent-2)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">💰</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--accent-2)">金额分层设计</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">DB int64(分) → API float64(元) · 消除浮点精度 · 全链路转换</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--accent-2)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">💰</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--accent-2)">金额分层设计</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">DB int64(分) → API float64(元) · 消除浮点精度 · 全链路转换</p></div>
 </div>
 
 <!-- 7. Audit chain -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--warn)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">🔍</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--warn)">三层审计链</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">OCR原始值 → 用户修正 → 审批人裁决 · 完整追责</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--warn)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">🔍</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--warn)">三层审计链</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">OCR原始值 → 用户修正 → 审批人裁决 · 完整追责</p></div>
 </div>
 
 <!-- 8. Fallback -->
-<div class="card" data-anim="fade-up" style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--good)">
-<div style="font-size:36px;width:52px;text-align:center;flex-shrink:0">⚛️</div>
-<div style="flex:1"><strong style="font-size:19px;color:var(--good)">向量+关键词双降级</strong><p style="font-size:15px;color:var(--text-2);margin:2px 0 0">Embedding不可用→关键词匹配 · 系统零中断</p></div>
+<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--good)">
+<div style="font-size:32px;width:44px;text-align:center;flex-shrink:0">⚛️</div>
+<div style="flex:1"><strong style="font-size:18px;color:var(--good)">向量+关键词双降级</strong><p style="font-size:14px;color:var(--text-2);margin:2px 0 0">Embedding不可用→关键词匹配 · 系统零中断</p></div>
 </div>
 
+</div>
 </div>
 <aside class="notes">最后总结一下我们的八个核心创新点，分成两大类。智能体设计上有四个：装饰器模式让任何工具都可以零侵入地加上确认和鉴权；子 Agent 嵌套让合规审核成为一个独立的推理单元；两阶段中断用 ApprovalState 的一次性消费保证了安全；SSE 卡片渲染把 Agent 的黑盒推理变成了可视化。工程和数据处理上也有四个：角色感知 Agent 通过 Resolver 动态分配工具集；金额分层消除精度问题——数据库存分、API 传元、Agent 工具层自动转换；三层审计链让每一张票据从 OCR 原始值到最后审批人的裁决都有据可查；向量加关键词双降级保证了合规服务在任何情况下都不会中断。</aside>
 </section>
