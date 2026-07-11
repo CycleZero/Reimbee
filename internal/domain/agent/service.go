@@ -197,29 +197,27 @@ func (s *AgentService) HandleOCRConfirm(c *gin.Context) {
 		return
 	}
 
+	// 先在待归类票据中查找，再在已归类明细中查找
 	updated := false
 	for i, rct := range state.PendingReceipts {
 		if rct.ImagePath == req.ImagePath {
-			if req.Amount > 0 {
-				state.PendingReceipts[i].Amount = req.Amount
-			}
-			if req.Category != "" {
-				state.PendingReceipts[i].Category = req.Category
-			}
-			if req.Date != "" {
-				state.PendingReceipts[i].Date = req.Date
-			}
-			if req.InvoiceCode != "" {
-				state.PendingReceipts[i].InvoiceCode = req.InvoiceCode
-			}
-			if req.InvoiceNumber != "" {
-				state.PendingReceipts[i].InvoiceNo = req.InvoiceNumber
-			}
-			if req.SellerName != "" {
-				state.PendingReceipts[i].SellerName = req.SellerName
-			}
+			updateReceipt(&state.PendingReceipts[i], req.Amount, req.Category, req.Date, req.InvoiceCode, req.InvoiceNumber, req.SellerName)
 			updated = true
 			break
+		}
+	}
+	if !updated {
+		for i := range state.Items {
+			for j := range state.Items[i].Receipts {
+				if state.Items[i].Receipts[j].ImagePath == req.ImagePath {
+					updateReceipt(&state.Items[i].Receipts[j], req.Amount, req.Category, req.Date, req.InvoiceCode, req.InvoiceNumber, req.SellerName)
+					updated = true
+					break
+				}
+			}
+			if updated {
+				break
+			}
 		}
 	}
 	if !updated {
@@ -233,4 +231,25 @@ func (s *AgentService) HandleOCRConfirm(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "已更新"})
+}
+
+func updateReceipt(rct *types.ReceiptState, amount int64, category, date, invoiceCode, invoiceNumber, sellerName string) {
+	if amount > 0 {
+		rct.Amount = amount
+	}
+	if category != "" {
+		rct.Category = category
+	}
+	if date != "" {
+		rct.Date = date
+	}
+	if invoiceCode != "" {
+		rct.InvoiceCode = invoiceCode
+	}
+	if invoiceNumber != "" {
+		rct.InvoiceNo = invoiceNumber
+	}
+	if sellerName != "" {
+		rct.SellerName = sellerName
+	}
 }
