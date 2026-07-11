@@ -21,6 +21,7 @@ type OCRInput struct {
 }
 
 type OCROutput struct {
+	ImagePath     string  `json:"image_path"`
 	InvoiceCode   string  `json:"invoice_code"`
 	InvoiceNumber string  `json:"invoice_number"`
 	Amount        int64   `json:"amount"`
@@ -136,6 +137,7 @@ func NewOCRTool(recognizer infra.OCRRecognizer, storage infra.FileStorage, store
 			logger.Info("OCR识别成功", zap.Float64("金额(元)", result.Amount), zap.String("类别", result.Category))
 
 		return OCROutput{
+			ImagePath:     input.ImagePath,
 			InvoiceCode:   result.InvoiceCode,
 			InvoiceNumber: result.InvoiceNumber,
 			Amount:        amountInCents,
