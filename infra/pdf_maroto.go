@@ -79,8 +79,8 @@ func (g *GofpdfPDFGenerator) GenerateReimbursementPDF(rm *model.Reimbursement) (
 	pdf.Ln(2)
 
 	drawInfoLine(pdf, fontName, "报销单号", rm.ReimbursementNo, "申请人", rm.EmployeeName+" ("+rm.EmployeeID+")")
-	drawInfoLine(pdf, fontName, "部门", getDeptName(rm), "总金额", fmt.Sprintf("%.2f元", float64(rm.TotalAmount)/100.0))
-	drawInfoLine(pdf, fontName, "状态", statusText(rm.Status), "事由", rm.SubmitNote)
+	drawInfoLine(pdf, fontName, "部门", getDeptName(rm), "状态", statusText(rm.Status))
+	drawInfoLine(pdf, fontName, "事由", rm.SubmitNote, "", "")
 	if rm.NeedSpecialApproval {
 		drawInfoLine(pdf, fontName, "特殊审批", "是（预算不足触发）", "", "")
 	}
@@ -116,13 +116,18 @@ func (g *GofpdfPDFGenerator) GenerateReimbursementPDF(rm *model.Reimbursement) (
 		}
 	}
 
-	// 合计
-	pdf.SetFont(	fontName, "", 9)
+	// 合计行
+	pdf.SetFont(fontName, "", 9)
 	pdf.SetFillColor(230, 230, 230)
 	pdf.CellFormat(12+36+28+26, 7, "", "", 0, "C", true, 0, "")
 	pdf.CellFormat(38, 7, fmt.Sprintf("%.2f元", float64(total)/100.0), "", 0, "R", true, 0, "")
 	pdf.CellFormat(30, 7, "", "", 1, "C", true, 0, "")
-	pdf.Ln(5)
+	pdf.Ln(2)
+
+	// 总金额
+	pdf.SetFont(fontName, "", 10)
+	pdf.CellFormat(0, 8, fmt.Sprintf("报销总额：%.2f 元", float64(total)/100.0), "", 1, "R", false, 0, "")
+	pdf.Ln(3)
 
 	// 审批记录
 	if len(rm.Approvals) > 0 {
