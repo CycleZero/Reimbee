@@ -132,9 +132,22 @@
 <!-- 4. REQUIREMENTS -->
 <section class="slide" data-title="需求分析" data-section="02">
 <p class="num-tag">REQUIREMENTS</p>
-<h2 class="h2 mt-s">三种角色 · 两大通道 · 完整闭环</h2>
+<h2 class="h2 mt-s" style="margin-bottom:4px">三种角色 · 用户故事</h2>
 
-<div style="display:flex;gap:24px;margin-top:18px;flex:1">
+<!-- User stories -->
+<div style="display:flex;gap:14px;margin:6px 0 10px;font-size:16px" data-anim="fade-up">
+<div class="card card-accent" style="flex:1;padding:10px 16px;border-left:4px solid var(--accent)">
+<strong style="color:var(--accent)">🧑 员工：</strong>我想用自然语言提交报销，让AI自动识别票据、审核合规、检查预算，我只在最后确认一下。
+</div>
+<div class="card card-accent" style="flex:1;padding:10px 16px;border-left:4px solid var(--accent-2)">
+<strong style="color:var(--accent-2)">👔 审批人：</strong>我想在对话中看到待审批报销的详情和合规结果，一键通过或驳回。
+</div>
+<div class="card card-accent" style="flex:1;padding:10px 16px;border-left:4px solid var(--accent-3)">
+<strong style="color:var(--accent-3)">🔧 管理员：</strong>我想管理组织架构、预算、政策知识库，确保系统合规运行。
+</div>
+</div>
+
+<div style="display:flex;gap:24px;flex:1">
 
 <!-- EMPLOYEE CARD -->
 <div class="card" data-anim="fade-up" style="flex:1;padding:28px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid var(--accent)">
@@ -199,15 +212,16 @@
 
 </div>
 
-<!-- BOTTOM STRIP: two channels -->
-<div style="display:flex;gap:20px;margin-top:14px" data-anim="fade-up">
-<div class="card card-soft" style="flex:1;text-align:center;padding:14px;font-size:17px">
-  <strong>💬 Agent 对话通道</strong>
-  <span style="color:var(--text-3);margin-left:8px">SSE 流式 · 22 个工具 · 自然语言交互 · 中断确认</span>
+<!-- BOTTOM: two channels + non-functional -->
+<div style="display:flex;gap:14px;margin-top:12px" data-anim="fade-up">
+<div class="card card-soft" style="flex:0.7;text-align:center;padding:10px;font-size:15px">
+  <strong>💬 Agent 对话</strong><br><span style="color:var(--text-3);font-size:13px">SSE 流式 · 22工具 · 中断确认</span>
 </div>
-<div class="card card-soft" style="flex:1;text-align:center;padding:14px;font-size:17px">
-  <strong>🔌 REST API 通道</strong>
-  <span style="color:var(--text-3);margin-left:8px">43 个端点 · JWT 认证 · RBAC 权限 · Swagger 文档</span>
+<div class="card card-soft" style="flex:0.7;text-align:center;padding:10px;font-size:15px">
+  <strong>🔌 REST API</strong><br><span style="color:var(--text-3);font-size:13px">43 端点 · JWT · RBAC · Swagger</span>
+</div>
+<div class="card card-soft" style="flex:1;padding:10px 14px;font-size:14px;line-height:1.5">
+  <strong>⏱ 非功能需求：</strong>对话首字延迟 &lt;3s · 合规审核向量+关键词双降级 · Agent 思考过程透明可解释 · 审批操作 ApprovalState 单次消费防重放
 </div>
 </div>
 </section>
@@ -234,8 +248,16 @@
 <!-- 6. ARCHITECTURE -->
 <section class="slide" data-section="03" data-title="系统架构">
 <p class="num-tag">ARCHITECTURE</p>
-<h2 class="h2 mt-s" style="margin-bottom:6px">系统总体架构</h2>
-<img src="assets/pics/架构图.png" style="width:100%;height:470px;object-fit:contain;margin-top:4px" data-anim="fade-up" alt="系统架构图">
+<h2 class="h2 mt-s" style="margin-bottom:4px">系统总体架构</h2>
+<img src="assets/pics/架构图.png" style="width:100%;height:400px;object-fit:contain;margin-top:2px" data-anim="fade-up" alt="系统架构图">
+<div style="display:flex;gap:14px;margin-top:6px" data-anim="fade-up">
+<div class="card card-soft" style="flex:1;padding:10px 14px;font-size:15px">
+<strong style="color:var(--accent)">技术选型：</strong>Go(Gin)高并发单二进制 · DeepSeek性价比最优 · Wire编译时DI · React+Zustand卡片渲染 · pgvector复用PG免运维
+</div>
+<div class="card card-soft" style="flex:1;padding:10px 14px;font-size:15px">
+<strong style="color:var(--accent-2)">设计规范：</strong>DDD-lite五层(model→repo→biz→service→router) · Service不持Repo · 金额DB存分API传元 · 全中文注释/日志
+</div>
+</div>
 </section>
 
 <!-- 7. ER DIAGRAM -->
